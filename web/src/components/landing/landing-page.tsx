@@ -10,7 +10,7 @@ export function LandingPage({ locale }: { locale: Locale }) {
     <>
       <div className="page-shell" dangerouslySetInnerHTML={{ __html: localize(shell, locale) }} />
       <div dangerouslySetInnerHTML={{ __html: localize(manifesto, locale) }} />
-      <LanguageSwitcher locale={locale} />
+      <LanguageSwitcher />
       <LandingScripts locale={locale} />
     </>
   )

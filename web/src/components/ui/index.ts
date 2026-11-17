@@ -9,6 +9,7 @@ export * from "./evidence-card";
 export * from "./field";
 export * from "./filter-bar";
 export * from "./icon";
+export * from "./language-switcher";
 export * from "./layout";
 export * from "./list";
 export * from "./logo-tile";

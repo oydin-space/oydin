@@ -3,6 +3,9 @@ import { Onest } from "next/font/google";
 import { PwaRegister } from "@/components/providers/pwa-register";
 import { TelegramProvider } from "@/components/providers/telegram-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { cookies } from "next/headers";
+import { I18nProvider } from "@/i18n";
+import { LOCALE_COOKIE, parseLocale } from "@/i18n/core";
 import "./globals.css";
 
 const onest = Onest({ variable: "--font-onest", subsets: ["latin", "cyrillic"], display: "swap" });
@@ -50,11 +53,14 @@ export const viewport: Viewport = {
   themeColor: "#FFD62C",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const initial = parseLocale((await cookies()).get(LOCALE_COOKIE)?.value) ?? undefined;
   return (
-    <html lang="ru" className={onest.variable}>
+    <html lang={initial ?? "ru"} className={onest.variable}>
       <body className="min-h-dvh font-sans">
-        <TelegramProvider>{children}</TelegramProvider>
+        <I18nProvider initial={initial}>
+          <TelegramProvider>{children}</TelegramProvider>
+        </I18nProvider>
         <PwaRegister />
         <Toaster />
       </body>

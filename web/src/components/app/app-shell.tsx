@@ -1,21 +1,25 @@
 "use client";
 
-import { CalendarDays, Gauge, Package, ReceiptText } from "lucide-react";
+import { CalendarDays, Gauge, Package, ReceiptText, Users } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { applyTelegramTheme, haptic } from "@/lib/telegram";
 import { CrayonIcon, type CrayonName } from "@/components/brand/crayon-icon";
 import { Logo, Wordmark } from "@/components/brand/logo";
+import { BusinessSwitcherMenu } from "@/components/business/business-switcher-menu";
 import { useSession } from "@/components/providers/session-provider";
+import type { Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const ALL: readonly Role[] = ["owner", "accountant", "seller"];
 const NAV = [
-  { href: "/app", label: "Пульс", icon: "pulse", fallback: Gauge },
-  { href: "/app/calendar", label: "Календарь", icon: "calendar", fallback: CalendarDays },
-  { href: "/app/operations", label: "Операции", icon: "operations", fallback: ReceiptText },
-  { href: "/app/products", label: "Товары", icon: "products", fallback: Package },
-] as const satisfies readonly { href: string; label: string; icon: CrayonName; fallback: typeof Gauge }[];
+  { href: "/app", label: "Пульс", icon: "pulse", fallback: Gauge, roles: ["owner", "accountant"] },
+  { href: "/app/calendar", label: "Календарь", icon: "calendar", fallback: CalendarDays, roles: ["owner", "accountant"] },
+  { href: "/app/operations", label: "Операции", icon: "operations", fallback: ReceiptText, roles: ALL },
+  { href: "/app/products", label: "Товары", icon: "products", fallback: Package, roles: ALL },
+  { href: "/app/team", label: "Команда", icon: "salary", fallback: Users, roles: ["owner"] },
+] as const satisfies readonly { href: string; label: string; icon: CrayonName; fallback: typeof Gauge; roles: readonly Role[] }[];
 
 function NavLink({ item, active, rail }: { item: (typeof NAV)[number]; active: boolean; rail: boolean }) {
   return (
@@ -37,13 +41,18 @@ function NavLink({ item, active, rail }: { item: (typeof NAV)[number]; active: b
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  const router = useRouter();
   const { user } = useSession();
   const isActive = (href: string) => (href === "/app" ? path === "/app" : path.startsWith(href));
-  const current = NAV.find((n) => isActive(n.href));
+  const nav = NAV.filter((n) => !user?.role || (n.roles as readonly Role[]).includes(user.role));
+  const current = nav.find((n) => isActive(n.href));
   const mainRef = useRef<HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => applyTelegramTheme(), []);
+  useEffect(() => {
+    if (user?.role === "seller" && path === "/app") router.replace("/app/operations");
+  }, [user?.role, path, router]);
   // Клавиатура: visualViewport сжимает приложение, а не сдвигает страницу.
   useEffect(() => {
     const vv = window.visualViewport;
@@ -77,9 +86,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="pt-safe glass hidden w-64 shrink-0 flex-col gap-6 border-r border-border/70 p-4 lg:flex">
         <Wordmark />
         <nav className="flex flex-col gap-1" aria-label="Разделы">
-          {NAV.map((n) => <NavLink key={n.href} item={n} active={isActive(n.href)} rail />)}
+          {nav.map((n) => <NavLink key={n.href} item={n} active={isActive(n.href)} rail />)}
         </nav>
-        <p className="mt-auto truncate text-sm text-muted-foreground">{user?.business?.name}</p>
+        <BusinessSwitcherMenu className="mt-auto" />
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className={cn("glass relative z-10 grid shrink-0 grid-cols-[2.5rem_1fr_2.5rem] items-center px-4 pb-2 pt-[max(env(safe-area-inset-top),var(--tg-top),0.75rem)] transition-[box-shadow] lg:hidden", showTitle ? "shadow-[0_0.5px_0_var(--border)]" : "shadow-none")}>
@@ -88,14 +97,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className={cn("absolute inset-0 truncate text-[0.95rem] font-semibold transition-all duration-200", showTitle ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0")} aria-hidden={!showTitle}>
               {current?.label}
             </span>
-            <span className={cn("absolute inset-0 truncate text-sm text-muted-foreground transition-opacity duration-200", showTitle ? "opacity-0" : "opacity-100")}>{user?.business?.name}</span>
+            <BusinessSwitcherMenu className={cn("absolute left-1/2 top-1/2 max-w-full -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200", showTitle ? "pointer-events-none opacity-0" : "opacity-100")} />
           </div>
         </header>
         <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-2 lg:px-8 lg:pt-8 [&:has(>[data-fill])]:overflow-hidden [&:has(>[data-fill])]:pb-0">
-          {children}
+          <Fragment key={user?.active_business_id ?? 0}>{children}</Fragment>
         </main>
         <nav className="pb-safe glass relative z-10 flex gap-1 border-t border-border/70 px-2 pt-1.5 lg:hidden" aria-label="Разделы">
-          {NAV.map((n) => <NavLink key={n.href} item={n} active={isActive(n.href)} rail={false} />)}
+          {nav.map((n) => <NavLink key={n.href} item={n} active={isActive(n.href)} rail={false} />)}
         </nav>
       </div>
     </div>

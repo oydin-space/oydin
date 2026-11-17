@@ -3,17 +3,21 @@ import { cookies } from "next/headers";
 import { LanguageSwitcher } from "@/components/landing/language-switcher";
 import { parseLocale } from "@/components/landing/localize";
 import { legalContent } from "@/content/legal";
-import { legalVersion, type DocumentKind } from "@/content/legal/types";
+import { legalVersion, type DocumentKind, type LegalLocale } from "@/content/legal/types";
 
-export async function LegalDocument({ kind }: { kind: Exclude<DocumentKind, "consent"> }) {
-  const locale = parseLocale((await cookies()).get("lang")?.value);
+const isLocale = (value: unknown): value is LegalLocale => value === "ru" || value === "uz" || value === "en";
+
+export async function LegalDocument({ kind, searchParams }: { kind: Exclude<DocumentKind, "consent">; searchParams?: Promise<{ lang?: string | string[] }> }) {
+  const queryLang = (await searchParams)?.lang;
+  // ?lang= wins over the cookie so links from the consent notice open in the language the user saw.
+  const locale = isLocale(queryLang) ? queryLang : parseLocale((await cookies()).get("oydin_lang")?.value);
   const copy = legalContent[locale];
   const sections = Object.entries(copy[kind]);
   return (
     <main lang={locale} className="mx-auto w-full max-w-3xl break-words px-page py-8 pb-24 text-foreground sm:px-page-lg">
       <nav aria-label="Oydin" className="mb-8 flex flex-wrap gap-4 text-small">
         <Link href="/" className="min-target focus-ring inline-flex items-center underline">Oydin</Link>
-        {(["privacy", "terms"] as const).map((doc) => <Link key={doc} href={`/${doc}`} aria-current={doc === kind ? "page" : undefined} className="min-target focus-ring inline-flex items-center underline">{copy.titles[doc]}</Link>)}
+        {(["privacy", "terms"] as const).map((doc) => <Link key={doc} href={`/${doc}?lang=${locale}`} aria-current={doc === kind ? "page" : undefined} className="min-target focus-ring inline-flex items-center underline">{copy.titles[doc]}</Link>)}
       </nav>
       <h1 className="text-page font-semibold">{copy.titles[kind]}</h1>
       <p className="mt-3 text-small text-muted-foreground">{copy.updated}: <time dateTime={legalVersion}>{legalVersion}</time></p>
@@ -31,7 +35,7 @@ export async function LegalDocument({ kind }: { kind: Exclude<DocumentKind, "con
           <div className="space-y-3">{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>
         </section>)}
       </article>
-      <LanguageSwitcher locale={locale} />
+      <LanguageSwitcher />
     </main>
   );
 }
