@@ -1,0 +1,11 @@
+# Дописать в Caddyfile внешнего Caddy (сеть edge), затем перезагрузить конфиг. Замените домен на свой.
+oydin.example.uz {
+	encode zstd gzip
+	@django path /admin* /static*
+	handle @django {
+		reverse_proxy oydin-api:8000
+	}
+	handle {
+		reverse_proxy oydin-web:3010
+	}
+}

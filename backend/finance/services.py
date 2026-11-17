@@ -1,0 +1,296 @@
+"""Сценарии чтения: собирают данные из БД и вызывают доменные функции."""
+
+import math
+from dataclasses import dataclass
+from datetime import timedelta
+
+from django.contrib.postgres.search import TrigramWordSimilarity
+from django.db.models import Q, Sum
+from django.db.models.functions import Greatest
+from django.utils import timezone
+
+from .domain import forecast as fc
+from .domain import pulse as pl
+from .domain.categories import OBLIGATION_CATEGORIES, ORDER_INCOME_CATEGORIES
+from .domain.fmt import money, short_date
+from .domain.transfers import Candidate, find_counterpart
+from .models import Account, Envelope, Obligation, Order, Product, Transaction
+
+PERIOD_DAYS = {"week": 7, "month": 30, "quarter": 90}
+
+
+def today():
+    return timezone.localdate()
+
+
+def confirmed(business):
+    return Transaction.objects.filter(business=business, status=Transaction.Status.CONFIRMED)
+
+
+def account_balances(business):
+    balances = {a.id: a.opening_balance for a in Account.objects.filter(business=business)}
+    rows = confirmed(business).values("account_id", "direction", "transfer_account_id").annotate(total=Sum("amount"))
+    for row in rows:
+        if row["direction"] == "in":
+            balances[row["account_id"]] += row["total"]
+        elif row["direction"] == "out":
+            balances[row["account_id"]] -= row["total"]
+        elif row["transfer_account_id"]:
+            balances[row["account_id"]] -= row["total"]
+            balances[row["transfer_account_id"]] += row["total"]
+    return balances
+
+
+def list_accounts(business):
+    balances = account_balances(business)
+    return [
+        {"id": a.id, "name": a.name, "kind": a.kind, "balance": balances[a.id]}
+        for a in Account.objects.filter(business=business)
+    ]
+
+
+def period_totals(business, start, end):
+    """Выручка, расходы бизнеса и личные траты за [start, end]. Переводы между счетами не считаются."""
+    qs = confirmed(business).filter(date__gte=start, date__lte=end)
+    revenue = qs.filter(direction="in").aggregate(s=Sum("amount"))["s"] or 0
+    out = qs.filter(direction="out")
+    personal = out.filter(purpose="personal").aggregate(s=Sum("amount"))["s"] or 0
+    expenses = (out.aggregate(s=Sum("amount"))["s"] or 0) - personal
+    spent = expenses + personal
+    return {
+        "revenue": revenue,
+        "expenses": expenses,
+        "personal": personal,
+        "profit": revenue - expenses,
+        "personal_share": round(personal / spent, 3) if spent else 0.0,
+    }
+
+
+def daily_rates(business, now):
+    """Средний дневной приход и расход за 30 дней вне регулярных обязательств и оплат заказов (их прогноз считает отдельно)."""
+    start = now - timedelta(days=30)
+    qs = confirmed(business).filter(date__gt=start, date__lte=now)
+    inflow = qs.filter(direction="in").exclude(category__in=ORDER_INCOME_CATEGORIES).aggregate(s=Sum("amount"))["s"] or 0
+    outflow = qs.filter(direction="out").exclude(category__in=OBLIGATION_CATEGORIES).aggregate(s=Sum("amount"))["s"] or 0
+    total_out = qs.filter(direction="out").aggregate(s=Sum("amount"))["s"] or 0
+    return inflow // 30, outflow // 30, total_out // 30
+
+
+@dataclass
+class Bundle:
+    today: object
+    balance: int
+    flows: list
+    points: list
+    avg_daily_out: int
+
+
+def planned_flows(business, now):
+    flows = []
+    for o in Obligation.objects.filter(business=business).exclude(status="paid"):
+        sign = 1 if o.kind == "receivable" else -1
+        flows.append(fc.Flow(o.due_date, sign * o.amount, o.title))
+    for order in Order.objects.filter(business=business).exclude(status="paid"):
+        remaining = order.total - order.prepaid
+        if remaining > 0:
+            flows.append(fc.Flow(order.due_date, remaining, f"Оплата заказа: {order.client}"))
+    return flows
+
+
+def bundle(business, days=90, now=None):
+    now = now or today()
+    balance = sum(account_balances(business).values())
+    daily_in, daily_out, avg_out = daily_rates(business, now)
+    flows = planned_flows(business, now)
+    points = fc.build_forecast(now, balance, flows, daily_in, daily_out, days)
+    return Bundle(now, balance, flows, points, avg_out)
+
+
+def forecast_points(business, days):
+    return [
+        {"date": p.date.isoformat(), "balance": p.balance, "inflow": p.inflow, "outflow": p.outflow}
+        for p in bundle(business, days).points
+    ]
+
+
+def obligation_dicts(business, b, only_id=None):
+    by_date = {p.date: p.balance for p in b.points}
+    result = []
+    qs = Obligation.objects.filter(business=business)
+    qs = qs.filter(pk=only_id) if only_id else qs.filter(due_date__gte=b.today - timedelta(days=30))
+    for o in qs:
+        status = o.status
+        if status == "planned" and o.due_date < b.today:
+            status = "overdue"
+        if status == "paid" or o.kind == "receivable":
+            covered = True
+        else:
+            day = max(o.due_date, b.today + timedelta(days=1))
+            covered = by_date.get(day, b.points[-1].balance if b.points else b.balance) >= 0
+        result.append({
+            "id": o.id, "title": o.title, "kind": o.kind, "amount": o.amount,
+            "due_date": o.due_date, "status": status, "covered": covered,
+        })
+    return result
+
+
+def serialize_obligation(o):
+    return {**o, "due_date": o["due_date"].isoformat()}
+
+
+def envelopes(business, now=None):
+    now = now or today()
+    return [
+        {
+            "id": e.id, "title": e.title, "target": e.target, "saved": e.saved,
+            "due_date": e.due_date.isoformat(),
+            "daily": math.ceil(max(0, e.target - e.saved) / max(1, (e.due_date - now).days)),
+        }
+        for e in Envelope.objects.filter(business=business)
+    ]
+
+
+def pulse(business, now=None):
+    b = bundle(business, 90, now)
+    gap = fc.find_gap(b.points, b.flows, b.today)
+    obligations = obligation_dicts(business, b)
+    month = period_totals(business, b.today - timedelta(days=29), b.today)
+    result = pl.compute_pulse(pl.PulseInput(
+        today=b.today, balance=b.balance, points=b.points, gap=gap, obligations=obligations,
+        avg_daily_out=b.avg_daily_out, personal_share=month["personal_share"],
+    ))
+    env = envelopes(business, b.today)
+    saved = sum(e["saved"] for e in env)
+    target = sum(e["target"] for e in env)
+    safe = result["safe_to_spend"]
+    weekly_profit = [
+        period_totals(business, b.today - timedelta(days=7 * (i + 1) - 1), b.today - timedelta(days=7 * i))["profit"]
+        for i in reversed(range(4))
+    ]
+    share = month["personal_share"]
+    result["metrics"] = [
+        {"key": "free_money", "label": "Свободные деньги", "value": safe, "unit": "sum",
+         "tone": "calm" if safe > 0 else "watch",
+         "hint": "Можно потратить сегодня, не задев платежи на 30 дней вперёд"},
+        {"key": "reserved", "label": "Отложено под платежи", "value": saved, "unit": "sum",
+         "tone": "calm" if target == 0 or saved >= target * 0.5 else "watch",
+         "hint": f"В конвертах {money(saved)} из {money(target)}" if target else "Конвертов пока нет"},
+        {"key": "owner_take", "label": "Можно взять себе", "value": min(safe, max(month["profit"], 0)), "unit": "sum",
+         "tone": "calm" if safe > 0 and month["profit"] > 0 else "watch",
+         "hint": "Не больше свободных денег и прибыли за месяц"},
+        {"key": "profit", "label": "Реальная прибыль за месяц", "value": month["profit"], "unit": "sum",
+         "tone": "calm" if month["profit"] > 0 else "watch",
+         "hint": f"Выручка {money(month['revenue'])} минус расходы бизнеса {money(month['expenses'])}",
+         "trend": weekly_profit},
+        {"key": "personal_share", "label": "Личные траты из кассы", "value": round(share * 100), "unit": "pct",
+         "tone": "calm" if share < 0.15 else "watch",
+         "hint": "Доля нецелевых трат в расходах за 30 дней"},
+    ]
+    return result
+
+
+def analytics(business, period, now=None):
+    now = now or today()
+    days = PERIOD_DAYS[period]
+    start = now - timedelta(days=days - 1)
+    totals = period_totals(business, start, now)
+    out = confirmed(business).filter(direction="out", date__gte=start, date__lte=now)
+    cats = {}
+    for row in out.filter(~Q(purpose="personal")).values("category").annotate(s=Sum("amount")):
+        cats[row["category"]] = row["s"]
+    if totals["personal"]:
+        cats["Личное"] = totals["personal"]
+    ranked = sorted(cats.items(), key=lambda kv: -kv[1])
+    by_category = [{"label": k, "value": v} for k, v in ranked[:7]]
+    rest = sum(v for _, v in ranked[7:])
+    if rest:
+        by_category.append({"label": "Прочее", "value": rest})
+    by_week = []
+    weeks = math.ceil(days / 7)
+    for i in reversed(range(weeks)):
+        end = now - timedelta(days=7 * i)
+        begin = max(start, end - timedelta(days=6))
+        qs = confirmed(business).filter(date__gte=begin, date__lte=end)
+        by_week.append({
+            "label": short_date(begin),
+            "inflow": qs.filter(direction="in").aggregate(s=Sum("amount"))["s"] or 0,
+            "outflow": qs.filter(direction="out").aggregate(s=Sum("amount"))["s"] or 0,
+        })
+    return {
+        "revenue": totals["revenue"], "expenses": totals["expenses"], "profit": totals["profit"],
+        "personal_share": totals["personal_share"], "by_category": by_category, "by_week": by_week,
+    }
+
+
+def search_transactions(qs, q):
+    """Поиск по заметке/контрагенту/категории: подстрока или триграммное сходство слов (терпит опечатки)."""
+    q = q.strip()
+    if not q:
+        return qs
+    return qs.annotate(
+        sim=Greatest(
+            TrigramWordSimilarity(q, "note"),
+            TrigramWordSimilarity(q, "counterparty"),
+            TrigramWordSimilarity(q, "category"),
+        )
+    ).filter(
+        Q(note__icontains=q) | Q(counterparty__icontains=q) | Q(category__icontains=q) | Q(sim__gte=0.4)
+    ).order_by("-date", "-id")
+
+
+def merge_transfer(tx):
+    """Если у новой операции есть зеркальная на другом счёте — это перевод между своими счетами, а не расход."""
+    if tx.direction not in ("in", "out") or tx.status != "confirmed":
+        return tx
+    nearby = Transaction.objects.filter(
+        business=tx.business, status="confirmed", amount=tx.amount,
+        date__gte=tx.date - timedelta(days=1), date__lte=tx.date + timedelta(days=1),
+    ).exclude(pk=tx.pk).exclude(direction="transfer").exclude(account=tx.account)
+    me = Candidate(tx.pk, tx.account_id, tx.direction, tx.amount, tx.date, tx.counterparty)
+    others = {t.pk: t for t in nearby}
+    match = find_counterpart(me, [
+        Candidate(t.pk, t.account_id, t.direction, t.amount, t.date, t.counterparty) for t in others.values()
+    ])
+    if match is None:
+        return tx
+    other = others[match.id]
+    source, target = (tx, other) if tx.direction == "out" else (other, tx)
+    source.direction = "transfer"
+    source.transfer_account_id = target.account_id
+    source.category = "Перевод между счетами"
+    source.purpose = "business"
+    source.save()
+    target.delete()
+    return source
+
+
+def serialize_transaction(t):
+    return {
+        "id": t.id, "date": t.date.isoformat(), "amount": t.amount, "direction": t.direction,
+        "category": t.category, "purpose": t.purpose, "account_id": t.account_id,
+        "counterparty": t.counterparty, "note": t.note, "status": t.status, "source": t.source,
+    }
+
+
+def serialize_product(p):
+    margin = (p.price - p.unit_cost) / p.price * 100 if p.price else 0
+    markup = (p.price - p.unit_cost) / p.unit_cost * 100 if p.unit_cost else 0
+    return {
+        "id": p.id, "name": p.name, "price": p.price, "unit_cost": p.unit_cost,
+        "margin_pct": round(margin, 1), "markup_pct": round(markup, 1), "cost_is_estimate": p.cost_is_estimate,
+    }
+
+
+def products(business):
+    return [serialize_product(p) for p in Product.objects.filter(business=business)]
+
+
+def orders(business):
+    return [
+        {
+            "id": o.id, "client": o.client, "channel": o.channel, "total": o.total, "prepaid": o.prepaid,
+            "status": o.status, "due_date": o.due_date.isoformat(),
+            "items": [{"product_id": i.product_id, "qty": i.qty, "price": i.price} for i in o.items.all()],
+        }
+        for o in Order.objects.filter(business=business).prefetch_related("items")
+    ]

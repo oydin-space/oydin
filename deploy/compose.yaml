@@ -1,0 +1,62 @@
+# Прод Oydin. Запуск: mise run deploy (нужен deploy/.env, образец — deploy/.env.example).
+# TLS и маршруты делает внешний Caddy (сеть edge), сюда он ходит по алиасам oydin-web / oydin-api.
+name: oydin
+services:
+  oydin-db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: oydin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?нужен deploy/.env}
+      POSTGRES_DB: oydin
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oydin -d oydin"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+  oydin-api:
+    build: ../backend
+    environment:
+      DATABASE_URL: postgres://oydin:${POSTGRES_PASSWORD}@oydin-db:5432/oydin
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?нужен deploy/.env}
+      DEBUG: "false"
+      ALLOWED_HOSTS: ${PUBLIC_HOST:?нужен deploy/.env},oydin-api
+      CSRF_TRUSTED_ORIGINS: https://${PUBLIC_HOST}
+      DEMO_LOGIN: ${DEMO_LOGIN:-0}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-google/gemini-3.5-flash}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-google/gemini-3.1-flash-lite}
+      STT_MODEL: ${STT_MODEL:-google/gemini-3.5-flash-lite}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}
+    depends_on:
+      oydin-db:
+        condition: service_healthy
+    networks:
+      default:
+      edge:
+        aliases: [oydin-api]
+    restart: unless-stopped
+  oydin-web:
+    build:
+      context: ../web
+      args:
+        API_URL: http://oydin-api:8000
+    environment:
+      API_URL: http://oydin-api:8000
+    depends_on: [oydin-api]
+    networks:
+      default:
+      edge:
+        aliases: [oydin-web]
+    restart: unless-stopped
+volumes:
+  pgdata:
+networks:
+  edge:
+    name: edge
+    external: true
