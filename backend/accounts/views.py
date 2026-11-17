@@ -22,8 +22,9 @@ from .services import (
     user_for_google,
     user_for_telegram,
 )
-from .telegram import InvalidInitData, validate_init_data
+from .telegram import InvalidInitData, validate_init_data, validate_widget
 
+SEGMENTS = {value for value, _ in Business.Segment.choices}
 TAX_REGIMES = {value for value, _ in Business.TaxRegime.choices}
 ROLES = {value for value, _ in Membership.Role.choices}
 BACKEND = "django.contrib.auth.backends.ModelBackend"
@@ -72,6 +73,25 @@ def telegram(request):
     except InvalidInitData as exc:
         raise ApiError(401, str(exc)) from None
     return _login(request, user_for_telegram(tg_user))
+
+
+WIDGET_STATUS = {"not_configured": 503, "invalid_hash": 403, "expired": 400, "invalid": 400}
+
+
+@csrf_exempt
+@api_view("POST", auth=False)
+def telegram_widget(request):
+    body = parse_json(request)
+    try:
+        tg_user = validate_widget(body, settings.TELEGRAM_BOT_TOKEN)
+    except InvalidInitData as exc:
+        code = str(exc)
+        raise ApiError(WIDGET_STATUS[code], "telegram_not_configured" if code == "not_configured" else code) from None
+    user = user_for_telegram(tg_user)
+    if user.is_staff or user.is_superuser:
+        raise ApiError(403, "forbidden")
+    claim_invites(user)
+    return _login(request, user)
 
 
 def _client_ip(request):
@@ -184,12 +204,20 @@ def _text(body, key, required=False, limit=200):
     return value
 
 
+def _segment(body):
+    value = body.get("segment", "")
+    if value not in SEGMENTS | {""}:
+        raise ApiError(400, "invalid_segment")
+    return value
+
+
 @api_view("GET", "POST", business=False)
 def businesses(request):
     if request.method == "POST":
         body = parse_json(request)
         created = create_business(
-            request.user, _text(body, "name", required=True), _text(body, "industry"), _text(body, "city")
+            request.user, _text(body, "name", required=True), _text(body, "industry"), _text(body, "city"),
+            _segment(body),
         )
         membership = Membership.objects.select_related("business").get(user=request.user, business=created)
         return json_response(serialize_business_item(membership), status=201)
@@ -216,6 +244,9 @@ def business_detail(request, business_id):
         if key in body:
             setattr(b, key, _text(body, key, required=key == "name"))
             fields.append(key)
+    if "segment" in body:
+        b.segment = _segment(body)
+        fields.append("segment")
     if fields:
         b.save(update_fields=fields)
     return json_response(serialize_business_item(membership))

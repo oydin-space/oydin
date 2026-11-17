@@ -38,3 +38,27 @@ def validate_init_data(init_data, bot_token, *, now=None):
     except (KeyError, ValueError, TypeError):
         raise InvalidInitData("Нет пользователя") from None
     return user
+
+
+def validate_widget(data, bot_token, *, now=None):
+    """Telegram Login Widget: https://core.telegram.org/widgets/login#checking-authorization
+    Возвращает словарь пользователя; ошибки — коды not_configured / invalid / invalid_hash / expired."""
+    if not bot_token:
+        raise InvalidInitData("not_configured")
+    fields = {k: str(v) for k, v in data.items() if v is not None}
+    received_hash = fields.pop("hash", None)
+    if not received_hash:
+        raise InvalidInitData("invalid_hash")
+    check_string = "\n".join(f"{key}={fields[key]}" for key in sorted(fields))
+    secret = hashlib.sha256(bot_token.encode()).digest()
+    expected = hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, received_hash):
+        raise InvalidInitData("invalid_hash")
+    try:
+        auth_date = int(fields["auth_date"])
+        user = {**data, "id": int(data["id"])}
+    except (KeyError, ValueError, TypeError):
+        raise InvalidInitData("invalid") from None
+    if (now if now is not None else time.time()) - auth_date > MAX_AGE_SECONDS:
+        raise InvalidInitData("expired")
+    return user

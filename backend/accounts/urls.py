@@ -7,6 +7,7 @@ urlpatterns = [
     path("auth/providers/", views.providers),
     path("auth/demo/", views.demo),
     path("auth/telegram/", views.telegram),
+    path("auth/telegram/widget/", views.telegram_widget),
     path("auth/email/request/", views.email_request),
     path("auth/email/verify/", views.email_verify),
     path("auth/google/start/", views.google_start),
