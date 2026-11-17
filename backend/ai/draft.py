@@ -9,23 +9,35 @@ from finance.validation import MAX_AMOUNT
 DIRECTIONS = {c for c, _ in Transaction.Direction.choices}
 PURPOSES = {c for c, _ in Transaction.Purpose.choices}
 
-AMOUNT = re.compile(r"(\d{1,3}(?:[\s\u00a0]\d{3})+|\d+)(?:[.,](\d+))?\s*(млн|миллион\w*|тыс\w*|к(?![а-яё]))?", re.I)
-IN_WORDS = re.compile(r"получил|получила|пришл|поступил|продал|выручк|предоплат|клиент\w*\s+(?:заплатил|оплатил|перевел|перевёл)", re.I)
-OUT_WORDS = re.compile(r"заплатил|заплатила|оплатил|оплатила|потратил|потратила|купил|купила|отдал|отдала|выдал|выдала|списал|снял|перевёл|перевел", re.I)
-PERSONAL = re.compile(r"личн|себе|семь|жене|мужу|дет[яи]м|кофе|обед|ужин|продукт|одежд|такси домой", re.I)
+UZ_TENS = {"o'n": 10, "yigirma": 20, "o'ttiz": 30, "qirq": 40, "ellik": 50, "oltmish": 60, "yetmish": 70, "sakson": 80, "to'qson": 90, "yuz": 100}
+UZ_ONES = {"bir": 1, "ikki": 2, "uch": 3, "to'rt": 4, "besh": 5, "olti": 6, "yetti": 7, "sakkiz": 8, "to'qqiz": 9}
+MILLION = r"млн|миллион\w*|mln|million\w*"
+THOUSAND = r"тыс\w*|ming\w*|к(?![а-яё])"
+AMOUNT = re.compile(rf"(\d{{1,3}}(?:[\s\u00a0]\d{{3}})+|\d+)(?:[.,](\d+))?\s*({MILLION}|{THOUSAND})?", re.I)
+WORD_AMOUNT = re.compile(
+    rf"(?P<half>пол(?:тора|торы)|пол\s?(?=миллион)|yarim)\s*(?P<unit>{MILLION})?|(?P<tens>{'|'.join(map(re.escape, UZ_TENS))})\s+(?P<ones>{'|'.join(map(re.escape, UZ_ONES))})?\s*(?P<uzunit>{MILLION}|{THOUSAND})",
+    re.I,
+)
+IN_WORDS = re.compile(
+    r"получил|получила|пришл|поступил|продал|выручк|предоплат|клиент\w*\s+(?:заплатил|оплатил|перевел|перевёл)"
+    r"|mijoz\w*\s.*(?:to'ladi|o'tkazdi|berdi)|tushdi|keldi|sotdim", re.I)
+OUT_WORDS = re.compile(
+    r"заплатил|заплатила|оплатил|оплатила|потратил|потратила|купил|купила|отдал|отдала|выдал|выдала|списал|снял|перевёл|перевел"
+    r"|to'ladim|berdim|sotib oldim|o'tkazdim|sarfladim|xarajat", re.I)
+PERSONAL = re.compile(r"личн|себе|семь|жене|мужу|дет[яи]м|кофе|обед|ужин|продукт|одежд|такси домой|подар|oilam|shaxsiy", re.I)
 ACCOUNT_KINDS = [
-    (re.compile(r"налич", re.I), "cash"),
-    (re.compile(r"карт|uzcard|humo", re.I), "card"),
-    (re.compile(r"сч[её]т|перечисл|банк", re.I), "bank"),
+    (re.compile(r"налич|naqd", re.I), "cash"),
+    (re.compile(r"карт|uzcard|humo|karta", re.I), "card"),
+    (re.compile(r"сч[её]т|перечисл|банк|р/с|hisob|bank", re.I), "bank"),
 ]
 CATEGORIES = [
-    (re.compile(r"аренд", re.I), "Аренда"),
-    (re.compile(r"зарплат", re.I), "Зарплата"),
-    (re.compile(r"налог", re.I), "Налоги"),
+    (re.compile(r"аренд|ijara", re.I), "Аренда"),
+    (re.compile(r"зарплат|oylik", re.I), "Зарплата"),
+    (re.compile(r"налог|soliq", re.I), "Налоги"),
     (re.compile(r"кредит", re.I), "Кредит"),
-    (re.compile(r"поставщик|заготовк|ткан|закуп", re.I), "Поставщик"),
+    (re.compile(r"поставщик|заготовк|ткан|закуп|yetkazib|mato", re.I), "Поставщик"),
     (re.compile(r"реклам", re.I), "Реклама"),
-    (re.compile(r"такси|бензин|проезд", re.I), "Транспорт"),
+    (re.compile(r"такси|бензин|проезд|taksi", re.I), "Транспорт"),
     (re.compile(r"кофе|обед|ужин|продукт|еда", re.I), "Питание"),
     (re.compile(r"коммунал|свет|газ|интернет", re.I), "Коммунальные"),
 ]
@@ -62,16 +74,41 @@ def validate_draft(business, raw):
     }
 
 
+def _multiplier(word):
+    return 10**6 if word.lower().startswith(("млн", "милл", "mln", "mill")) else 10**3
+
+
 def parse_amount(text):
-    """Первая сумма в сумах: «4 млн», «150 тысяч», «1 200 000»; None, если нет."""
+    """Первая сумма в сумах: «4 млн», «1 млн 200 тысяч», «полтора миллиона», «yigirma ming»; None, если нет."""
+    text = re.sub("[’ʻ`‘]", "'", text)
+    amount = None
+    for match in WORD_AMOUNT.finditer(text):
+        if match["half"]:
+            value = 1.5 * (_multiplier(match["unit"]) if match["unit"] else 10**6) if match["half"].lower().startswith("полт") \
+                else 0.5 * (_multiplier(match["unit"]) if match["unit"] else 10**6)
+        else:
+            tens = UZ_TENS[match["tens"].lower()] if match["tens"] else 0
+            value = (tens + (UZ_ONES[match["ones"].lower()] if match["ones"] else 0)) * _multiplier(match["uzunit"])
+        amount = int(value)
+        break
+    total, last_end, last_mult = 0, None, None
     for match in AMOUNT.finditer(text):
         whole, fraction, word = match.groups()
         value = float(re.sub(r"\s", "", whole) + ("." + fraction if fraction else ""))
-        if word:
-            value *= 10**6 if word.lower().startswith(("млн", "милл")) else 10**3
-        if value >= 1000:
-            return int(round(value))
-    return None
+        mult = _multiplier(word) if word else 1
+        value *= mult
+        joined = last_end is not None and last_mult and mult < last_mult and re.fullmatch(r"\s*(?:и\s*)?", text[last_end:match.start()])
+        if joined:
+            total += value
+        elif total >= 1000:
+            break
+        elif value >= 1000:
+            total = value
+        else:
+            continue
+        last_end, last_mult = match.end(), mult
+    digits = int(round(total)) if total >= 1000 else None
+    return digits if digits is not None else amount
 
 
 def parse_text_draft(business, text):
