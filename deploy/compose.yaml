@@ -47,6 +47,7 @@ services:
       CSRF_TRUSTED_ORIGINS: https://${PUBLIC_HOST}
       DEMO_LOGIN: ${DEMO_LOGIN:-1}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-oydin_agent}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-google/gemini-3.1-flash-lite}
@@ -86,6 +87,20 @@ services:
       DATABASE_URL: postgres://oydin:${POSTGRES_PASSWORD}@db:5432/oydin
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?нужен .env}
       DEBUG: "0"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+  # Рассылки бота: утренняя сводка, предупреждения о разрыве, недельный дайджест, напоминания.
+  botjobs:
+    image: oydin-api:latest
+    command: ["python", "manage.py", "run_bot_jobs", "--loop"]
+    environment:
+      DATABASE_URL: postgres://oydin:${POSTGRES_PASSWORD}@db:5432/oydin
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?нужен .env}
+      DEBUG: "0"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-oydin_agent}
     depends_on:
       api:
         condition: service_healthy

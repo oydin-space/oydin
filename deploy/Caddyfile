@@ -3,6 +3,11 @@
 	request_body {
 		max_size 25MB
 	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
 
 	# Django ждёт завершающий слеш (как в rewrite Next)
 	@noslash path_regexp noslash ^/api/(.*[^/])$
