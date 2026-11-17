@@ -135,6 +135,34 @@ class AffordTests(PlanningCase):
         self.assertEqual(self.afford(amount=1).status_code, 401)
 
 
+class AffordLanguageTests(PlanningCase):
+    def test_texts_by_language_same_numbers(self):
+        self.fund(1_000_000)
+        out = {}
+        for lang in ("ru", "uz", "en", "xx"):
+            out[lang] = self.afford(amount=3_000_000, lang=lang).json()
+        for lang in ("uz", "en", "xx"):
+            for k in ("verdict", "amount_uzs", "min_balance_after", "gap_date"):
+                self.assertEqual(out[lang][k], out["ru"][k])
+        self.assertEqual(out["ru"]["verdict"], "no")
+        self.assertIn("млн", out["ru"]["explanation"])
+        self.assertIn("mln", out["uz"]["explanation"])
+        self.assertIn("3M", out["en"]["explanation"])
+        self.assertNotRegex(out["uz"]["explanation"] + "".join(out["uz"]["assumptions"]), "[А-Яа-я]")
+        self.assertNotRegex(out["en"]["explanation"] + "".join(out["en"]["assumptions"]), "[А-Яа-я]")
+        self.assertEqual(out["xx"]["explanation"], out["ru"]["explanation"])
+        self.assertEqual(out["xx"]["assumptions"], out["ru"]["assumptions"])
+        for lang in ("uz", "en"):
+            for alt in out[lang]["alternatives"]:
+                self.assertNotRegex(alt["title"], "[А-Яа-я]")
+
+    def test_accept_language_header(self):
+        self.fund(10_000_000)
+        r = self.client.post("/api/decisions/afford/", {"amount": 1_000_000, "currency": "UZS"},
+                             content_type="application/json", headers={"Accept-Language": "en-US,en;q=0.9"})
+        self.assertNotRegex(r.json()["explanation"], "[А-Яа-я]")
+
+
 class CashCloseTests(PlanningCase):
     def setUp(self):
         super().setUp()

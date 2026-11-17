@@ -12,6 +12,7 @@ from finance.models import Account
 from finance.validation import MAX_AMOUNT, parse_amount, parse_date
 
 from . import services as svc
+from .texts import resolve_lang
 from .models import CashClose, Commitment, DebtorReminder, Goal, TaxReminder, TaxReserve
 
 PERCENT_RE = re.compile(r"^[0-9]{1,2}(\.[0-9]{1,2})?$")
@@ -55,7 +56,8 @@ def afford(request):
     recurring = body.get("recurring")
     if recurring is not None:
         choice(recurring, ("weekly", "monthly"), "recurring")
-    return json_response(svc.afford(request.business, amount, currency, day, title, recurring))
+    return json_response(svc.afford(request.business, amount, currency, day, title, recurring,
+                                         lang=resolve_lang(request, body)))
 
 
 # ------------------------------------------------------------------ cash close
@@ -320,13 +322,15 @@ def debtor_reminders(request):
     if request.method == "GET":
         return json_response({"items": [svc.serialize_debtor_reminder(r)
                                         for r in DebtorReminder.objects.filter(business=business)]})
-    name = text_field(parse_json(request).get("counterparty"), "counterparty", 200)
+    body = parse_json(request)
+    name = text_field(body.get("counterparty"), "counterparty", 200)
     debtor = next((d for d in svc.debtors(business) if d["counterparty"] == name), None)
     if debtor is None:
         raise ApiError(404, "Должник не найден")
     reminder = DebtorReminder.objects.create(
         business=business, counterparty=name, amount=debtor["balance"],
-        text=svc.reminder_text(name, debtor["balance"], debtor["oldest_due_date"]),
+        text=svc.reminder_text(name, debtor["balance"], debtor["oldest_due_date"],
+                              resolve_lang(request, body)),
     )
     return json_response(svc.serialize_debtor_reminder(reminder), status=201)
 

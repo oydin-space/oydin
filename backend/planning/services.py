@@ -15,10 +15,10 @@ from django.utils import timezone
 from accounts.http import ApiError
 from finance import services as fin
 from finance.domain import forecast as fc
-from finance.domain.fmt import money
 from finance.models import Account, Envelope, Obligation, Order, Transaction
 from finance.rates import RateUnavailable, rows_to_uzs, to_uzs
 
+from .texts import money as tx_money, tr
 from .models import Commitment, DebtorReminder, Goal, TaxReserve
 
 AFFORD_HORIZON = 30
@@ -121,21 +121,17 @@ def simulate(points, outflows, buffer):
     return verdict, low, low_point.date, gap
 
 
-def explain(verdict, amount, low, low_date, gap, buffer, recurring):
-    what = f"Покупка {money(amount)}" + (" (повторяется)" if recurring else "")
-    if verdict == "no":
-        when = f", первый разрыв {gap.isoformat()}" if gap else ""
-        return f"{what}: денег не хватит — остаток уйдёт в минус ({money(low)} на {low_date.isoformat()}{when})."
-    if verdict == "risky":
-        return (f"{what}: остаток не уйдёт в минус, но опустится до {money(low)} на {low_date.isoformat()} — "
-                f"ниже запаса {money(buffer)} (резервы и конверты).")
-    return f"{what}: прогнозный остаток не опустится ниже {money(low)} ({low_date.isoformat()}), запас {money(buffer)} цел."
+def explain(verdict, amount, low, low_date, gap, buffer, recurring, lang="ru"):
+    what = tr("purchase", lang, a=tx_money(amount, lang)) + (tr("repeats", lang) if recurring else "")
+    when = tr("first_gap", lang, d=gap.isoformat()) if verdict == "no" and gap else ""
+    return tr(verdict, lang, what=what, low=tx_money(low, lang), d=low_date.isoformat(), when=when,
+              buf=tx_money(buffer, lang))
 
 
 RANK = {"no": 0, "risky": 1, "yes": 2}
 
 
-def afford(business, amount, currency, day=None, title="", recurring=None, now=None):
+def afford(business, amount, currency, day=None, title="", recurring=None, now=None, lang="ru"):
     now = now or fin.today()
     day = max(day or now, now)
     if day > now + timedelta(days=AFFORD_MAX_AHEAD):
@@ -162,27 +158,23 @@ def afford(business, amount, currency, day=None, title="", recurring=None, now=N
             later = day + timedelta(days=shift)
             if later <= now + timedelta(days=AFFORD_MAX_AHEAD) and later + timedelta(days=AFFORD_HORIZON) <= b.points[-1].date:
                 before = len(alternatives)
-                alt("later_date", f"Отложить на {shift} дн.", later, amount_uzs,
+                alt("later_date", tr("later_date", lang, n=shift), later, amount_uzs,
                     occurrences(later, amount_uzs, recurring, later + timedelta(days=AFFORD_HORIZON)))
                 if len(alternatives) > before:
                     break
         half = amount_uzs // 2
         if half > 0:
-            alt("smaller_amount", f"Взять меньше: {money(half)}", None, half, occurrences(day, half, recurring, horizon_end))
+            alt("smaller_amount", tr("smaller", lang, a=tx_money(half, lang)), None, half, occurrences(day, half, recurring, horizon_end))
             second = day + timedelta(days=30)
             if not recurring and second + timedelta(days=AFFORD_HORIZON) <= b.points[-1].date:
-                alt("split", f"Разделить: {money(half)} сейчас и {money(amount_uzs - half)} через 30 дней", second,
+                alt("split", tr("split", lang, a=tx_money(half, lang), b=tx_money(amount_uzs - half, lang)), second,
                     half, [(day, half), (second, amount_uzs - half)])
     return {
         "verdict": verdict, "amount_uzs": amount_uzs, "min_balance_after": low,
         "min_balance_date": low_date.isoformat(), "gap_date": gap.isoformat() if gap else None,
-        "explanation": explain(verdict, amount_uzs, low, low_date, gap, buffer, recurring),
+        "explanation": explain(verdict, amount_uzs, low, low_date, gap, buffer, recurring, lang),
         "alternatives": alternatives[:3],
-        "assumptions": [
-            "Прогноз на 30 дней по средним поступлениям и расходам за последние 30 дней и плановым платежам",
-            f"Запас = налоговый резерв + конверты: {money(buffer)}",
-            "Покупка не записывается в учёт",
-        ],
+        "assumptions": [tr("as1", lang), tr("as2", lang, buf=tx_money(buffer, lang)), tr("as3", lang)],
     }
 
 
@@ -315,9 +307,8 @@ def debtors(business, now=None):
     return sorted(items, key=lambda i: -i["balance"])
 
 
-def reminder_text(counterparty, balance, oldest_due):
-    return (f"Здравствуйте, {counterparty}! Напоминаем о задолженности {money(balance)} "
-            f"(ближайший срок оплаты — {oldest_due}). Подскажите, пожалуйста, когда ждать оплату? Спасибо!")
+def reminder_text(counterparty, balance, oldest_due, lang="ru"):
+    return tr("debtor", lang, name=counterparty, a=tx_money(balance, lang), due=oldest_due)
 
 
 def serialize_debtor_reminder(r):
