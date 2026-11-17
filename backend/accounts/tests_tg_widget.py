@@ -3,6 +3,7 @@ import hmac
 import json
 import time
 
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 
 from accounts.models import Profile
@@ -22,6 +23,9 @@ def widget_payload(token=TOKEN, **over):
 
 @override_settings(TELEGRAM_BOT_TOKEN=TOKEN)
 class TelegramWidgetTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
     def post(self, payload):
         return self.client.post(URL, payload, content_type="application/json")
 

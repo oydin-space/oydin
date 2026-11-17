@@ -14,6 +14,7 @@ from .models import Business, Membership
 from .services import (
     claim_invites,
     create_business,
+    DEMO_USERNAME,
     demo_user,
     serialize_business,
     serialize_business_item,
@@ -33,6 +34,9 @@ LANGS = {"ru", "uz", "en"}
 
 
 def _login(request, user):
+    if user.is_staff or user.is_superuser:
+        raise ApiError(403, "forbidden")
+    claim_invites(user)
     login(request, user, backend=BACKEND)
     return json_response(serialize_user(user))
 
@@ -58,6 +62,10 @@ def providers(request):
 def demo(request):
     if not settings.DEMO_LOGIN:
         raise ApiError(403, "Демо-вход выключен")
+    if request.content_type != "application/json":
+        raise ApiError(415, "unsupported_media_type")
+    if request.user.is_authenticated and request.user.username != DEMO_USERNAME:
+        raise ApiError(409, "already_authenticated")
     return _login(request, demo_user())
 
 
@@ -87,11 +95,7 @@ def telegram_widget(request):
     except InvalidInitData as exc:
         code = str(exc)
         raise ApiError(WIDGET_STATUS[code], "telegram_not_configured" if code == "not_configured" else code) from None
-    user = user_for_telegram(tg_user)
-    if user.is_staff or user.is_superuser:
-        raise ApiError(403, "forbidden")
-    claim_invites(user)
-    return _login(request, user)
+    return _login(request, user_for_telegram(tg_user))
 
 
 def _client_ip(request):
