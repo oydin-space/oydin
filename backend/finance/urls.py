@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path("dashboard/pulse/", views.pulse),
     path("accounts/", views.accounts),
+    path("accounts/<int:id>/", views.account_detail),
     path("transactions/", views.transactions),
     path("transactions/<int:id>/", views.transaction_detail),
     path("obligations/", views.obligations),

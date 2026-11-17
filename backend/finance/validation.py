@@ -62,10 +62,27 @@ def transaction_fields(body, business, *, partial, instance=None):
         if not isinstance(body["note"], str):
             raise ApiError(400, "Заметка должна быть строкой")
         fields["note"] = body["note"]
+    if "to_account_id" in body:
+        target = body["to_account_id"]
+        if target is None:
+            fields["transfer_account"] = None
+        else:
+            account = Account.objects.filter(pk=target if isinstance(target, int) and not isinstance(target, bool)
+                                             else None, business=business).first()
+            if account is None:
+                raise ApiError(400, "Счёт получателя не найден")
+            fields["transfer_account"] = account
     purpose = fields.get("purpose", instance.purpose if instance else None)
     direction = fields.get("direction", instance.direction if instance else None)
     if purpose == Transaction.Purpose.OWNER_DRAW and direction != Transaction.Direction.OUT:
         raise ApiError(400, "Изъятие владельца — только расход (direction=out)")
     if purpose == Transaction.Purpose.OWNER_CONTRIBUTION and direction != Transaction.Direction.IN:
         raise ApiError(400, "Вложение владельца — только приход (direction=in)")
+    target = fields.get("transfer_account", instance.transfer_account if instance else None)
+    if target is not None:
+        source = fields.get("account", instance.account if instance else None)
+        if direction != Transaction.Direction.TRANSFER:
+            raise ApiError(400, "to_account_id — только для перевода (direction=transfer)")
+        if source is not None and source.pk == target.pk:
+            raise ApiError(400, "Перевод на тот же счёт невозможен")
     return fields

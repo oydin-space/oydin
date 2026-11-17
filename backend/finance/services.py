@@ -14,7 +14,7 @@ from .domain import pulse as pl
 from .domain.categories import OBLIGATION_CATEGORIES, ORDER_INCOME_CATEGORIES
 from .domain.fmt import money, short_date
 from .domain.transfers import Candidate, find_counterpart
-from .models import Account, Envelope, Obligation, Order, Product, Transaction
+from .models import Account, Envelope, GapAlert, Obligation, Order, Product, Transaction
 from .rates import rows_to_uzs, to_uzs
 
 PERIOD_DAYS = {"week": 7, "month": 30, "quarter": 90}
@@ -57,11 +57,12 @@ def account_balances(business):
 def list_accounts(business):
     """Остатки в валюте счёта (balance) и в сумах (balance_uzs)."""
     balances = account_balances(business)
-    return [
-        {"id": a.id, "name": a.name, "kind": a.kind, "currency": a.currency, "balance": balances[a.id],
-         "balance_uzs": to_uzs(balances[a.id], a.currency)}
-        for a in Account.objects.filter(business=business)
-    ]
+    return [serialize_account(a, balances[a.id]) for a in Account.objects.filter(business=business)]
+
+
+def serialize_account(a, balance):
+    return {"id": a.id, "name": a.name, "kind": a.kind, "currency": a.currency, "balance": balance,
+            "balance_uzs": to_uzs(balance, a.currency)}
 
 
 def period_totals(business, start, end):
@@ -129,7 +130,21 @@ def bundle(business, days=90, now=None):
     return Bundle(now, balance, flows, points, avg_out)
 
 
+def notify_gap(business, b):
+    """Первое обнаружение разрыва на дату → событие gap.detected (повторно для той же даты не шлём)."""
+    from publicapi.services import emit
+
+    gap = fc.find_gap(b.points, b.flows, b.today)
+    if gap is None:
+        return gap
+    _, created = GapAlert.objects.get_or_create(business=business, gap_date=gap.date)
+    if created:
+        emit("gap.detected", {"date": gap.date.isoformat(), "amount": gap.amount, "reason": gap.reason}, business)
+    return gap
+
+
 def forecast_points(business, days):
+    notify_gap(business, bundle(business, 90))
     return [
         {"date": p.date.isoformat(), "balance": p.balance, "inflow": p.inflow, "outflow": p.outflow}
         for p in bundle(business, days).points
@@ -174,14 +189,20 @@ def envelopes(business, now=None):
 
 
 def pulse(business, now=None):
+    from planning import services as planning
+
     b = bundle(business, 90, now)
-    gap = fc.find_gap(b.points, b.flows, b.today)
+    gap = notify_gap(business, b)
     obligations = obligation_dicts(business, b)
     month = period_totals(business, b.today - timedelta(days=29), b.today)
     result = pl.compute_pulse(pl.PulseInput(
         today=b.today, balance=b.balance, points=b.points, gap=gap, obligations=obligations,
         avg_daily_out=b.avg_daily_out, personal_share=month["personal_share"],
     ))
+    tax_reserved = planning.tax_reserve_amount(business, b.today)
+    result["tax_reserved"] = tax_reserved
+    result["safe_to_spend"] = max(0, result["safe_to_spend"] - tax_reserved)
+    result["cash_difference"] = planning.latest_cash_difference(business)
     env = envelopes(business, b.today)
     saved = sum(e["saved"] for e in env)
     target = sum(e["target"] for e in env)
@@ -298,6 +319,7 @@ def serialize_transaction(t):
         "id": t.id, "date": t.date.isoformat(), "amount": t.amount, "direction": t.direction,
         "category": t.category, "purpose": t.purpose, "account_id": t.account_id,
         "counterparty": t.counterparty, "note": t.note, "status": t.status, "source": t.source,
+        "to_account_id": t.transfer_account_id,
     }
 
 

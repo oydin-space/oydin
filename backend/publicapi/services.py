@@ -14,7 +14,7 @@ from django.utils import timezone
 from . import ssrf
 from .models import WebhookDelivery, WebhookEndpoint
 
-EVENTS = ("transaction.created", "gap.detected")
+EVENTS = ("transaction.created", "transaction.confirmed", "gap.detected")
 TIMEOUT = 5
 # Паузы перед повторами 2-й, 3-й и 4-й попыток: 1м/10м/1ч.
 BACKOFF = (timedelta(minutes=1), timedelta(minutes=10), timedelta(hours=1))

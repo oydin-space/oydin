@@ -288,8 +288,8 @@ class TenancyTests(TestCase):
         self.assertFalse(me["needs_onboarding"])
         self.assertEqual(
             me["businesses"],
-            [{"id": self.biz.id, "name": self.biz.name, "role": "owner", "is_demo": False},
-             {"id": other.id, "name": "Second", "role": "seller", "is_demo": True}],
+            [{"id": self.biz.id, "name": self.biz.name, "role": "owner", "is_demo": False, "segment": ""},
+             {"id": other.id, "name": "Second", "role": "seller", "is_demo": True, "segment": ""}],
         )
 
     def test_create_business_becomes_active_owner(self):
@@ -527,3 +527,20 @@ class AiConsentGateTests(TestCase):
         from django.contrib.auth import get_user_model
 
         self.assertTrue(has_consent(get_user_model().objects.get(username="demo"), "ai"))
+
+
+class SegmentTests(TestCase):
+    def test_segment_create_patch_and_me(self):
+        from django.contrib.auth import get_user_model
+        user = get_user_model().objects.create(username="seg")
+        self.client.force_login(user)
+        r = self.client.post("/api/businesses/", {"name": "B", "segment": "horeca"}, content_type="application/json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.json()["segment"], "horeca")
+        bid = r.json()["id"]
+        r = self.client.patch(f"/api/businesses/{bid}/", {"segment": "retail"}, content_type="application/json")
+        self.assertEqual(r.json()["segment"], "retail")
+        bad = self.client.patch(f"/api/businesses/{bid}/", {"segment": "zzz"}, content_type="application/json")
+        self.assertEqual(bad.status_code, 400)
+        me = self.client.get("/api/auth/me/").json()
+        self.assertEqual([b["segment"] for b in me["businesses"] if b["id"] == bid], ["retail"])

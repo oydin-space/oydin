@@ -19,13 +19,14 @@ def serialize_business(business):
         "name": business.name,
         "industry": business.industry,
         "city": business.city,
+        "segment": business.segment,
         "tax_regime": business.tax_regime,
     }
 
 
 def serialize_business_item(membership):
     b = membership.business
-    return {"id": b.id, "name": b.name, "industry": b.industry, "city": b.city, "role": membership.role,
+    return {"id": b.id, "name": b.name, "industry": b.industry, "city": b.city, "segment": b.segment, "role": membership.role,
             "is_demo": b.is_demo}
 
 
@@ -43,16 +44,17 @@ def serialize_user(user):
         "needs_onboarding": membership is None,
         "business": serialize_business(membership.business) if membership else None,
         "businesses": [
-            {"id": m.business_id, "name": m.business.name, "role": m.role, "is_demo": m.business.is_demo}
+            {"id": m.business_id, "name": m.business.name, "role": m.role, "is_demo": m.business.is_demo,
+             "segment": m.business.segment}
             for m in memberships
         ],
     }
 
 
 @transaction.atomic
-def create_business(user, name, industry="", city=""):
+def create_business(user, name, industry="", city="", segment=""):
     """Новый бизнес со стандартными счетами; создатель — владелец, бизнес становится активным."""
-    business = Business.objects.create(name=name, industry=industry, city=city)
+    business = Business.objects.create(name=name, industry=industry, city=city, segment=segment)
     Membership.objects.create(user=user, business=business, role=Membership.Role.OWNER)
     for title, kind in DEFAULT_ACCOUNTS:
         Account.objects.create(business=business, name=title, kind=kind)

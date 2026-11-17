@@ -185,3 +185,14 @@ class OrderItem(models.Model):
 
     class Meta:
         ordering = ["id"]
+
+
+class GapAlert(models.Model):
+    """Уже объявленный кассовый разрыв: по одной записи на дату, чтобы gap.detected не повторялся."""
+
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name="gap_alerts")
+    gap_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["business", "gap_date"], name="gap_alert_business_date")]

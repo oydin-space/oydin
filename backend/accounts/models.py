@@ -11,9 +11,18 @@ class Business(models.Model):
         SIMPLIFIED_VAT = "simplified_vat"
         GENERAL = "general"
 
+    class Segment(models.TextChoices):
+        TEXTILE_PRINT = "textile_print"
+        RETAIL = "retail"
+        HORECA = "horeca"
+        MARKETPLACE_SELLER = "marketplace_seller"
+        SERVICES = "services"
+        OTHER = "other"
+
     name = models.CharField(max_length=200)
     industry = models.CharField(max_length=100, blank=True)
     city = models.CharField(max_length=100, blank=True)
+    segment = models.CharField(max_length=20, choices=Segment, blank=True, default="")
     tax_regime = models.CharField(max_length=20, choices=TaxRegime, default=TaxRegime.UNKNOWN)
     is_demo = models.BooleanField(default=False)
 

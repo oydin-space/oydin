@@ -59,41 +59,8 @@ def _own_gap(business, now):
     }
 
 
-def _tax(business, now):
-    regime = business.tax_regime
-    if regime == "unknown":
-        return None
-    month = fin.period_totals(business, now - timedelta(days=29), now)
-    revenue, profit = month["revenue"], month["profit"]
-    if regime in catalog.TAX_RATES:
-        rate = catalog.TAX_RATES[regime]
-        amount = round(revenue * rate)
-        name = "оборотный налог" if regime == "turnover" else "упрощённый НДС"
-        body = f"При режиме «{name}» {round(rate * 100)}% с выручки {money(revenue)} за 30 дней налог — около {money(amount)}."
-        if regime == "turnover":
-            body += " Для ИП с оборотом до 1 млрд с 2026 года ставка может быть 1% — проверьте свой случай."
-    else:
-        vat = round(revenue * catalog.VAT_GENERAL)
-        income = round(max(profit, 0) * catalog.PROFIT_TAX)
-        amount = vat + income
-        body = (f"При общем режиме НДС 12% с выручки — около {money(vat)}, налог на прибыль 15% — около {money(income)}; "
-                f"вместе около {money(amount)} (НДС без вычета входящего).")
-    return {
-        "id": f"tax-{regime}",
-        "kind": "tax",
-        "title": f"Налог за 30 дней: около {money(amount)}",
-        "body": body + " Это ориентир, а не налоговая консультация. Способ оплаты (наличные или перевод) НДС не определяет.",
-        "tone": "calm",
-        "source": catalog.TAX_SOURCE,
-        "source_url": catalog.TAX_URL,
-        "as_of": catalog.CURATED_AS_OF,
-        "confidence": "medium",
-        "action": "Как подготовиться к налоговому платежу?",
-    }
-
-
 def build_insights(business, now=None):
     now = now or fin.today()
-    items = [i for i in (_own_gap(business, now), _own_category_growth(business, now), _tax(business, now)) if i]
+    items = [i for i in (_own_gap(business, now), _own_category_growth(business, now)) if i]
     items += catalog.MARKET_LOCAL
     return [{**i, "as_of": i["as_of"].isoformat()} for i in items]

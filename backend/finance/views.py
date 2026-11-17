@@ -1,13 +1,16 @@
+from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
 
 from accounts.access import FINANCE_READERS, OWNER, SELLER, require_role
 from accounts.http import ApiError, api_view, json_response, parse_json
 
+from publicapi.services import emit
+
 from . import rates
 from . import services as svc
-from .models import Obligation, Transaction
-from .validation import PURPOSES, parse_amount, parse_date, transaction_fields
+from .models import Account, Currency, Obligation, Transaction
+from .validation import MAX_AMOUNT, PURPOSES, parse_amount, parse_date, transaction_fields
 
 OBLIGATION_KINDS = {c for c, _ in Obligation.Kind.choices}
 OWNER_PURPOSES = {"owner_draw", "owner_contribution"}
@@ -41,13 +44,62 @@ def pulse(request):
     return json_response(svc.pulse(request.business))
 
 
-@api_view("GET")
+def _account_name(body, request, exclude=None):
+    name = body.get("name")
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > 100:
+        raise ApiError(400, "invalid_name")
+    name = name.strip()
+    taken = Account.objects.filter(business=request.business, name__iexact=name)
+    if exclude is not None:
+        taken = taken.exclude(pk=exclude.pk)
+    if taken.exists():
+        raise ApiError(400, "account_exists")
+    return name
+
+
+def _owner_account_write(request):
+    if request.role != OWNER or request.business.is_demo:
+        raise ApiError(403, "forbidden")
+
+
+@api_view("GET", "POST")
 def accounts(request):
+    if request.method == "POST":
+        _owner_account_write(request)
+        body = parse_json(request)
+        name = _account_name(body, request)
+        if body.get("kind") not in {c for c, _ in Account.Kind.choices}:
+            raise ApiError(400, "invalid_kind")
+        if body.get("currency") not in {c for c, _ in Currency.choices}:
+            raise ApiError(400, "invalid_currency")
+        opening = body.get("opening_balance", 0)
+        if isinstance(opening, bool) or not isinstance(opening, int) or not 0 <= opening <= MAX_AMOUNT:
+            raise ApiError(400, "invalid_opening_balance")
+        account = Account.objects.create(
+            business=request.business, name=name, kind=body["kind"], currency=body["currency"], opening_balance=opening
+        )
+        return json_response(svc.serialize_account(account, opening), status=201)
     items = svc.list_accounts(request.business)
     if request.role == SELLER:
         # Продавцу нужны счета для ввода операций, но не остатки.
         items = [{k: v for k, v in a.items() if k not in ("balance", "balance_uzs")} for a in items]
     return json_response({"items": items})
+
+
+@api_view("PATCH", "DELETE")
+def account_detail(request, id):
+    _owner_account_write(request)
+    account = Account.objects.filter(pk=id, business=request.business).first()
+    if account is None:
+        raise ApiError(404, "Счёт не найден")
+    if request.method == "DELETE":
+        if Transaction.objects.filter(Q(account=account) | Q(transfer_account=account)).exists():
+            raise ApiError(409, "account_in_use")
+        account.delete()
+        return HttpResponse(status=204)
+    account.name = _account_name(parse_json(request), request, exclude=account)
+    account.save(update_fields=["name"])
+    return json_response(svc.serialize_account(account, svc.account_balances(request.business)[account.id]))
 
 
 @api_view("GET", business=False)
@@ -69,6 +121,7 @@ def transactions(request):
         )
         if request.role != SELLER:
             tx = svc.merge_transfer(tx)
+        emit("transaction.created", tx)
         return json_response(svc.serialize_transaction(tx), status=201)
     qs = own_transactions(request)
     status = request.GET.get("status")
@@ -94,15 +147,21 @@ def transaction_detail(request, id):
     if request.method == "DELETE":
         tx.delete()
         return HttpResponse(status=204)
-    fields = transaction_fields(parse_json(request), request.business, partial=True, instance=tx)
+    body = parse_json(request)
+    if "status" in body and body["status"] not in {s for s, _ in Transaction.Status.choices}:
+        raise ApiError(400, "status: draft или confirmed")
+    fields = transaction_fields(body, request.business, partial=True, instance=tx)
     _owner_purpose_only(request, fields)
     for key, value in fields.items():
         setattr(tx, key, value)
     if tx.direction != "transfer":
         tx.transfer_account = None
-    # Человек поправил и сохранил черновик ИИ — это и есть подтверждение.
-    tx.status = Transaction.Status.CONFIRMED
+    was_draft = tx.status == Transaction.Status.DRAFT
+    if "status" in body:
+        tx.status = body["status"]
     tx.save()
+    if was_draft and tx.status == Transaction.Status.CONFIRMED:
+        emit("transaction.confirmed", tx)
     return json_response(svc.serialize_transaction(tx))
 
 

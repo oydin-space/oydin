@@ -31,12 +31,3 @@ MARKET_LOCAL = [
         "action": "Когда придут деньги по моим B2B-заказам?",
     },
 ]
-
-TAX_SOURCE = "soliq.uz, lex.uz"
-TAX_URL = "https://soliq.uz"
-TAX_RATES = {
-    "turnover": 0.04,
-    "simplified_vat": 0.06,
-}
-VAT_GENERAL = 0.12
-PROFIT_TAX = 0.15

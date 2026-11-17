@@ -60,7 +60,7 @@ def seed_demo():
     user.save()
     business = Business.objects.create(
         name="Print Lab Tashkent", industry="Печать на одежде и мерч", city="Ташкент",
-        tax_regime=Business.TaxRegime.TURNOVER, is_demo=True,
+        segment=Business.Segment.TEXTILE_PRINT, tax_regime=Business.TaxRegime.TURNOVER, is_demo=True,
     )
     Profile.objects.create(user=user, business=business)
     set_consent(user, "ai", True)  # синтетические данные
