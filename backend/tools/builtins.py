@@ -121,7 +121,7 @@ def build(kind, business, lang="ru"):
     title = tr(kind, lang)
     if kind == "what_if_gap":
         month = _month(business)
-        balance = sum(a["balance"] for a in fin.list_accounts(business))
+        balance = sum(a["balance_uzs"] for a in fin.list_accounts(business))
         body = spec(lang, title, [
             ("MoneyField", "balance", "balance", balance),
             ("MoneyField", "income", "income30", month["revenue"]),

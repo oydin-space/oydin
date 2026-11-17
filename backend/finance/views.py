@@ -68,9 +68,9 @@ def accounts(request):
         _owner_account_write(request)
         body = parse_json(request)
         name = _account_name(body, request)
-        if body.get("kind") not in {c for c, _ in Account.Kind.choices}:
+        if not isinstance(body.get("kind"), str) or body["kind"] not in {c for c, _ in Account.Kind.choices}:
             raise ApiError(400, "invalid_kind")
-        if body.get("currency") not in {c for c, _ in Currency.choices}:
+        if not isinstance(body.get("currency"), str) or body["currency"] not in {c for c, _ in Currency.choices}:
             raise ApiError(400, "invalid_currency")
         opening = body.get("opening_balance", 0)
         if isinstance(opening, bool) or not isinstance(opening, int) or not 0 <= opening <= MAX_AMOUNT:
@@ -93,7 +93,13 @@ def account_detail(request, id):
     if account is None:
         raise ApiError(404, "Счёт не найден")
     if request.method == "DELETE":
-        if Transaction.objects.filter(Q(account=account) | Q(transfer_account=account)).exists():
+        from planning.models import CashClose, Commitment
+
+        if (
+            Transaction.objects.filter(Q(account=account) | Q(transfer_account=account)).exists()
+            or CashClose.objects.filter(account=account).exists()
+            or Commitment.objects.filter(account=account).exists()
+        ):
             raise ApiError(409, "account_in_use")
         account.delete()
         return HttpResponse(status=204)
@@ -148,7 +154,7 @@ def transaction_detail(request, id):
         tx.delete()
         return HttpResponse(status=204)
     body = parse_json(request)
-    if "status" in body and body["status"] not in {s for s, _ in Transaction.Status.choices}:
+    if "status" in body and (not isinstance(body["status"], str) or body["status"] not in {s for s, _ in Transaction.Status.choices}):
         raise ApiError(400, "status: draft или confirmed")
     fields = transaction_fields(body, request.business, partial=True, instance=tx)
     _owner_purpose_only(request, fields)
@@ -156,12 +162,13 @@ def transaction_detail(request, id):
         setattr(tx, key, value)
     if tx.direction != "transfer":
         tx.transfer_account = None
-    was_draft = tx.status == Transaction.Status.DRAFT
-    if "status" in body:
+    confirming = tx.status == Transaction.Status.DRAFT and body.get("status") == Transaction.Status.CONFIRMED
+    if "status" in body and not confirming:
         tx.status = body["status"]
-    tx.save()
-    if was_draft and tx.status == Transaction.Status.CONFIRMED:
-        emit("transaction.confirmed", tx)
+    if confirming:
+        tx = svc.confirm_draft(tx)
+    else:
+        tx.save()
     return json_response(svc.serialize_transaction(tx))
 
 

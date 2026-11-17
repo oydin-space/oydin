@@ -9,6 +9,7 @@ from .models import SavedTool
 
 MAX_TITLE = 120
 MAX_VALUES = 60
+MAX_TOOLS = 50
 
 
 def serialize(t):
@@ -56,6 +57,8 @@ def tools(request):
         return json_response([serialize(t) for t in SavedTool.objects.filter(business=request.business)])
     body = parse_json(request)
     spec = clean_spec(body.get("spec"))
+    if SavedTool.objects.filter(business=request.business).count() >= MAX_TOOLS:
+        raise ApiError(409, "tools_limit")
     tool = SavedTool.objects.create(
         business=request.business, created_by=request.user, title=clean_title(body.get("title")),
         kind=clean_kind(body.get("kind", "custom")), spec=spec, pinned=bool(body.get("pinned", False)),

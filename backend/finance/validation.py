@@ -85,4 +85,6 @@ def transaction_fields(body, business, *, partial, instance=None):
             raise ApiError(400, "to_account_id — только для перевода (direction=transfer)")
         if source is not None and source.pk == target.pk:
             raise ApiError(400, "Перевод на тот же счёт невозможен")
+        if source is not None and source.currency != target.currency:
+            raise ApiError(400, "transfer_currency_mismatch")
     return fields

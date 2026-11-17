@@ -143,11 +143,23 @@ def notify_gap(business, b):
     return gap
 
 
+def confirm_draft(tx):
+    """Черновик → подтверждённая операция: поиск зеркального перевода и событие transaction.confirmed."""
+    from publicapi.services import emit
+
+    tx.status = Transaction.Status.CONFIRMED
+    tx.save()
+    tx = merge_transfer(tx)
+    emit("transaction.confirmed", tx)
+    return tx
+
+
 def forecast_points(business, days):
-    notify_gap(business, bundle(business, 90))
+    b90 = bundle(business, 90)
+    notify_gap(business, b90)
     return [
         {"date": p.date.isoformat(), "balance": p.balance, "inflow": p.inflow, "outflow": p.outflow}
-        for p in bundle(business, days).points
+        for p in (b90 if days == 90 else bundle(business, days)).points
     ]
 
 

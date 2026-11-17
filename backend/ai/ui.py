@@ -15,6 +15,7 @@ from . import grounding
 MAX_SIZE = 64 * 1024
 MAX_NODES = 400
 MAX_DEPTH = 12
+MAX_NUMBER_LEN = 20
 
 S, N, B = "str", "num", "bool"
 PASTELS = ["butter", "mint", "lavender", "peach", "sky", "rose"]
@@ -106,7 +107,13 @@ def _tokens(src):
             except ValueError as e:
                 raise Invalid("bad string") from e
         elif m.group("num") is not None:
-            out.append(("num", float(m.group("num")) if "." in m.group("num") else int(m.group("num"))))
+            text = m.group("num")
+            if len(text) > MAX_NUMBER_LEN:
+                raise Invalid("number too long")
+            try:
+                out.append(("num", float(text) if "." in text else int(text)))
+            except (ValueError, OverflowError) as e:
+                raise Invalid("bad number") from e
         elif m.group("id") is not None:
             out.append(("id", m.group("id")))
         else:

@@ -77,3 +77,17 @@ class ToolsApiTests(TestCase):
         self.assertEqual(self.client.get(f"/api/tools/{tool['id']}/").status_code, 404)
         self.assertEqual(self.patch(tool["id"], {"title": "x"}).status_code, 404)
         self.assertEqual(self.client.delete(f"/api/tools/{tool['id']}/").status_code, 404)
+
+
+class WhatIfBalanceTests(TestCase):
+    def test_what_if_sums_balance_in_uzs(self):
+        from finance.models import Account
+        from finance import services as fin
+
+        _, business, _ = make_user("whatif")
+        Account.objects.create(business=business, name="USD", kind="bank", currency="USD", opening_balance=10000)
+        accounts = fin.list_accounts(business)
+        total = sum(a["balance_uzs"] for a in accounts)
+        self.assertNotEqual(total, sum(a["balance"] for a in accounts))
+        line = next(l for l in builtins.build("what_if_gap", business)["spec"].splitlines() if '"balance"' in l)
+        self.assertTrue(line.endswith(f", {total})"), line)

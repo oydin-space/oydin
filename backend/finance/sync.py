@@ -83,7 +83,7 @@ def apply_item(request, item):
             fields = transaction_fields(payload, business, partial=False)
             fields.setdefault("date", timezone.localdate())
             status = payload.get("status", Transaction.Status.CONFIRMED)
-            if status not in {s for s, _ in Transaction.Status.choices}:
+            if not isinstance(status, str) or status not in {s for s, _ in Transaction.Status.choices}:
                 raise ApiError(400, "invalid_status")
             tx = Transaction.objects.create(
                 business=business, status=status, source="offline", created_by=request.user, **fields
@@ -103,7 +103,12 @@ def apply_item(request, item):
 
 @api_view("POST")
 def sync_view(request):
-    items = parse_json(request).get("items")
+    body = parse_json(request)
+    if "business_id" in body and (
+        isinstance(body["business_id"], bool) or body["business_id"] != request.business.id
+    ):
+        raise ApiError(409, "business_mismatch")
+    items = body.get("items")
     if not isinstance(items, list) or not 1 <= len(items) <= MAX_ITEMS:
         raise ApiError(400, f"items: от 1 до {MAX_ITEMS} элементов")
     return json_response({"results": [apply_item(request, item) for item in items]})
