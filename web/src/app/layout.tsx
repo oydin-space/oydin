@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Onest } from "next/font/google";
-import { PwaRegister } from "@/components/providers/pwa-register";
+import { ServiceWorkerRegister } from "@/components/offline";
 import { TelegramProvider } from "@/components/providers/telegram-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { cookies } from "next/headers";
@@ -12,7 +12,7 @@ const onest = Onest({ variable: "--font-onest", subsets: ["latin", "cyrillic"], 
 
 export const metadata: Metadata = {
   title: { default: "Oydin", template: "%s · Oydin" },
-  description: "Второй мозг для малого бизнеса: заранее покажет, хватит ли денег на обещанные платежи.",
+  description: "A second brain for small business: shows ahead of time whether there is enough cash for upcoming payments.",
   applicationName: "Oydin",
   appleWebApp: {
     capable: true,
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Oydin",
-    description: "Финансовый пульс вашего бизнеса",
+    description: "The financial pulse of your business",
     locale: "ru_RU",
     type: "website",
     images: [{ url: "/og.png", width: 1200, height: 630 }],
@@ -56,12 +56,14 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const initial = parseLocale((await cookies()).get(LOCALE_COOKIE)?.value) ?? undefined;
   return (
-    <html lang={initial ?? "ru"} className={onest.variable}>
+    <html lang={initial ?? "ru"} className={onest.variable} suppressHydrationWarning>
       <body className="min-h-dvh font-sans">
+        {/* Saved theme is applied before first paint to avoid a flash. */}
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem("oydin-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}` }} />
         <I18nProvider initial={initial}>
           <TelegramProvider>{children}</TelegramProvider>
         </I18nProvider>
-        <PwaRegister />
+        <ServiceWorkerRegister />
         <Toaster />
       </body>
     </html>

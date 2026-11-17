@@ -37,6 +37,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const token = await csrfToken();
     if (token) headers.set("X-CSRFToken", token);
   }
+  // Язык интерфейса: бэкенд отвечает текстами (советы, напоминания) на нём.
+  if (typeof document !== "undefined" && document.documentElement.lang) headers.set("Accept-Language", document.documentElement.lang);
   const res = await fetch(`${BASE}/api${path}`, { ...init, method, headers, credentials: "include" });
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));

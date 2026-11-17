@@ -1,81 +1,89 @@
-"use client";
+"use client"
 
-import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
-import { PlainCard } from "@/components/shared/pastel-card";
-import { EmptyState, ErrorState, PageTitle } from "@/components/shared/states";
-import { Skeleton } from "@/components/ui/skeleton";
-import { dateLong, softSum } from "@/lib/format";
-import { PURPOSE_LABEL } from "@/lib/tone";
-import type { Purpose, Transaction } from "@/lib/types";
-import { useApi } from "@/lib/use-api";
-import { cn } from "@/lib/utils";
-
-const FILTERS: { value: Purpose | ""; label: string }[] = [
-  { value: "", label: "Все" },
-  { value: "business", label: "Целевые" },
-  { value: "personal", label: "Нецелевые" },
-  { value: "unclear", label: "Не ясно" },
-];
-
-function groupByDate(items: Transaction[]): [string, Transaction[]][] {
-  const m = new Map<string, Transaction[]>();
-  for (const t of items) m.set(t.date, [...(m.get(t.date) ?? []), t]);
-  return [...m];
-}
+import { Plus, Search } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { useCoreT } from "@/components/app/use-core-t"
+import { Button, EmptyState, ErrorState, FilterBar, Icon, Input, ListGroup, PageHeader, SkeletonList, Text } from "@/components/ui"
+import { groupByDate } from "@/lib/core-api"
+import { useI18n } from "@/i18n"
+import { useApi } from "@/lib/use-api"
+import type { Account, Transaction } from "@/lib/types"
+import { DraftsSection } from "./drafts-section"
+import { EntrySheet, type EntrySeed } from "./entry-sheet"
+import { TxRow } from "./tx-row"
 
 export function OperationsView() {
-  const [q, setQ] = useState("");
-  const [debounced, setDebounced] = useState("");
-  const [purpose, setPurpose] = useState<Purpose | "">("");
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(q.trim()), 300);
-    return () => clearTimeout(t);
-  }, [q]);
-  const params = new URLSearchParams({ limit: "100" });
-  if (debounced) params.set("q", debounced);
-  if (purpose) params.set("purpose", purpose);
-  const { data, error, loading, reload } = useApi<{ items: Transaction[] }>(`/transactions/?${params}`);
+  const t = useCoreT()
+  const { formatDate } = useI18n()
+  const [purpose, setPurpose] = useState("all")
+  const [q, setQ] = useState("")
+  const [dq, setDq] = useState("")
+  const [sheet, setSheet] = useState<{ n: number; seed: EntrySeed } | null>(null)
 
-  return (
-    <div className="mx-auto max-w-3xl space-y-4 pb-6">
-      <PageTitle title="Операции" hint="Последние движения денег" />
-      <label className="relative block">
-        <span className="sr-only">Поиск по операциям</span>
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: заметка, контрагент, категория" className="w-full rounded-xl bg-muted py-2.5 pl-10 pr-4 text-[1rem] outline-none focus-visible:ring-2 focus-visible:ring-lavender-deep" />
-      </label>
-      <div className="no-scrollbar flex gap-2 overflow-x-auto" role="radiogroup" aria-label="Фильтр по типу">
-        {FILTERS.map((f) => (
-          <button key={f.value} type="button" role="radio" aria-checked={purpose === f.value} onClick={() => setPurpose(f.value)} className={cn("shrink-0 rounded-full px-4 py-1.5 text-sm", purpose === f.value ? "bg-ink text-card" : "bg-muted")}>
-            {f.label}
-          </button>
+  useEffect(() => {
+    const id = setTimeout(() => setDq(q.trim()), 300)
+    return () => clearTimeout(id)
+  }, [q])
+
+  const params = new URLSearchParams({ status: "confirmed", limit: "100" })
+  if (purpose !== "all") params.set("purpose", purpose)
+  if (dq) params.set("q", dq)
+  const list = useApi<{ items: Transaction[] }>(`/transactions/?${params}`)
+  const drafts = useApi<{ items: Transaction[] }>("/transactions/?status=draft&limit=50")
+  const accounts = useApi<{ items: Account[] }>("/accounts/")
+  const accs = useMemo(() => accounts.data?.items ?? [], [accounts.data])
+  const groups = useMemo(() => groupByDate(list.data?.items ?? []), [list.data])
+
+  const reload = () => {
+    list.reload()
+    drafts.reload()
+  }
+  const open = (seed: EntrySeed) => setSheet((s) => ({ n: (s?.n ?? 0) + 1, seed }))
+  const edit = (tx: Transaction, draft = false) =>
+    open({
+      id: tx.id,
+      draft,
+      values: { amount: tx.amount, direction: tx.direction, purpose: tx.purpose, category: tx.category, account_id: tx.account_id, counterparty: tx.counterparty, note: tx.note, date: tx.date },
+    })
+
+  const options = (["all", "business", "personal", "unclear"] as const).map((v) => ({ value: v, label: v === "all" ? t("core.ops.all") : t(`core.ops.purpose.${v}`) }))
+  const filtered = purpose !== "all" || dq !== ""
+
+  let body: React.ReactNode
+  if (list.error) body = <ErrorState message={list.error} onRetry={list.reload} retryLabel={t("core.retry")} />
+  else if (list.loading && !list.data) body = <SkeletonList rows={6} />
+  else if (!groups.length)
+    body = (
+      <EmptyState
+        title={filtered ? t("core.ops.emptyFiltered") : t("core.ops.empty")}
+        hint={filtered ? t("core.ops.emptyFilteredHint") : t("core.ops.emptyHint")}
+        action={filtered ? undefined : <Button icon={Plus} onClick={() => open({})}>{t("core.ops.add")}</Button>}
+      />
+    )
+  else
+    body = (
+      <div className="flex flex-col gap-4">
+        {groups.map(({ date, items }) => (
+          <div key={date} className="flex flex-col gap-1">
+            <Text variant="caption" tone="muted" className="px-4">{formatDate(date)}</Text>
+            <ListGroup>
+              {items.map((tx) => (
+                <TxRow key={tx.id} tx={tx} accounts={accs} onOpen={(x) => edit(x)} />
+              ))}
+            </ListGroup>
+          </div>
         ))}
       </div>
-      {error ? <ErrorState message={error} onRetry={reload} /> : loading && !data ? (
-        <Skeleton className="h-72 rounded-[1.25rem]" />
-      ) : data && data.items.length ? (
-        <div className="space-y-5">
-          {groupByDate(data.items).map(([date, items]) => (
-            <section key={date} aria-label={dateLong(date)}>
-              <h2 className="mb-1.5 px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">{dateLong(date)}</h2>
-              <ul className="inset-group divide-y divide-border/70">
-                {items.map((t) => (
-                  <li key={t.id} className="flex items-center gap-3 px-4 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{t.category}{t.counterparty ? ` · ${t.counterparty}` : ""}</p>
-                      <p className="truncate text-xs text-muted-foreground">{PURPOSE_LABEL[t.purpose]}{t.status === "draft" ? " · черновик" : ""}{t.note ? ` · ${t.note}` : ""}</p>
-                    </div>
-                    <span className={cn("tabular whitespace-nowrap font-semibold", t.direction === "in" && "text-mint-deep")}>
-                      {t.direction === "in" ? "+" : t.direction === "out" ? "−" : ""}{softSum(t.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      ) : <EmptyState title="Операций не найдено" hint="Надиктуйте трату в чате на главной — она появится здесь" />}
+    )
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-6">
+      <PageHeader title={t("core.ops.title")} hint={t("core.ops.hint")} actions={<Button icon={Plus} onClick={() => open({})}>{t("core.ops.add")}</Button>} />
+      <DraftsSection drafts={drafts.data?.items ?? []} accounts={accs} onEdit={(tx) => edit(tx, true)} onChanged={reload} />
+      <Input label={t("core.ops.search")} placeholder={t("core.ops.search")} value={q} onChange={(e) => setQ(e.target.value)} leading={<Icon icon={Search} size={16} />} />
+      <FilterBar label={t("core.ops.filter")} options={options} value={purpose} onValueChange={setPurpose} />
+      {body}
+      {sheet ? <EntrySheet key={sheet.n} accounts={accs} seed={sheet.seed} onClose={() => setSheet(null)} onSaved={() => { setSheet(null); reload() }} /> : null}
     </div>
-  );
+  )
 }

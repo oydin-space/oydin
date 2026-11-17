@@ -4,29 +4,30 @@ import { Check, Plus } from "lucide-react";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
 import { BusinessSwitcher, Badge, Button, Input, ListGroup, ListRow, Sheet } from "@/components/ui";
+import { useT } from "@/i18n";
 import { createBusiness, errorText, setSegment, switchBusiness, type Segment } from "@/lib/auth-api";
 import { roleLabel } from "./roles";
 import { SegmentSelect } from "./segment-select";
 
-const strings = {
-  title: "Ваши бизнесы",
-  description: "Выберите, с каким бизнесом работать.",
-  current: "Текущий",
-  demo: "Демо",
-  newBusiness: "Новый бизнес",
-  newTitle: "Новый бизнес",
-  name: "Название бизнеса",
-  create: "Создать",
-  back: "Назад",
-  required: "Заполните поле",
-  pickSegment: "Выберите сферу",
-  generic: "Не получилось. Попробуйте ещё раз.",
-  errors: { http_403: "Нет доступа к этому бизнесу.", http_400: "Проверьте название." } as Record<string, string>,
-};
-
 /** Кнопка в шапке/боковой панели + лист со списком бизнесов и формой «Новый бизнес» (один лист, два состояния). */
 export function BusinessSwitcherMenu({ className }: { className?: string }) {
+  const t = useT();
   const { user, applyMe, refresh } = useSession();
+  const strings = {
+    title: t("biz.switch.title"),
+    description: t("biz.switch.description"),
+    current: t("biz.switch.current"),
+    demo: t("biz.switch.demo"),
+    newBusiness: t("biz.switch.new"),
+    newTitle: t("biz.switch.newTitle"),
+    name: t("biz.switch.name"),
+    create: t("biz.switch.create"),
+    back: t("biz.switch.back"),
+    required: t("biz.switch.required"),
+    pickSegment: t("biz.switch.pickSegment"),
+    generic: t("biz.generic"),
+    errors: { http_403: t("biz.switch.err.http_403"), http_400: t("biz.switch.err.http_400") } as Record<string, string>,
+  };
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -81,7 +82,7 @@ export function BusinessSwitcherMenu({ className }: { className?: string }) {
 
   return (
     <>
-      <BusinessSwitcher name={user.business.name} role={roleLabel(user.role)} onClick={() => setOpen(true)} className={className} />
+      <BusinessSwitcher name={user.business.name} role={roleLabel(t, user.role)} onClick={() => setOpen(true)} className={className} />
       <Sheet open={open} onOpenChange={close} title={creating ? strings.newTitle : strings.title} description={creating ? undefined : strings.description}>
         {creating ? (
           <form onSubmit={create} noValidate className="flex flex-col gap-4">
@@ -98,7 +99,7 @@ export function BusinessSwitcherMenu({ className }: { className?: string }) {
                 <ListRow
                     key={b.id}
                     title={b.name}
-                    subtitle={roleLabel(b.role)}
+                    subtitle={roleLabel(t, b.role)}
                     status={b.id === user.active_business_id ? <Badge tone="positive" icon={<Check className="size-3" aria-hidden="true" />}>{strings.current}</Badge> : b.is_demo ? <Badge>{strings.demo}</Badge> : undefined}
                     onClick={busy ? undefined : () => void pick(b.id)}
                 />

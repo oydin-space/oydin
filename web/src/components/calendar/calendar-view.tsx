@@ -1,84 +1,103 @@
-"use client";
+"use client"
 
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { PastelCard } from "@/components/shared/pastel-card";
-import { EmptyState, ErrorState, PageTitle } from "@/components/shared/states";
-import { Skeleton } from "@/components/ui/skeleton";
-import { dateShort, daysUntil, plural, soft, softSum, money } from "@/lib/format";
-import type { Envelope, ForecastPoint, Obligation } from "@/lib/types";
-import { useApi } from "@/lib/use-api";
+import { useMemo } from "react"
+import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
+import { AmountText, Badge, Card, CashChart, EmptyState, EnvelopeProgress, ErrorState, ListGroup, ListRow, PageHeader, Section, SkeletonCard, SkeletonChart, SkeletonList, Text } from "@/components/ui"
+import { cashPoints, todayIso, type ForecastResponse } from "@/lib/core-api"
+import { useI18n } from "@/i18n"
+import type { Envelope, Obligation } from "@/lib/types"
+import { useApi } from "@/lib/use-api"
 
-const KIND: Record<Obligation["kind"], string> = { salary: "Зарплата", rent: "Аренда", tax: "Налог", supplier: "Поставщик", loan: "Кредит", other: "Прочее", receivable: "Нам должны" };
+function ObligationBadge({ o }: { o: Obligation }) {
+  const t = useCoreT()
+  if (o.status === "paid") return <Badge tone="positive">{t("core.cal.paid")}</Badge>
+  if (o.status === "overdue") return <Badge tone="negative">{t("core.cal.overdue")}</Badge>
+  return <Badge tone={o.covered ? "positive" : "caution"}>{o.covered ? t("core.cal.covered") : t("core.cal.notCovered")}</Badge>
+}
 
 export function CalendarView() {
-  const obligations = useApi<{ items: Obligation[] }>("/obligations/");
-  const envelopes = useApi<{ items: Envelope[] }>("/envelopes/");
-  const forecast = useApi<{ points: ForecastPoint[] }>("/forecast/?days=30");
+  const t = useCoreT()
+  const { formatDate, formatSumShort } = useI18n()
+  const forecast = useApi<ForecastResponse>("/forecast/?days=30")
+  const obligations = useApi<{ items: Obligation[] }>("/obligations/")
+  const envelopes = useApi<{ items: Envelope[] }>("/envelopes/")
+
+  const points = useMemo(() => {
+    const f = forecast.data?.points ?? []
+    return f.length ? cashPoints(todayIso(), f[0].balance, f, formatDate) : []
+  }, [forecast.data, formatDate])
+
+  const error = forecast.error ?? obligations.error ?? envelopes.error
+  const reload = () => {
+    forecast.reload()
+    obligations.reload()
+    envelopes.reload()
+  }
+  const loading = (forecast.loading && !forecast.data) || (obligations.loading && !obligations.data) || (envelopes.loading && !envelopes.data)
+
+  let body: React.ReactNode
+  if (error) body = <ErrorState message={error} onRetry={reload} retryLabel={t("core.retry")} />
+  else if (loading)
+    body = (
+      <div className="flex flex-col gap-4">
+        <SkeletonChart />
+        <SkeletonList rows={4} />
+        <SkeletonCard />
+      </div>
+    )
+  else {
+    const obs = obligations.data?.items ?? []
+    const envs = envelopes.data?.items ?? []
+    body = (
+      <div className="flex flex-col gap-6">
+        {points.length ? (
+          <Section title={t("core.cal.forecastTitle")}>
+            <Card>
+              <CashChart points={points} label={t("core.cal.forecastLabel")} todayLabel={t("core.today")} />
+            </Card>
+          </Section>
+        ) : null}
+        <Section title={t("core.cal.obligationsTitle")}>
+          {obs.length ? (
+            <ListGroup>
+              {obs.map((o) => (
+                <ListRow
+                  key={o.id}
+                  title={o.title}
+                  subtitle={`${t(`core.cal.kind.${o.kind}` as CoreKey)} · ${t("core.cal.due", { date: formatDate(o.due_date) })}`}
+                  status={<ObligationBadge o={o} />}
+                  trailing={<AmountText value={o.amount} />}
+                />
+              ))}
+            </ListGroup>
+          ) : (
+            <EmptyState title={t("core.cal.noObligations")} hint={t("core.cal.noObligationsHint")} />
+          )}
+        </Section>
+        <Section title={t("core.cal.envelopesTitle")}>
+          {envs.length ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {envs.map((e) => (
+                <Card key={e.id} tint="mint">
+                  <EnvelopeProgress label={t("core.cal.envelope", { title: e.title })} saved={e.saved} target={e.target} />
+                  <Text variant="caption" tone="muted" className="mt-2">
+                    {t("core.cal.due", { date: formatDate(e.due_date) })} · {t("core.cal.perDay", { amount: formatSumShort(e.daily) })}
+                  </Text>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title={t("core.cal.noEnvelopes")} hint={t("core.cal.noEnvelopesHint")} />
+          )}
+        </Section>
+      </div>
+    )
+  }
+
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pb-6">
-      <PageTitle title="Календарь" hint="Обязательства, конверты и прогноз остатка на 30 дней" />
-      <section aria-label="Прогноз остатка" className="space-y-2">
-        <h2 className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">Прогноз остатка</h2>
-        {forecast.error ? <ErrorState message={forecast.error} onRetry={forecast.reload} /> : !forecast.data ? <Skeleton className="h-52 rounded-[1.25rem]" /> : forecast.data.points.length ? (
-          <PastelCard tone="sky" className="h-52">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={forecast.data.points} margin={{ left: -8, right: 4, top: 4 }}>
-                <CartesianGrid vertical={false} stroke="var(--foreground)" strokeOpacity={0.08} />
-                <XAxis dataKey="date" tickFormatter={dateShort} fontSize={11} tickLine={false} axisLine={false} minTickGap={32} />
-                <YAxis tickFormatter={soft} fontSize={11} tickLine={false} axisLine={false} width={56} />
-                <Tooltip labelFormatter={(l) => dateShort(String(l))} formatter={(v) => money(Number(v))} contentStyle={{ borderRadius: 14, border: "1px solid var(--border)", background: "var(--card)", color: "var(--foreground)" }} />
-                <Area type="monotone" dataKey="balance" name="Остаток" stroke="var(--sky-deep)" strokeWidth={2.5} fill="var(--sky-deep)" fillOpacity={0.25} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </PastelCard>
-        ) : <EmptyState title="Прогноза пока нет" />}
-      </section>
-      <section aria-label="Обязательства" className="space-y-2">
-        <h2 className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">Ближайшие платежи</h2>
-        {obligations.error ? <ErrorState message={obligations.error} onRetry={obligations.reload} /> : !obligations.data ? <Skeleton className="h-56 rounded-[1.25rem]" /> : obligations.data.items.length ? (
-          <ul className="inset-group divide-y divide-border/70">
-            {obligations.data.items.map((o) => {
-              const d = daysUntil(o.due_date);
-              return (
-                <li key={o.id}>
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{o.title}</p>
-                      <p className="text-xs text-muted-foreground">{KIND[o.kind]} · {dateShort(o.due_date)}{o.status === "planned" && d >= 0 ? ` · через ${d} ${plural(d, ["день", "дня", "дней"])}` : ""}</p>
-                    </div>
-                    <span className="tabular text-sm font-semibold">{softSum(o.amount)}</span>
-                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs ${o.status === "paid" ? "bg-mint" : o.status === "overdue" ? "bg-peach" : o.covered ? "bg-mint" : "bg-butter"}`}>
-                      {o.status === "paid" ? "Оплачено" : o.status === "overdue" ? "Просрочено" : o.covered ? "Покрыто" : "Не хватает"}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : <EmptyState title="Обязательств нет" hint="Добавленные платежи появятся здесь" />}
-      </section>
-      <section aria-label="Конверты" className="space-y-2">
-        <h2 className="px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">Конверты</h2>
-        {envelopes.error ? <ErrorState message={envelopes.error} onRetry={envelopes.reload} /> : !envelopes.data ? <Skeleton className="h-32 rounded-2xl" /> : envelopes.data.items.length ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {envelopes.data.items.map((e) => {
-              const pct = e.target ? Math.min(100, Math.round((e.saved / e.target) * 100)) : 0;
-              return (
-                <PastelCard key={e.id} tone="mint" className="space-y-2">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <h3 className="font-medium">{e.title}</h3>
-                    <span className="text-xs text-ink/65">до {dateShort(e.due_date)}</span>
-                  </div>
-                  <div className="h-2.5 overflow-hidden rounded-full bg-card/70" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-                    <div className="h-full rounded-full bg-mint-deep" style={{ width: `${pct}%` }} />
-                  </div>
-                  <p className="tabular text-sm">{softSum(e.saved)} из {softSum(e.target)} · откладывать по {softSum(e.daily)} в день</p>
-                </PastelCard>
-              );
-            })}
-          </div>
-        ) : <EmptyState title="Конвертов нет" />}
-      </section>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-6">
+      <PageHeader title={t("core.cal.title")} hint={t("core.cal.hint")} />
+      {body}
     </div>
-  );
+  )
 }

@@ -22,7 +22,11 @@ export const requestEmailCode = (email: string, lang = "ru") => post<{ ok: true;
 export const verifyEmailCode = (email: string, code: string) => post<Me>("/auth/email/verify/", { email, code });
 export const demoLogin = () => post<Me>("/auth/demo/");
 export const fetchMe = () => api<Me>("/auth/me/");
-export const logout = () => post<void>("/auth/logout/");
+/** Снимок сессии для офлайна (ключ из session-provider) стираем вместе с выходом. */
+export const logout = async () => {
+  await post<void>("/auth/logout/");
+  if (typeof localStorage !== "undefined") localStorage.removeItem("oydin_me_v1");
+};
 
 export const TERMS_VERSION = "2026-11-18";
 export interface ConsentChoice {
@@ -64,3 +68,14 @@ export function errorText(e: unknown, dict: Record<string, string>, fallback: st
   if (e instanceof ApiError) return dict[e.message] ?? dict[`http_${e.status}`] ?? fallback;
   return fallback;
 }
+
+export interface TelegramWidgetUser {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}
+export const telegramWidgetLogin = (user: TelegramWidgetUser) => post<Me>("/auth/telegram/widget/", user);

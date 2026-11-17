@@ -5,45 +5,46 @@ import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
 import { Badge, Button, EmptyState, ErrorState, Input, ListGroup, ListRow, PageHeader, SegmentedControl, Sheet, SkeletonList } from "@/components/ui";
 import { changeMemberRole, errorText, inviteMember, listMembers, removeMember, type TeamMember } from "@/lib/auth-api";
+import { useT } from "@/i18n";
 import type { Role } from "@/lib/types";
 import { ROLES, roleLabel } from "./roles";
-
-const strings = {
-  title: "Команда",
-  hint: "Кто видит бизнес и что может делать.",
-  invite: "Пригласить",
-  inviteTitle: "Пригласить участника",
-  email: "Электронная почта",
-  role: "Роль",
-  send: "Отправить приглашение",
-  roleHints: { owner: "Владелец: всё, включая команду.", accountant: "Бухгалтер: видит всё, ведёт операции и обязательства.", seller: "Продавец: только свои записи, без остатков." } satisfies Record<Role, string>,
-  invited: "Приглашён",
-  you: "Вы",
-  empty: "Пока только вы",
-  emptyHint: "Пригласите бухгалтера или продавца по почте.",
-  ownerOnly: "Раздел только для владельца",
-  ownerOnlyHint: "Попросите владельца изменить состав команды.",
-  save: "Сохранить роль",
-  remove: "Удалить из команды",
-  confirmRemove: (who: string) => `Удалить ${who} из команды? Доступ пропадёт сразу.`,
-  confirm: "Да, удалить",
-  cancel: "Отмена",
-  loadError: "не удалось загрузить команду",
-  generic: "Не получилось. Попробуйте ещё раз.",
-  errors: {
-    last_owner: "Нельзя убрать последнего владельца. Сначала назначьте другого.",
-    already_member: "Этот человек уже в команде.",
-    http_403: "Менять команду может только владелец.",
-    http_404: "Участник не найден. Обновите список.",
-    http_400: "Проверьте почту и роль.",
-  } as Record<string, string>,
-};
 
 type Panel = { kind: "invite" } | { kind: "member"; m: TeamMember } | { kind: "confirm"; m: TeamMember } | null;
 const who = (m: TeamMember) => m.name || m.email || m.invited_email || "";
 
 export function TeamView() {
+  const t = useT();
   const { user } = useSession();
+  const strings = {
+    title: t("biz.team.title"),
+    hint: t("biz.team.hint"),
+    invite: t("biz.team.invite"),
+    inviteTitle: t("biz.team.inviteTitle"),
+    email: t("biz.team.email"),
+    role: t("biz.team.role"),
+    send: t("biz.team.send"),
+    roleHints: { owner: t("biz.team.roleHint.owner"), accountant: t("biz.team.roleHint.accountant"), seller: t("biz.team.roleHint.seller") } satisfies Record<Role, string>,
+    invited: t("biz.team.invited"),
+    you: t("biz.team.you"),
+    empty: t("biz.team.empty"),
+    emptyHint: t("biz.team.emptyHint"),
+    ownerOnly: t("biz.team.ownerOnly"),
+    ownerOnlyHint: t("biz.team.ownerOnlyHint"),
+    save: t("biz.team.save"),
+    remove: t("biz.team.remove"),
+    confirmRemove: (who: string) => t("biz.team.confirmRemove", { who }),
+    confirm: t("biz.team.confirm"),
+    cancel: t("biz.team.cancel"),
+    loadError: t("biz.team.loadError"),
+    generic: t("biz.generic"),
+    errors: {
+      last_owner: t("biz.team.err.last_owner"),
+      already_member: t("biz.team.err.already_member"),
+      http_403: t("biz.team.err.http_403"),
+      http_404: t("biz.team.err.http_404"),
+      http_400: t("biz.team.err.http_400"),
+    } as Record<string, string>,
+  };
   const businessId = user?.active_business_id ?? null;
   const isOwner = user?.role === "owner";
   const [items, setItems] = useState<TeamMember[] | null>(null);
@@ -98,8 +99,8 @@ export function TeamView() {
 
   if (!isOwner) return <EmptyState title={strings.ownerOnly} hint={strings.ownerOnlyHint} />;
   const id = businessId as number;
-  const label = (m: TeamMember) => `${roleLabel(m.role)}${m.user_id === user?.id ? ` · ${strings.you}` : ""}`;
-  const roleOptions = ROLES.map((r) => ({ value: r, label: roleLabel(r) }));
+  const label = (m: TeamMember) => `${roleLabel(t, m.role)}${m.user_id === user?.id ? ` · ${strings.you}` : ""}`;
+  const roleOptions = ROLES.map((r) => ({ value: r, label: roleLabel(t, r) }));
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">

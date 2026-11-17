@@ -1,7 +1,5 @@
-import type { Metadata } from "next";
 import { TeamView } from "@/components/business/team-view";
 
-export const metadata: Metadata = { title: "Команда" };
 
 export default function TeamPage() {
   return <TeamView />;

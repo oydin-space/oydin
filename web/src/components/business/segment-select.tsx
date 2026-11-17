@@ -1,21 +1,13 @@
 "use client";
 
+import { useAT, type AKey } from "@/components/auth/use-at";
 import { Select } from "@/components/ui";
 import type { Segment } from "@/lib/auth-api";
 
-export const segmentStrings = {
-  label: "Чем занимается бизнес",
-  placeholder: "Выберите сферу",
-  options: {
-    textile_print: "Печать на текстиле",
-    retail: "Розница",
-    horeca: "HoReCa (кафе, рестораны)",
-    marketplace_seller: "Продавец на маркетплейсах",
-    services: "Услуги",
-  } satisfies Record<Segment, string>,
-};
+const SEGMENTS: Segment[] = ["textile_print", "retail", "horeca", "marketplace_seller", "services"];
 
 export function SegmentSelect({ value, onValueChange, error }: { value: Segment | undefined; onValueChange: (s: Segment) => void; error?: string }) {
-  const options = (Object.keys(segmentStrings.options) as Segment[]).map((v) => ({ value: v, label: segmentStrings.options[v] }));
-  return <Select label={segmentStrings.label} placeholder={segmentStrings.placeholder} options={options} value={value} onValueChange={(v) => onValueChange(v as Segment)} error={error} required />;
+  const { t } = useAT();
+  const options = SEGMENTS.map((v) => ({ value: v, label: t(`auth.segment.${v}` satisfies AKey) }));
+  return <Select label={t("auth.segment.label")} placeholder={t("auth.segment.placeholder")} options={options} value={value} onValueChange={(v) => onValueChange(v as Segment)} error={error} required />;
 }
