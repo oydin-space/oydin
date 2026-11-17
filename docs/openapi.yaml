@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Oydin API
-  version: 0.4.0
+  version: 0.4.1
   description: |
     Второй мозг для малого бизнеса. Даты — ISO 8601 (YYYY-MM-DD). Ошибки: `{"error": "<код или текст>"}` (часть ошибок валидации — русский текст). Пути заканчиваются на `/`.
     Неверный метод → 405, нет сессии → 401, тело не JSON-объект → 400.
@@ -854,11 +854,14 @@ paths:
   /auth/demo/:
     post:
       summary: Демо-вход
+      description: 'Нужен Content-Type: application/json (иначе 415 `unsupported_media_type`); уже вошедший → 409 `already_authenticated`; 403 если демо выключено'
       security: []
       x-roles: []
       responses:
         '200': { description: Сессия создана, content: { application/json: { schema: { $ref: '#/components/schemas/Me' } } } }
         '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '415': { $ref: '#/components/responses/Error' }
   /auth/telegram/:
     post:
       summary: Вход через Telegram Mini App
@@ -873,6 +876,7 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Me' } } } }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
   /auth/email/request/:
     post:
       summary: Запросить код входа на email
@@ -1092,7 +1096,7 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
     delete:
-      summary: Удалить счёт (409 account_in_use, если есть операции)
+      summary: Удалить счёт (409 account_in_use, если есть операции, сверки кассы или регулярные платежи)
       x-roles: [owner]
       parameters: [{ $ref: '#/components/parameters/Id' }]
       responses:
@@ -1133,6 +1137,7 @@ paths:
   /transactions/{id}/:
     patch:
       summary: Изменить операцию (в т.ч. to_account_id, status; draft → confirmed → transaction.confirmed)
+      description: '400 `transfer_currency_mismatch` — счета перевода в разных валютах (так же для POST /transactions/ и /sync/)'
       x-roles: [owner, accountant, seller]
       parameters: [{ $ref: '#/components/parameters/Id' }]
       requestBody:
@@ -1315,6 +1320,7 @@ paths:
         content: { application/json: { schema: { allOf: [{ $ref: '#/components/schemas/SavedToolInput' }, { required: [title, spec] }] } } }
       responses:
         '201': { description: Создано, content: { application/json: { schema: { $ref: '#/components/schemas/SavedTool' } } } }
+        '409': { $ref: '#/components/responses/Error' }
         '400': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
   /tools/templates/:
@@ -2013,7 +2019,7 @@ paths:
   /sync/:
     post:
       summary: Пакетная офлайн-синхронизация (операции и сверки кассы)
-      description: 1–100 элементов, иначе 400. Повтор client_id → duplicate. Ошибки по элементам — в results[].error.
+      description: 1–100 элементов, иначе 400. Повтор client_id → duplicate. Ошибки по элементам — в results[].error. Необязательный business_id (int) не совпал с текущим бизнесом → 409 `business_mismatch`, ничего не применяется.
       x-roles: [owner, accountant, seller]
       requestBody:
         required: true
@@ -2022,12 +2028,13 @@ paths:
             schema:
               type: object
               required: [items]
-              properties: { items: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/SyncItem' } } }
+              properties: { business_id: { type: integer }, items: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/SyncItem' } } }
       responses:
         '200':
           description: OK
           content: { application/json: { schema: { type: object, required: [results], properties: { results: { type: array, items: { $ref: '#/components/schemas/SyncResult' } } } } } }
         '400': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
   # ---------- Bot ----------
   /telegram/webhook/:
     post:
@@ -2053,6 +2060,7 @@ paths:
         '200':
           description: OK
           content: { application/json: { schema: { type: object, required: [url, expires_in], properties: { url: { type: string }, expires_in: { type: integer, description: Секунд } } } } }
+        '403': { $ref: '#/components/responses/Error' }
     delete:
       summary: Отвязать Telegram
       x-roles: []
@@ -2075,6 +2083,7 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
   /auth/telegram/widget/:
     post:
+      description: 'Подпись принимается в течение 10 минут; hash одноразовый (повтор → 403 `invalid_hash`); 400 `expired` также для auth_date из будущего; 403 `forbidden` для staff; 503 `telegram_not_configured`'
       summary: Вход через Telegram Login Widget
       security: []
       x-roles: []
