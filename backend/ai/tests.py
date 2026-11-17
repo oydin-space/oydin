@@ -41,13 +41,13 @@ class ChatTests(TestCase):
     def post(self, text):
         return self.client.post("/api/ai/chat/", {"messages": [{"role": "user", "content": text}]}, content_type="application/json")
 
-    @override_settings(LLM_API_KEY="")
+    @override_settings(LLM_API_KEY="", ANTHROPIC_API_KEY="")
     def test_fallback_without_llm(self):
         r = self.post("Что с деньгами?")
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.json()["fallback"])
 
-    @override_settings(LLM_API_KEY="")
+    @override_settings(LLM_API_KEY="", ANTHROPIC_API_KEY="")
     def test_fallback_builds_draft(self):
         r = self.post("Заплатил поставщику 4 млн наличными")
         draft_ = r.json()["draft"]

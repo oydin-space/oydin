@@ -35,9 +35,10 @@ def parse_json(request, *, required=True):
     return body
 
 
-def api_view(*methods, auth=True):
+def api_view(*methods, auth=True, business=True):
     """Ограничивает методы, требует вход и переводит ApiError в {"error": ...}.
-    Для авторизованных запросов кладёт request.business."""
+    Для авторизованных запросов кладёт request.business/membership/role (accounts.access);
+    business=True — без активного бизнеса 403 {"error": "no_business"}."""
 
     def decorator(view):
         @wraps(view)
@@ -47,10 +48,10 @@ def api_view(*methods, auth=True):
             if auth:
                 if not request.user.is_authenticated:
                     return error(401, "Нужно войти")
-                profile = getattr(request.user, "profile", None)
-                if profile is None:
-                    return error(401, "Нужно войти")
-                request.business = profile.business
+                from .access import resolve
+
+                if resolve(request) is None and business:
+                    return error(403, "no_business")
             try:
                 return view(request, *args, **kwargs)
             except ApiError as exc:

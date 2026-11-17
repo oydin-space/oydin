@@ -2,7 +2,9 @@
 export type Tone = "calm" | "watch" | "risk";
 export type TaxRegime = "unknown" | "turnover" | "simplified_vat" | "general";
 export type Direction = "in" | "out" | "transfer";
-export type Purpose = "business" | "personal" | "unclear";
+export type Purpose = "business" | "personal" | "unclear" | "owner_draw" | "owner_contribution";
+export type Role = "owner" | "accountant" | "seller";
+export type Currency = "UZS" | "USD";
 
 export interface Business {
   id: number;
@@ -11,10 +13,53 @@ export interface Business {
   city: string;
   tax_regime: TaxRegime;
 }
+/** Элемент списка бизнесов в Me. */
+export interface BusinessSummary {
+  id: number;
+  name: string;
+  role: Role;
+  is_demo: boolean;
+}
+/** GET /api/businesses/ → {items: BusinessItem[]} */
+export interface BusinessItem extends BusinessSummary {
+  industry: string;
+  city: string;
+}
+/** Me: GET /api/auth/me/. business = активный бизнес, null пока нет ни одного членства. */
 export interface User {
   id: number;
   name: string;
-  business: Business;
+  email: string | null;
+  is_staff: boolean;
+  role: Role | null;
+  active_business_id: number | null;
+  needs_onboarding: boolean;
+  business: Business | null;
+  businesses: BusinessSummary[];
+}
+export type Me = User;
+export interface Member {
+  id: number;
+  user_id: number | null;
+  name: string;
+  email: string | null;
+  role: Role;
+  /** Приглашение ещё не принято (пользователь с этим email не входил). */
+  pending: boolean;
+  created_at: string;
+}
+/** GET /api/rates/: rate = сумов за 1 USD. */
+export interface Rates {
+  date: string;
+  USD: string;
+  source: string;
+  stale: boolean;
+}
+export interface AuthProviders {
+  email: boolean;
+  google: boolean;
+  telegram: boolean;
+  demo: boolean;
 }
 export interface Metric {
   key: string;
@@ -52,7 +97,11 @@ export interface Account {
   id: number;
   name: string;
   kind: "cash" | "card" | "bank";
-  balance: number;
+  currency: Currency;
+  /** В минимальных единицах валюты счёта (сумы / центы). Продавцу не отдаётся. */
+  balance?: number;
+  /** Остаток в сумах по последнему курсу. Продавцу не отдаётся. */
+  balance_uzs?: number;
 }
 export interface Transaction {
   id: number;

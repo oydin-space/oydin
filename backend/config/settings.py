@@ -83,6 +83,33 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # Статика админки отдаётся whitenoise и в проде (без манифеста — работает и в dev/тестах без collectstatic).
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
+
+# Почта для входа по коду. Без EMAIL_HOST в DEBUG письма печатаются в консоль.
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+EMAIL_TIMEOUT = 15
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Oydin <noreply@oydin.sayfi.uz>")
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend" if EMAIL_HOST else "django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_CONFIGURED = bool(EMAIL_HOST) or DEBUG
+
+# Google OAuth: вход включается, только когда заданы оба значения.
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
+
+# Суперпользователь для /admin/ (manage.py ensure_admin; без обоих значений ничего не делает).
+ADMIN_EMAIL = env("ADMIN_EMAIL", default="")
+ADMIN_PASSWORD = env("ADMIN_PASSWORD", default="")
 
 # Интеграции
 DEMO_LOGIN = env.bool("DEMO_LOGIN", default=DEBUG)

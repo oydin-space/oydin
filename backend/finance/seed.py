@@ -2,13 +2,14 @@
 
 import random
 from datetime import timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
 
-from accounts.models import Business, Profile
+from accounts.models import Business, Membership, Profile
 from finance import services as svc
-from finance.models import Account, Envelope, Obligation, Order, OrderItem, Product, Transaction
+from finance.models import Account, Currency, Envelope, ExchangeRate, Obligation, Order, OrderItem, Product, Transaction
 
 DEMO_USERNAME = "demo"
 HISTORY_DAYS = 90
@@ -176,4 +177,36 @@ def seed_demo():
         Envelope(business=business, title="Налог", target=tax.amount, saved=tax.amount, due_date=tax.due_date),
         Envelope(business=business, title="Поставщик", target=supplier.amount, saved=0, due_date=supplier.due_date),
     ])
+    seed_second_business(user, today)
     return user
+
+
+# Резервный курс, если cbu.uz ещё ни разу не отвечал: seed не ходит в сеть, stale=true покажет, что курс не с ЦБ.
+FALLBACK_USD_RATE = Decimal("12650.00")
+
+
+def seed_second_business(user, today):
+    """Второй небольшой демо-бизнес с долларовым счётом — для переключения бизнесов и мультивалютности."""
+    if not ExchangeRate.objects.filter(currency=Currency.USD).exists():
+        ExchangeRate.objects.create(date=today, currency=Currency.USD, rate=FALLBACK_USD_RATE, source="seed")
+    cafe = Business.objects.create(
+        name="Chorsu Coffee", industry="Кофейня", city="Ташкент",
+        tax_regime=Business.TaxRegime.TURNOVER, is_demo=True,
+    )
+    Membership.objects.create(user=user, business=cafe, role="owner")
+    cash = Account.objects.create(business=cafe, name="Касса", kind=Account.Kind.CASH, opening_balance=3_000_000)
+    usd = Account.objects.create(
+        business=cafe, name="Валютный счёт", kind=Account.Kind.BANK, currency=Currency.USD, opening_balance=150_000,
+    )
+    rows = [
+        (cash, 1, 1_850_000, "in", "Продажи"),
+        (cash, 2, 2_100_000, "in", "Продажи"),
+        (cash, 3, 900_000, "out", "Кофе и молоко"),
+        (usd, 5, 42_000, "out", "Кофемашина в рассрочку"),
+        (cash, 7, 1_500_000, "out", "Аренда"),
+    ]
+    Transaction.objects.bulk_create([
+        Transaction(business=cafe, account=account, date=today - timedelta(days=ago), amount=amount,
+                    direction=direction, category=category, source="seed", created_by=user)
+        for account, ago, amount, direction, category in rows
+    ])

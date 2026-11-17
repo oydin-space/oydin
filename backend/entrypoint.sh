@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 python manage.py migrate --noinput
+# Суперпользователь из ADMIN_EMAIL/ADMIN_PASSWORD; без переменных — ничего не делает.
+python manage.py ensure_admin
+# Курс ЦБ на сегодня; недоступность cbu.uz не должна мешать старту.
+python manage.py fetch_rates || true
 # Демо-бизнес создаём один раз: seed пересоздаёт его с нуля, повторный старт не должен сбрасывать данные.
 python manage.py shell -c "
 from accounts.models import Business

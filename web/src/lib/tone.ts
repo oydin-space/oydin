@@ -28,4 +28,4 @@ export const TONE_LABEL: Record<Tone, string> = { calm: "Спокойно", watc
 
 export const CONFIDENCE_LABEL = { high: "Высокая уверенность", medium: "Средняя уверенность", low: "Низкая уверенность" } as const;
 
-export const PURPOSE_LABEL = { business: "Целевая", personal: "Нецелевая", unclear: "Не ясно" } as const;
+export const PURPOSE_LABEL = { business: "Целевая", personal: "Нецелевая", unclear: "Не ясно", owner_draw: "Взял себе", owner_contribution: "Внёс в бизнес" } as const;

@@ -1,7 +1,30 @@
+from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 from accounts.models import Business
+
+
+class Currency(models.TextChoices):
+    UZS = "UZS"
+    USD = "USD"
+
+
+class ExchangeRate(models.Model):
+    """Курс ЦБ: сколько сумов за 1 единицу валюты на дату."""
+
+    date = models.DateField()
+    currency = models.CharField(max_length=3, choices=Currency)
+    rate = models.DecimalField(max_digits=18, decimal_places=4)
+    source = models.CharField(max_length=20, default="cbu.uz")
+    fetched_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        constraints = [models.UniqueConstraint(fields=["date", "currency"], name="exchange_rate_day")]
+
+    def __str__(self):
+        return f"{self.currency} {self.rate} ({self.date})"
 
 
 class Account(models.Model):
@@ -12,6 +35,8 @@ class Account(models.Model):
 
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name="accounts")
     name = models.CharField(max_length=100)
+    # Суммы счёта — в минимальных единицах его валюты: сумы для UZS, центы для USD.
+    currency = models.CharField(max_length=3, choices=Currency, default=Currency.UZS)
     kind = models.CharField(max_length=10, choices=Kind)
     opening_balance = models.BigIntegerField(default=0)
 
@@ -32,6 +57,9 @@ class Transaction(models.Model):
         BUSINESS = "business"
         PERSONAL = "personal"
         UNCLEAR = "unclear"
+        # Деньги владельца: не доход/расход бизнеса, но влияют на кассу.
+        OWNER_DRAW = "owner_draw"
+        OWNER_CONTRIBUTION = "owner_contribution"
 
     class Status(models.TextChoices):
         DRAFT = "draft"
@@ -54,11 +82,14 @@ class Transaction(models.Model):
     amount = models.BigIntegerField()
     direction = models.CharField(max_length=10, choices=Direction)
     category = models.CharField(max_length=100)
-    purpose = models.CharField(max_length=10, choices=Purpose, default=Purpose.BUSINESS)
+    purpose = models.CharField(max_length=20, choices=Purpose, default=Purpose.BUSINESS)
     counterparty = models.CharField(max_length=200, null=True, blank=True)
     note = models.TextField(blank=True, default="")
     status = models.CharField(max_length=10, choices=Status, default=Status.CONFIRMED)
     source = models.CharField(max_length=10, choices=Source, default=Source.MANUAL)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="transactions"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

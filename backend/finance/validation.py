@@ -22,8 +22,8 @@ def parse_amount(value, label="Сумма"):
     return value
 
 
-def transaction_fields(body, business, *, partial):
-    """Проверенные поля TransactionInput для создания/изменения операции."""
+def transaction_fields(body, business, *, partial, instance=None):
+    """Проверенные поля TransactionInput для создания/изменения операции (instance — при изменении)."""
     required = ("amount", "direction", "category", "account_id")
     if not partial:
         missing = [k for k in required if k not in body]
@@ -43,7 +43,7 @@ def transaction_fields(body, business, *, partial):
         fields["category"] = category.strip()
     if "purpose" in body:
         if body["purpose"] not in PURPOSES:
-            raise ApiError(400, "purpose: business, personal или unclear")
+            raise ApiError(400, "purpose: business, personal, unclear, owner_draw или owner_contribution")
         fields["purpose"] = body["purpose"]
     if "account_id" in body:
         account = Account.objects.filter(pk=body["account_id"] if isinstance(body["account_id"], int) else None,
@@ -62,4 +62,10 @@ def transaction_fields(body, business, *, partial):
         if not isinstance(body["note"], str):
             raise ApiError(400, "Заметка должна быть строкой")
         fields["note"] = body["note"]
+    purpose = fields.get("purpose", instance.purpose if instance else None)
+    direction = fields.get("direction", instance.direction if instance else None)
+    if purpose == Transaction.Purpose.OWNER_DRAW and direction != Transaction.Direction.OUT:
+        raise ApiError(400, "Изъятие владельца — только расход (direction=out)")
+    if purpose == Transaction.Purpose.OWNER_CONTRIBUTION and direction != Transaction.Direction.IN:
+        raise ApiError(400, "Вложение владельца — только приход (direction=in)")
     return fields

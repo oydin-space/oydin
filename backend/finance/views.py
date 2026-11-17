@@ -1,13 +1,21 @@
 from django.http import HttpResponse
 from django.utils import timezone
 
+from accounts.access import FINANCE_READERS, SELLER, require_role
 from accounts.http import ApiError, api_view, json_response, parse_json
 
+from . import rates
 from . import services as svc
 from .models import Obligation, Transaction
-from .validation import parse_amount, parse_date, transaction_fields
+from .validation import PURPOSES, parse_amount, parse_date, transaction_fields
 
 OBLIGATION_KINDS = {c for c, _ in Obligation.Kind.choices}
+
+
+def own_transactions(request):
+    """Операции бизнеса; продавец видит и правит только свои."""
+    qs = Transaction.objects.filter(business=request.business)
+    return qs.filter(created_by=request.user) if request.role == SELLER else qs
 
 
 def int_param(request, name, default, maximum):
@@ -22,13 +30,23 @@ def int_param(request, name, default, maximum):
 
 
 @api_view("GET")
+@require_role(*FINANCE_READERS)
 def pulse(request):
     return json_response(svc.pulse(request.business))
 
 
 @api_view("GET")
 def accounts(request):
-    return json_response({"items": svc.list_accounts(request.business)})
+    items = svc.list_accounts(request.business)
+    if request.role == SELLER:
+        # Продавцу нужны счета для ввода операций, но не остатки.
+        items = [{k: v for k, v in a.items() if k not in ("balance", "balance_uzs")} for a in items]
+    return json_response({"items": items})
+
+
+@api_view("GET", business=False)
+def exchange_rates(request):
+    return json_response(rates.serialize(rates.latest()))
 
 
 @api_view("GET", "POST")
@@ -39,11 +57,12 @@ def transactions(request):
         fields = transaction_fields(body, business, partial=False)
         fields.setdefault("date", timezone.localdate())
         tx = Transaction.objects.create(
-            business=business, status=Transaction.Status.CONFIRMED, source=Transaction.Source.MANUAL, **fields
+            business=business, status=Transaction.Status.CONFIRMED, source=Transaction.Source.MANUAL,
+            created_by=request.user, **fields
         )
         tx = svc.merge_transfer(tx)
         return json_response(svc.serialize_transaction(tx), status=201)
-    qs = Transaction.objects.filter(business=business)
+    qs = own_transactions(request)
     status = request.GET.get("status")
     if status:
         if status not in {"draft", "confirmed"}:
@@ -51,8 +70,8 @@ def transactions(request):
         qs = qs.filter(status=status)
     purpose = request.GET.get("purpose")
     if purpose:
-        if purpose not in {"business", "personal", "unclear"}:
-            raise ApiError(400, "purpose: business, personal или unclear")
+        if purpose not in PURPOSES:
+            raise ApiError(400, "purpose: business, personal, unclear, owner_draw или owner_contribution")
         qs = qs.filter(purpose=purpose)
     qs = svc.search_transactions(qs, request.GET.get("q", ""))
     limit = int_param(request, "limit", 50, 200)
@@ -61,13 +80,13 @@ def transactions(request):
 
 @api_view("PATCH", "DELETE")
 def transaction_detail(request, id):
-    tx = Transaction.objects.filter(pk=id, business=request.business).first()
+    tx = own_transactions(request).filter(pk=id).first()
     if tx is None:
         raise ApiError(404, "Операция не найдена")
     if request.method == "DELETE":
         tx.delete()
         return HttpResponse(status=204)
-    fields = transaction_fields(parse_json(request), request.business, partial=True)
+    fields = transaction_fields(parse_json(request), request.business, partial=True, instance=tx)
     for key, value in fields.items():
         setattr(tx, key, value)
     if tx.direction != "transfer":
@@ -79,6 +98,7 @@ def transaction_detail(request, id):
 
 
 @api_view("GET", "POST")
+@require_role(*FINANCE_READERS)
 def obligations(request):
     business = request.business
     if request.method == "POST":
@@ -100,11 +120,13 @@ def obligations(request):
 
 
 @api_view("GET")
+@require_role(*FINANCE_READERS)
 def envelopes(request):
     return json_response({"items": svc.envelopes(request.business)})
 
 
 @api_view("GET")
+@require_role(*FINANCE_READERS)
 def forecast(request):
     days = int_param(request, "days", 30, 90)
     return json_response({"points": svc.forecast_points(request.business, days)})
@@ -121,6 +143,7 @@ def orders(request):
 
 
 @api_view("GET")
+@require_role(*FINANCE_READERS)
 def analytics_summary(request):
     period = request.GET.get("period", "month")
     if period not in svc.PERIOD_DAYS:

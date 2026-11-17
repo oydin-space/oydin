@@ -15,6 +15,7 @@ from .domain.categories import OBLIGATION_CATEGORIES, ORDER_INCOME_CATEGORIES
 from .domain.fmt import money, short_date
 from .domain.transfers import Candidate, find_counterpart
 from .models import Account, Envelope, Obligation, Order, Product, Transaction
+from .rates import rows_to_uzs, to_uzs
 
 PERIOD_DAYS = {"week": 7, "month": 30, "quarter": 90}
 
@@ -25,6 +26,18 @@ def today():
 
 def confirmed(business):
     return Transaction.objects.filter(business=business, status=Transaction.Status.CONFIRMED)
+
+
+def uzs(qs):
+    """Сумма amount по операциям разных валют, приведённая к сумам."""
+    return rows_to_uzs(qs.order_by().values("account__currency").annotate(s=Sum("amount")))
+
+
+def balance_uzs(business):
+    balances = account_balances(business)
+    return rows_to_uzs(
+        {"account__currency": a.currency, "s": balances[a.id]} for a in Account.objects.filter(business=business)
+    )
 
 
 def account_balances(business):
@@ -42,20 +55,26 @@ def account_balances(business):
 
 
 def list_accounts(business):
+    """Остатки в валюте счёта (balance) и в сумах (balance_uzs)."""
     balances = account_balances(business)
     return [
-        {"id": a.id, "name": a.name, "kind": a.kind, "balance": balances[a.id]}
+        {"id": a.id, "name": a.name, "kind": a.kind, "currency": a.currency, "balance": balances[a.id],
+         "balance_uzs": to_uzs(balances[a.id], a.currency)}
         for a in Account.objects.filter(business=business)
     ]
 
 
 def period_totals(business, start, end):
-    """Выручка, расходы бизнеса и личные траты за [start, end]. Переводы между счетами не считаются."""
+    """Итоги периода в сумах. Прибыль — без личных трат и денег владельца; cash_flow — всё движение денег.
+    Переводы между своими счетами не считаются."""
     qs = confirmed(business).filter(date__gte=start, date__lte=end)
-    revenue = qs.filter(direction="in").aggregate(s=Sum("amount"))["s"] or 0
-    out = qs.filter(direction="out")
-    personal = out.filter(purpose="personal").aggregate(s=Sum("amount"))["s"] or 0
-    expenses = (out.aggregate(s=Sum("amount"))["s"] or 0) - personal
+    inflow, out = qs.filter(direction="in"), qs.filter(direction="out")
+    contributions = uzs(inflow.filter(purpose=Transaction.Purpose.OWNER_CONTRIBUTION))
+    draws = uzs(out.filter(purpose=Transaction.Purpose.OWNER_DRAW))
+    total_in, total_out = uzs(inflow), uzs(out)
+    personal = uzs(out.filter(purpose=Transaction.Purpose.PERSONAL))
+    revenue = total_in - contributions
+    expenses = total_out - personal - draws
     spent = expenses + personal
     return {
         "revenue": revenue,
@@ -63,6 +82,9 @@ def period_totals(business, start, end):
         "personal": personal,
         "profit": revenue - expenses,
         "personal_share": round(personal / spent, 3) if spent else 0.0,
+        "owner_draws": draws,
+        "owner_contributions": contributions,
+        "cash_flow": total_in - total_out,
     }
 
 
@@ -70,9 +92,10 @@ def daily_rates(business, now):
     """Средний дневной приход и расход за 30 дней вне регулярных обязательств и оплат заказов (их прогноз считает отдельно)."""
     start = now - timedelta(days=30)
     qs = confirmed(business).filter(date__gt=start, date__lte=now)
-    inflow = qs.filter(direction="in").exclude(category__in=ORDER_INCOME_CATEGORIES).aggregate(s=Sum("amount"))["s"] or 0
-    outflow = qs.filter(direction="out").exclude(category__in=OBLIGATION_CATEGORIES).aggregate(s=Sum("amount"))["s"] or 0
-    total_out = qs.filter(direction="out").aggregate(s=Sum("amount"))["s"] or 0
+    inflow = uzs(qs.filter(direction="in").exclude(category__in=ORDER_INCOME_CATEGORIES)
+                 .exclude(purpose=Transaction.Purpose.OWNER_CONTRIBUTION))
+    outflow = uzs(qs.filter(direction="out").exclude(category__in=OBLIGATION_CATEGORIES))
+    total_out = uzs(qs.filter(direction="out"))
     return inflow // 30, outflow // 30, total_out // 30
 
 
@@ -99,7 +122,7 @@ def planned_flows(business, now):
 
 def bundle(business, days=90, now=None):
     now = now or today()
-    balance = sum(account_balances(business).values())
+    balance = balance_uzs(business)
     daily_in, daily_out, avg_out = daily_rates(business, now)
     flows = planned_flows(business, now)
     points = fc.build_forecast(now, balance, flows, daily_in, daily_out, days)
@@ -196,10 +219,14 @@ def analytics(business, period, now=None):
     totals = period_totals(business, start, now)
     out = confirmed(business).filter(direction="out", date__gte=start, date__lte=now)
     cats = {}
-    for row in out.filter(~Q(purpose="personal")).values("category").annotate(s=Sum("amount")):
-        cats[row["category"]] = row["s"]
+    business_out = out.exclude(purpose__in=[Transaction.Purpose.PERSONAL, Transaction.Purpose.OWNER_DRAW])
+    by_cat = business_out.order_by().values("category", "account__currency").annotate(s=Sum("amount"))
+    for row in by_cat:
+        cats[row["category"]] = cats.get(row["category"], 0) + rows_to_uzs([row])
     if totals["personal"]:
         cats["Личное"] = totals["personal"]
+    if totals["owner_draws"]:
+        cats["Владельцу"] = totals["owner_draws"]
     ranked = sorted(cats.items(), key=lambda kv: -kv[1])
     by_category = [{"label": k, "value": v} for k, v in ranked[:7]]
     rest = sum(v for _, v in ranked[7:])
@@ -213,12 +240,14 @@ def analytics(business, period, now=None):
         qs = confirmed(business).filter(date__gte=begin, date__lte=end)
         by_week.append({
             "label": short_date(begin),
-            "inflow": qs.filter(direction="in").aggregate(s=Sum("amount"))["s"] or 0,
-            "outflow": qs.filter(direction="out").aggregate(s=Sum("amount"))["s"] or 0,
+            "inflow": uzs(qs.filter(direction="in")),
+            "outflow": uzs(qs.filter(direction="out")),
         })
     return {
         "revenue": totals["revenue"], "expenses": totals["expenses"], "profit": totals["profit"],
-        "personal_share": totals["personal_share"], "by_category": by_category, "by_week": by_week,
+        "personal_share": totals["personal_share"], "owner_draws": totals["owner_draws"],
+        "owner_contributions": totals["owner_contributions"], "cash_flow": totals["cash_flow"],
+        "by_category": by_category, "by_week": by_week,
     }
 
 

@@ -79,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="flex flex-col gap-1" aria-label="Разделы">
           {NAV.map((n) => <NavLink key={n.href} item={n} active={isActive(n.href)} rail />)}
         </nav>
-        <p className="mt-auto truncate text-sm text-muted-foreground">{user?.business.name}</p>
+        <p className="mt-auto truncate text-sm text-muted-foreground">{user?.business?.name}</p>
       </aside>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className={cn("glass relative z-10 grid shrink-0 grid-cols-[2.5rem_1fr_2.5rem] items-center px-4 pb-2 pt-[max(env(safe-area-inset-top),var(--tg-top),0.75rem)] transition-[box-shadow] lg:hidden", showTitle ? "shadow-[0_0.5px_0_var(--border)]" : "shadow-none")}>
@@ -88,7 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className={cn("absolute inset-0 truncate text-[0.95rem] font-semibold transition-all duration-200", showTitle ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0")} aria-hidden={!showTitle}>
               {current?.label}
             </span>
-            <span className={cn("absolute inset-0 truncate text-sm text-muted-foreground transition-opacity duration-200", showTitle ? "opacity-0" : "opacity-100")}>{user?.business.name}</span>
+            <span className={cn("absolute inset-0 truncate text-sm text-muted-foreground transition-opacity duration-200", showTitle ? "opacity-0" : "opacity-100")}>{user?.business?.name}</span>
           </div>
         </header>
         <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-2 lg:px-8 lg:pt-8 [&:has(>[data-fill])]:overflow-hidden [&:has(>[data-fill])]:pb-0">
