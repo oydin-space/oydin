@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { AnswerChart } from "./answer-chart";
 import { DraftCard } from "./draft-card";
 import { RichText } from "./rich-text";
+import { useT } from "@/i18n";
 
 const pop = { initial: { opacity: 0, scale: 0.9, y: 10 }, animate: { opacity: 1, scale: 1, y: 0 }, transition: { type: "spring", stiffness: 420, damping: 30, mass: 0.8 } } as const;
 
@@ -24,6 +25,7 @@ export function ChatBubble({
   onDismiss: (id: string) => void;
   onRate: (id: string, traceId: string, value: 0 | 1) => void;
 }) {
+  const t = useT();
   if (message.role === "user") {
     return (
       <motion.div className="flex origin-bottom-right justify-end pr-2" {...pop}>
@@ -45,7 +47,7 @@ export function ChatBubble({
               <button
                 key={v}
                 type="button"
-                aria-label={v ? "Полезный ответ" : "Неполезный ответ"}
+                aria-label={v ? t("biz.chat.helpful") : t("biz.chat.notHelpful")}
                 aria-pressed={message.feedback === v}
                 onClick={() => onRate(message.id, message.traceId!, v)}
                 className={cn("rounded-full p-1.5 hover:bg-muted", message.feedback === v && "bg-mint text-ink")}
@@ -61,8 +63,9 @@ export function ChatBubble({
 }
 
 export function TypingBubble() {
+  const t = useT();
   return (
-    <motion.div className="flex origin-bottom-left justify-start pl-2" {...pop} role="status" aria-label="Oydin печатает">
+    <motion.div className="flex origin-bottom-left justify-start pl-2" {...pop} role="status" aria-label={t("biz.chat.typing")}>
       <div className="tail-l flex items-center gap-1 rounded-[1.25rem] bg-secondary px-4 py-3.5">
         {[0, 1, 2].map((i) => (
           <span key={i} className="size-2 rounded-full bg-muted-foreground" style={{ animation: `typing-dot 1.2s ${i * 0.18}s infinite ease-in-out` }} />

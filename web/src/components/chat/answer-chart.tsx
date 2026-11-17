@@ -2,14 +2,15 @@
 
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Chart } from "@/lib/types";
-import { soft } from "@/lib/format";
+import { soft, type FormatLocale } from "@/lib/format";
+import { useI18n } from "@/i18n";
 
 const COLORS = ["var(--lavender-deep)", "var(--mint-deep)", "var(--butter-deep)", "var(--sky-deep)", "var(--peach-deep)", "var(--rose-deep)"];
 
 const isSum = (unit: string) => /сум|uzs/i.test(unit);
 
-function fmt(unit: string, v: number): string {
-  return isSum(unit) ? `${soft(v)}` : `${v.toLocaleString("ru-RU", { maximumFractionDigits: 1 })}${unit ? `\u00a0${unit}` : ""}`;
+function formatValue(locale: FormatLocale, unit: string, v: number): string {
+  return isSum(unit) ? `${soft(v, locale)}` : `${v.toLocaleString(locale === "uz" ? "uz-UZ" : locale === "en" ? "en-US" : "ru-RU", { maximumFractionDigits: 1 })}${unit ? `\u00a0${unit}` : ""}`;
 }
 
 const tooltip = {
@@ -19,6 +20,8 @@ const tooltip = {
 
 /** Простой пастельный график ответа ИИ + таблица-альтернатива. */
 export function AnswerChart({ chart }: { chart: Chart }) {
+  const { t, locale } = useI18n();
+  const fmt = formatValue.bind(null, locale);
   const { type, data, unit } = chart;
   const axis = { stroke: "var(--muted-foreground)", fontSize: 11, tickLine: false, axisLine: false } as const;
   return (
@@ -63,7 +66,7 @@ export function AnswerChart({ chart }: { chart: Chart }) {
         </ResponsiveContainer>
       </div>
       <details className="mt-2 text-xs text-ink/70">
-        <summary className="cursor-pointer select-none">Показать как таблицу</summary>
+        <summary className="cursor-pointer select-none">{t("biz.chart.asTable")}</summary>
         <table className="mt-1 w-full">
           <tbody>
             {data.map((d) => (

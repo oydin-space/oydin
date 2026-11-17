@@ -53,7 +53,7 @@ export async function recordVoice(stop: AbortSignal): Promise<Blob> {
     };
     rec.onerror = () => {
       cleanup();
-      reject(new Error("Не удалось записать звук"));
+      reject(new Error("voice_record_failed"));
     };
     stop.addEventListener("abort", finish, { once: true });
     rec.start();
