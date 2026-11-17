@@ -27,3 +27,22 @@ Source of truth for scope. Production-ready quality: everything works end to end
 - **UI**: standardized atomic components reused everywhere (personal library at ~/Projects/components + shadcn), no hardcoded one-off elements; real company logos and coloured icons for integrations; hover/motion where useful; fix or drop custom block icons (no boxed backgrounds); unified "brushed" look. Fable + Astra review.
 - **Product work**: research cases, sources, custdev; prune functionality where research says so; keep a gitignored product changelog (`temp/product-changelog.md`) of what was removed/added and why.
 - **Process**: after each deploy a Fable 5.2 UI/UX review (code + screenshots); CodeGraph for token economy; 10+ product iterations; log in `docs/iterations.md`.
+
+## Round 3 / research outcomes (2026-11-18)
+
+Sources: `docs/research/custdev.md`, `docs/research/tax-fit.md`, `docs/research/verifiable-integrations.md`, `docs/research/ux-patterns.md`. Contract: `docs/openapi.yaml` v0.3.0 (its changelog lists every removed or renamed item).
+
+- **Tenancy:** the tenant is `accounts.Business`. One user can belong to many businesses through `Membership(user, business, role owner|accountant|seller, invited_email)`, and `Profile.business` is the active business. Invites go by email and are claimed on first login. The last owner cannot be removed or demoted. Login methods: email code, Google (only when env is configured), Telegram, and demo.
+- **Roles:** owner can do everything. Accountant can read everything and write operations/obligations; no team, settings, integrations or API tokens. Seller can create operations/drafts and sees only own entries; no balances or forecast. Every operation is tagged with `x-roles`.
+- **Currency:** accounts are UZS or USD, and amounts are integers in minor units. A CBU daily rate is stored in `ExchangeRate`. All totals are reported in UZS at the latest rate, and `/rates/` exposes the `stale` flag.
+- **Tax (final, option B):** an optional tax-reserve envelope with either a fixed amount or a percent the user enters (no presets), plus deadline reminders the user confirms. No regime calculators. Provenance and a "planning reserve — not tax due" disclaimer are always shown. `Business.tax_regime` is removed.
+- **Integrations (final):**
+  - Working: CBU rates, CSV/XLSX import/export, 1CClientBankExchange + CommerceML import, Telegram bot, public REST API + webhooks, Google sign-in/Sheets (when env is set).
+  - `coming_soon` catalogue entries with no backend code: Payme, Click, Uzum Market, Moysklad, Billz, Didox, Faktura, bank presets (Kapitalbank, TBC, Uzum Business, Hamkorbank), voice CFO call.
+- **Pruned:**
+  - Streaks are removed.
+  - Peer benchmarks are `coming_soon` until cohorts exist.
+  - The weekly CFO voice call becomes a TEXT weekly digest in Telegram.
+  - Seasonality comes only from the business's own history (the `event` field is dropped).
+- **Added:** daily cash close (expected vs counted, unexplained difference shown in pulse); `owner_draw`/`owner_contribution` operation kinds; period result (profit vs cash change vs owner draws); "can I afford it?" check; guided onboarding (business → statement or 3 notes → first pulse); accountant read-only share links (+PDF); partner (bank/MFO) cabinet with anonymised, consented leads; public `/impact/`; offline sync with idempotency.
+- **Renames:** `/me/` → `/auth/me/`; `/transactions/` → `/operations/`; `/team/*` → `/businesses/{id}/members/*`. The public `/v1/transactions/` and the `transaction.created` webhook stay stable.

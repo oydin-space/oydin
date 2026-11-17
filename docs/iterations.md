@@ -8,3 +8,9 @@ Running log of iterations, bug fixes, new features and research. Newest at the b
 - **Research**: `docs/research/market.md` (competitors, UZ SME stats, tax facts, ZRU-547), `docs/research/integrations.md` (1C, Payme, Click, Uzum, Moysklad, Billz, Didox, Faktura, Google, Telegram, TTS), `docs/research/openui.md`.
 - **Known issues**: UI elements hardcoded and not unified across screens (owner feedback); crayon icons have boxy backgrounds on dark cards; several tax rates single-source; bank statement formats unverified.
 - **Decisions**: `docs/decisions.md`.
+
+## Iteration 1 — tenancy, auth, UI kit (2026-11-19, in progress)
+- **Research**: `docs/research/{tax-fit,custdev,verifiable-integrations,ux-patterns}.md`; competitor feature fit in `docs/research/competitor-features.md`.
+- **AI QA**: 40-case golden set over 5 models, see `docs/ai-quality.md`. Commit `1d360f5`.
+- **Decisions**: tax scope reduced to a reserve envelope plus confirmed reminders; unverifiable integrations shown as "coming soon"; streaks removed; benchmarks and voice CFO call deferred; daily cash close and owner draws added.
+- **Scope**: membership tenancy, email one-time-code and Google sign-in, Django admin, USD accounts with CBU rates, contract v0.3, unified UI kit.
