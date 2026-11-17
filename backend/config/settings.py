@@ -7,8 +7,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
 
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-insecure-key")
 DEBUG = env.bool("DEBUG", default=True)
+# В проде секрет обязателен: без него приложение не стартует.
+SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-insecure-key" if DEBUG else environ.Env.NOTSET)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "testserver"])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 if DEBUG:
@@ -88,8 +89,13 @@ DEMO_LOGIN = env.bool("DEMO_LOGIN", default=DEBUG)
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 LLM_BASE_URL = env("LLM_BASE_URL", default="https://openrouter.ai/api/v1")
 LLM_API_KEY = env("LLM_API_KEY", default="")
-LLM_MODEL = env("LLM_MODEL", default="google/gemini-3.5-flash")
-LLM_FALLBACK_MODEL = env("LLM_FALLBACK_MODEL", default="google/gemini-3.1-flash-lite")
+LLM_MODEL = env("LLM_MODEL", default="google/gemini-3.1-flash-lite")
+LLM_CLASSIFY_MODEL = env("LLM_CLASSIFY_MODEL", default="google/gemini-3.1-flash-lite")  # черновики и классификация
+LLM_FALLBACK_MODEL = env("LLM_FALLBACK_MODEL", default="google/gemini-3.5-flash")
+# Прямой Anthropic API — запасной провайдер, если OpenRouter отвечает 401/402/429 или ключа нет.
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default=env("ANTHROPIC_API", default=""))
+ANTHROPIC_MODEL = env("ANTHROPIC_MODEL", default="claude-sonnet-5-5")
+ANTHROPIC_CLASSIFY_MODEL = env("ANTHROPIC_CLASSIFY_MODEL", default="claude-haiku-5-5")
 STT_MODEL = env("STT_MODEL", default="google/gemini-3.5-flash-lite")
 LANGFUSE_PUBLIC_KEY = env("LANGFUSE_PUBLIC_KEY", default="")
 LANGFUSE_SECRET_KEY = env("LANGFUSE_SECRET_KEY", default="")

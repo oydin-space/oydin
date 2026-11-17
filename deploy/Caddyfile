@@ -1,0 +1,18 @@
+{$PUBLIC_HOST} {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+
+	# Django ждёт завершающий слеш (как в rewrite Next)
+	@noslash path_regexp noslash ^/api/(.*[^/])$
+	rewrite @noslash /api/{re.noslash.1}/
+
+	@django path /api/* /admin/* /admin /static/*
+	handle @django {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3010
+	}
+}

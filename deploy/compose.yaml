@@ -1,12 +1,34 @@
-# Прод Oydin. Запуск: mise run deploy (нужен deploy/.env, образец — deploy/.env.example).
-# TLS и маршруты делает внешний Caddy (сеть edge), сюда он ходит по алиасам oydin-web / oydin-api.
+# Прод Oydin: caddy (TLS) + postgres + api (gunicorn) + web (Next standalone).
+# Образы собираются локально (linux/amd64) и загружаются по ssh: см. deploy/deploy.sh.
 name: oydin
 services:
-  oydin-db:
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?нужен .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      retries: 3
+    restart: unless-stopped
+  db:
     image: postgres:17
     environment:
       POSTGRES_USER: oydin
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?нужен deploy/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?нужен .env}
       POSTGRES_DB: oydin
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -15,15 +37,15 @@ services:
       interval: 5s
       retries: 20
     restart: unless-stopped
-  oydin-api:
-    build: ../backend
+  api:
+    image: oydin-api:latest
     environment:
-      DATABASE_URL: postgres://oydin:${POSTGRES_PASSWORD}@oydin-db:5432/oydin
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?нужен deploy/.env}
-      DEBUG: "false"
-      ALLOWED_HOSTS: ${PUBLIC_HOST:?нужен deploy/.env},oydin-api
+      DATABASE_URL: postgres://oydin:${POSTGRES_PASSWORD}@db:5432/oydin
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?нужен .env}
+      DEBUG: "0"
+      ALLOWED_HOSTS: ${PUBLIC_HOST},api,localhost,127.0.0.1
       CSRF_TRUSTED_ORIGINS: https://${PUBLIC_HOST}
-      DEMO_LOGIN: ${DEMO_LOGIN:-0}
+      DEMO_LOGIN: ${DEMO_LOGIN:-1}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
@@ -34,29 +56,27 @@ services:
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
       LANGFUSE_BASE_URL: ${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}
     depends_on:
-      oydin-db:
+      db:
         condition: service_healthy
-    networks:
-      default:
-      edge:
-        aliases: [oydin-api]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health/', timeout=4).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
-  oydin-web:
-    build:
-      context: ../web
-      args:
-        API_URL: http://oydin-api:8000
+  web:
+    image: oydin-web:latest
     environment:
-      API_URL: http://oydin-api:8000
-    depends_on: [oydin-api]
-    networks:
-      default:
-      edge:
-        aliases: [oydin-web]
+      API_URL: http://api:8000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3010/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 volumes:
   pgdata:
-networks:
-  edge:
-    name: edge
-    external: true
+  caddy_data:
+  caddy_config:

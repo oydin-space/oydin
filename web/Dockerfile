@@ -4,7 +4,7 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY . .
 # Значение вшивается в сборку (rewrites)
-ARG API_URL=http://api:8010
+ARG API_URL=http://api:8000
 ENV API_URL=$API_URL
 RUN bun run build
 
@@ -14,5 +14,6 @@ ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3010
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
+USER node
 EXPOSE 3010
 CMD ["node", "server.js"]

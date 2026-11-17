@@ -35,5 +35,5 @@ dir = "backend"
 run = "uv run python -m evals.run"
 
 [tasks.deploy]
-description = "Build and start production stack (needs deploy/.env)"
-run = "docker compose -f deploy/compose.yaml --env-file deploy/.env up -d --build --remove-orphans"
+description = "Build amd64 images, ship to the server over ssh, docker compose up (see docs/deploy.md)"
+run = "deploy/deploy.sh"
