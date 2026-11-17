@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Dialog as D, Tooltip as T } from "radix-ui";
 import { X } from "lucide-react";
+import { useKitT } from "./kit-t";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
@@ -26,7 +27,9 @@ export interface OverlayProps {
  * Один слой поверх страницы. Вложенные листы запрещены: второй шаг заменяет содержимое, а не открывает новый лист.
  * Центрирование через flex, не через transform — поэтому prefers-reduced-motion не ломает позицию.
  */
-export function Sheet({ open, onOpenChange, title, description, variant = "sheet", footer, closeLabel = "Закрыть", className, children }: OverlayProps) {
+export function Sheet({ open, onOpenChange, title, description, variant = "sheet", footer, closeLabel, className, children }: OverlayProps) {
+  const t = useKitT();
+  closeLabel ??= t("kit.close");
   const sheet = variant === "sheet";
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
@@ -79,7 +82,12 @@ export interface TaskSheetProps extends Omit<OverlayProps, "variant" | "footer">
 }
 
 /** Короткая задача (добавить операцию, пригласить): одна главная кнопка, защита от потери ввода. */
-export function TaskSheet({ onOpenChange, dirty, submitLabel, cancelLabel = "Отмена", onSubmit, submitting, submitDisabled, discardTitle = "Закрыть без сохранения?", discardLabel = "Закрыть", keepLabel = "Продолжить", children, ...props }: TaskSheetProps) {
+export function TaskSheet({ onOpenChange, dirty, submitLabel, cancelLabel, onSubmit, submitting, submitDisabled, discardTitle, discardLabel, keepLabel, children, ...props }: TaskSheetProps) {
+  const t = useKitT();
+  cancelLabel ??= t("kit.cancel");
+  discardTitle ??= t("kit.discard.title");
+  discardLabel ??= t("kit.close");
+  keepLabel ??= t("kit.keep");
   const [confirming, setConfirming] = useState(false);
   const request = (next: boolean) => {
     if (!next && dirty) setConfirming(true);

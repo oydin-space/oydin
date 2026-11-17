@@ -1,3 +1,6 @@
+"use client";
+
+import { useKitT } from "./kit-t";
 import { X } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
@@ -30,11 +33,13 @@ export function Chip({
   selected,
   onSelect,
   onRemove,
-  removeLabel = "Убрать",
+  removeLabel,
   className,
   children,
   ...props
 }: Omit<React.ComponentProps<"button">, "onSelect"> & { selected?: boolean; onSelect?: () => void; onRemove?: () => void; removeLabel?: string }) {
+  const t = useKitT();
+  removeLabel ??= t("kit.chip.remove");
   return (
     <span className={cn("inline-flex items-center rounded-pill border border-border-strong/40 bg-card", selected && "border-primary bg-primary text-primary-foreground", className)}>
       <button

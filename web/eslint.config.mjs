@@ -12,5 +12,7 @@ export default defineConfig([
     "next-env.d.ts",
     // Скопировано из библиотеки компонентов как есть.
     "src/components/ai-chat/prompt-bar/**",
+    "public/landing/js/**",
+    "public/sw.js",
   ]),
 ]);

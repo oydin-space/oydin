@@ -1,6 +1,7 @@
 "use client";
 
 import { Toaster as Sonner } from "sonner";
+export { toast } from "sonner";
 
 /** Тост: один слой, токены цвета/радиуса; текст объясняет результат, не «Успех!». */
 export function Toaster() {

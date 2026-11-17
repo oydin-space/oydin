@@ -1,3 +1,5 @@
+import { parts } from "./parts"
+
 /** Source-of-truth key shape. Plural keys use "|" forms: one|few|many (ru), one|other (uz, en); chosen by `count`. */
 export const ru = {
   // nav
@@ -59,7 +61,6 @@ export const ru = {
   "auth.codeSent": "Мы отправили код на {phone}",
   "auth.resend": "Отправить ещё раз через {seconds} с",
   "auth.invalidCode": "Неверный код. Попробуйте ещё раз.",
-  "auth.telegram": "Войти через Telegram",
   "auth.logout": "Выйти",
   "auth.terms": "Продолжая, вы принимаете условия сервиса и политику конфиденциальности.",
 
@@ -137,7 +138,6 @@ export const ru = {
   "chat.disclaimer": "Помощник может ошибаться. Проверяйте важные суммы.",
 
   // settings
-  "settings.title": "Настройки",
   "settings.profile": "Профиль",
   "settings.business": "Бизнес",
   "settings.notifications": "Уведомления",
@@ -186,6 +186,7 @@ export const ru = {
   "landing.cta.telegram": "Открыть в Telegram",
   "landing.manifesto": "Манифест",
   "landing.footer.rights": "Все права защищены",
+  ...parts.ru,
 } as const
 
 export type Key = keyof typeof ru

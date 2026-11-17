@@ -2,6 +2,7 @@
 
 import { forwardRef, useId, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useKitT } from "./kit-t";
 
 export interface OtpInputProps {
   value: string;
@@ -21,16 +22,17 @@ export interface OtpInputProps {
  * из SMS/почты (autocomplete=one-time-code) и Backspace без самодельной навигации по фокусу.
  */
 export const OtpInput = forwardRef<HTMLInputElement, OtpInputProps>(function OtpInput(
-  { value, onValueChange, onComplete, length = 6, label = "Код подтверждения", error, disabled, autoFocus, className },
+  { value, onValueChange, onComplete, length = 6, label, error, disabled, autoFocus, className },
   ref,
 ) {
+  const t = useKitT();
   const id = useId();
   const [focused, setFocused] = useState(false);
   const active = Math.min(value.length, length - 1);
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       <label htmlFor={id} className="text-small font-medium">
-        {label}
+        {label ?? t("kit.otp.label")}
       </label>
       <div className="relative">
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${length}, minmax(0, 1fr))` }} aria-hidden="true">

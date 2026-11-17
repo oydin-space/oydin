@@ -1,3 +1,6 @@
+"use client";
+
+import { useKitT } from "./kit-t";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/logo";
 
@@ -12,6 +15,7 @@ export interface SpinnerProps {
 
 /** Индикатор активной загрузки: логотип, лепестки которого плавно вращаются. */
 export function Spinner({ variant = "logo", size = 40, label, className }: SpinnerProps) {
+  const t = useKitT();
   if (variant === "ring") {
     return (
       <svg
@@ -33,7 +37,7 @@ export function Spinner({ variant = "logo", size = 40, label, className }: Spinn
       <span className="animate-flower inline-flex" style={{ animation: "flower-spin 2.4s cubic-bezier(0.6,0,0.4,1) infinite" }}>
         <Logo size={size} />
       </span>
-      {label ? <span className="text-small text-muted-foreground">{label}</span> : <span className="sr-only">Загрузка</span>}
+      {label ? <span className="text-small text-muted-foreground">{label}</span> : <span className="sr-only">{t("kit.loading")}</span>}
     </span>
   );
 }

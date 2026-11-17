@@ -1,3 +1,6 @@
+"use client";
+
+import { useKitT } from "./kit-t";
 import { cn } from "@/lib/utils";
 
 /** Мягкий скелетон со светлым бликом; скрыт от скринридеров. */
@@ -41,8 +44,9 @@ export function SkeletonRow({ className }: { className?: string }) {
 }
 
 export function SkeletonList({ rows = 4, className }: { rows?: number; className?: string }) {
+  const t = useKitT();
   return (
-    <div className={cn("inset-group divide-y divide-border", className)} role="status" aria-busy="true" aria-label="Загрузка">
+    <div className={cn("inset-group divide-y divide-border", className)} role="status" aria-busy="true" aria-label={t("kit.loading")}>
       {Array.from({ length: rows }, (_, i) => (
         <SkeletonRow key={i} />
       ))}

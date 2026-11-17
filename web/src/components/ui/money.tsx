@@ -1,3 +1,6 @@
+"use client";
+
+import { useKitLocale, useKitT } from "./kit-t";
 import { cn } from "@/lib/utils";
 import { formatMoney, type Currency, type MoneyLocale, type MoneyMode } from "./money-format";
 
@@ -16,10 +19,13 @@ export interface AmountTextProps extends Omit<React.ComponentProps<"span">, "chi
 }
 
 /** Сумма: tabular-nums, знак символом, точная сумма в aria-label даже в компактном виде. */
-export function AmountText({ value, currency = "UZS", locale = "ru", mode = "exact", signed, tone = "none", missingReason, className, ...props }: AmountTextProps) {
+export function AmountText({ value, currency = "UZS", locale: localeProp, mode = "exact", signed, tone = "none", missingReason, className, ...props }: AmountTextProps) {
+  const t = useKitT();
+  const current = useKitLocale();
+  const locale = localeProp ?? current;
   if (value == null) {
     return (
-      <span className={cn("tabular-nums text-muted-foreground", className)} aria-label={missingReason ?? "нет данных"} {...props}>
+      <span className={cn("tabular-nums text-muted-foreground", className)} aria-label={missingReason ?? t("kit.money.missing")} {...props}>
         —
       </span>
     );

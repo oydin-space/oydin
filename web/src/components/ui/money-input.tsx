@@ -2,6 +2,7 @@
 
 import { forwardRef, useEffect, useId, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useKitLocale } from "./kit-t";
 import { FieldShell, controlClass, describedBy, type FieldChrome } from "./field";
 import { currencyLabel, formatMoney, parseAmount, type Currency, type MoneyLocale } from "./money-format";
 
@@ -24,9 +25,11 @@ const grouped = (minor: number, currency: Currency) => formatMoney(minor, { curr
  * («≈ 3 млн сум»), валюта — постоянный суффикс. Десятичная клавиатура на мобильных.
  */
 export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function MoneyInput(
-  { value, onValueChange, currency, locale = "ru", label, hint, error, required, disabled, placeholder, className, id: idProp, name },
+  { value, onValueChange, currency, locale: localeProp, label, hint, error, required, disabled, placeholder, className, id: idProp, name },
   ref,
 ) {
+  const current = useKitLocale();
+  const locale = localeProp ?? current;
   const auto = useId();
   const id = idProp ?? auto;
   const [text, setText] = useState(() => (value == null ? "" : grouped(value, currency)));

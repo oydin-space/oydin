@@ -1,4 +1,5 @@
 import type { Dict } from "./ru"
+import { parts } from "./parts"
 
 export const en: Dict = {
   "nav.pulse": "Pulse",
@@ -56,7 +57,6 @@ export const en: Dict = {
   "auth.codeSent": "We sent a code to {phone}",
   "auth.resend": "Resend in {seconds} s",
   "auth.invalidCode": "Wrong code. Please try again.",
-  "auth.telegram": "Sign in with Telegram",
   "auth.logout": "Sign out",
   "auth.terms": "By continuing you accept the terms of service and the privacy policy.",
 
@@ -126,7 +126,6 @@ export const en: Dict = {
   "chat.evidence": "What the answer is based on",
   "chat.disclaimer": "The assistant can make mistakes. Double-check important amounts.",
 
-  "settings.title": "Settings",
   "settings.profile": "Profile",
   "settings.business": "Business",
   "settings.notifications": "Notifications",
@@ -170,4 +169,5 @@ export const en: Dict = {
   "landing.cta.telegram": "Open in Telegram",
   "landing.manifesto": "Manifesto",
   "landing.footer.rights": "All rights reserved",
+  ...parts.en,
 }

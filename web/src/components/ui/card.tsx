@@ -1,3 +1,6 @@
+"use client";
+
+import { useKitT } from "./kit-t";
 import { cn } from "@/lib/utils";
 import { PASTEL_BG, PASTEL_DEEP, type Pastel } from "@/lib/tone";
 import { AmountText } from "./money";
@@ -81,7 +84,9 @@ export interface MetricCardProps {
 }
 
 /** Главное число с происхождением: период, пояснение, источник, время обновления. */
-export function MetricCard({ label, value, currency = "UZS", period, explanation, source, updatedAt, onDetails, detailsLabel = "Как посчитано", missingReason, tint, className }: MetricCardProps) {
+export function MetricCard({ label, value, currency = "UZS", period, explanation, source, updatedAt, onDetails, detailsLabel, missingReason, tint, className }: MetricCardProps) {
+  const t = useKitT();
+  detailsLabel ??= t("kit.metric.details");
   return (
     <Card tint={tint} className={cn("flex flex-col gap-2", className)}>
       <div className="flex items-baseline justify-between gap-2">

@@ -3,6 +3,7 @@
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 import { formatMoney, type Currency } from "./money-format";
+import { useKitT } from "./kit-t";
 
 export interface CashPoint {
   date: string;
@@ -16,7 +17,9 @@ export interface CashPoint {
  * Динамика денег: факт сплошной, прогноз пунктиром + подпись в таблице. Цвет не единственный канал:
  * пунктир отличает прогноз, ниже графика — таблица-альтернатива для скринридеров.
  */
-export function CashChart({ points, currency = "UZS", label, todayLabel = "Сегодня", height = 220, className }: { points: CashPoint[]; currency?: Currency; label: string; todayLabel?: string; height?: number; className?: string }) {
+export function CashChart({ points, currency = "UZS", label, todayLabel, height = 220, className }: { points: CashPoint[]; currency?: Currency; label: string; todayLabel?: string; height?: number; className?: string }) {
+  const t = useKitT();
+  todayLabel ??= t("kit.chart.today");
   const lastActual = [...points].reverse().find((p) => p.actual != null)?.date;
   const fmt = (v: number) => formatMoney(v, { currency, mode: "compact", withCurrency: false });
   return (

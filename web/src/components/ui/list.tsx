@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,9 +46,15 @@ export function ListRow({ title, subtitle, leading, trailing, status, onClick, h
   return (
     <li>
       {href ? (
-        <a href={href} className={cn(rowClass, "state-layer", className)}>
-          {body}
-        </a>
+        href.startsWith("/") ? (
+          <Link href={href} className={cn(rowClass, "state-layer", className)}>
+            {body}
+          </Link>
+        ) : (
+          <a href={href} className={cn(rowClass, "state-layer", className)}>
+            {body}
+          </a>
+        )
       ) : onClick ? (
         <button type="button" onClick={onClick} className={cn(rowClass, "state-layer press", className)}>
           {body}

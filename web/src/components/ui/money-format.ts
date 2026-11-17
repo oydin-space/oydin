@@ -11,8 +11,8 @@ const NBSP = "\u00a0";
 
 const WORDS: Record<MoneyLocale, { k: string; m: string; b: string; uzs: string; usd: string }> = {
   ru: { k: "тыс.", m: "млн", b: "млрд", uzs: "сум", usd: "$" },
-  uz: { k: "ming", m: "mln", b: "mlrd", uzs: "so\u02bbm", usd: "$" },
-  en: { k: "k", m: "m", b: "b", uzs: "UZS", usd: "$" },
+  uz: { k: "ming", m: "mln", b: "mlrd", uzs: "so'm", usd: "$" },
+  en: { k: "K", m: "M", b: "B", uzs: "UZS", usd: "$" },
 };
 
 const groupFmt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });

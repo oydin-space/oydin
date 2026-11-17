@@ -1,4 +1,5 @@
 import type { Dict } from "./ru"
+import { parts } from "./parts"
 
 /** Latin script only. */
 export const uz: Dict = {
@@ -57,7 +58,6 @@ export const uz: Dict = {
   "auth.code": "Xabardagi kod",
   "auth.resend": "{seconds} soniyadan keyin qayta yuboriladi",
   "auth.invalidCode": "Kod notoʻgʻri. Qayta urinib koʻring.",
-  "auth.telegram": "Telegram orqali kirish",
   "auth.logout": "Chiqish",
   "auth.terms": "Davom etish orqali xizmat shartlari va maxfiylik siyosatiga rozilik bildirasiz.",
 
@@ -127,7 +127,6 @@ export const uz: Dict = {
   "chat.evidence": "Javob nimaga asoslangan",
   "chat.disclaimer": "Yordamchi xato qilishi mumkin. Muhim summalarni tekshirib oling.",
 
-  "settings.title": "Sozlamalar",
   "settings.profile": "Profil",
   "settings.business": "Biznes",
   "settings.notifications": "Bildirishnomalar",
@@ -171,4 +170,5 @@ export const uz: Dict = {
   "landing.cta.telegram": "Telegramʼda ochish",
   "landing.manifesto": "Manifest",
   "landing.footer.rights": "Barcha huquqlar himoyalangan",
+  ...parts.uz,
 }

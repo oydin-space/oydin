@@ -2,10 +2,11 @@
 
 import { Loader2, Mic, Send, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useKitT, type KitKey } from "./kit-t";
 
 export type VoiceState = "idle" | "recording" | "processing" | "disabled";
 
-const LABEL: Record<VoiceState, string> = { idle: "Записать голосом", recording: "Остановить запись", processing: "Обрабатываем запись", disabled: "Голос недоступен" };
+const LABEL: Record<VoiceState, KitKey> = { idle: "kit.voice.idle", recording: "kit.voice.recording", processing: "kit.voice.processing", disabled: "kit.voice.disabled" };
 
 export interface VoiceButtonProps {
   state: VoiceState;
@@ -17,7 +18,8 @@ export interface VoiceButtonProps {
 
 /** Нажать → идёт запись (пульс + текст для скринридера) → нажать ещё раз, чтобы остановить. Не «удерживать». */
 export function VoiceButton({ state, onPress, labels, size = 56, className }: VoiceButtonProps) {
-  const label = labels?.[state] ?? LABEL[state];
+  const t = useKitT();
+  const label = labels?.[state] ?? t(LABEL[state]);
   const Glyph = state === "recording" ? Square : state === "processing" ? Loader2 : Mic;
   return (
     <span className={cn("relative inline-grid place-items-center", className)} style={{ width: size, height: size }}>
@@ -55,7 +57,10 @@ export interface ComposerProps {
 }
 
 /** Поле ввода для чата и быстрой записи: текст + голос + отправка; Enter отправляет, Shift+Enter — перенос. */
-export function Composer({ value, onValueChange, onSend, voice, onVoice, placeholder = "Сообщение", sendLabel = "Отправить", disabled, className }: ComposerProps) {
+export function Composer({ value, onValueChange, onSend, voice, onVoice, placeholder, sendLabel, disabled, className }: ComposerProps) {
+  const t = useKitT();
+  placeholder ??= t("kit.composer.placeholder");
+  sendLabel ??= t("kit.composer.send");
   const can = value.trim().length > 0 && !disabled;
   return (
     <div className={cn("pb-safe flex items-end gap-2 rounded-sheet border border-border bg-surface-raised p-2", className)}>

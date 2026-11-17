@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronsUpDown, Plus } from "lucide-react";
+import { useKitT } from "./kit-t";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 
@@ -15,8 +16,9 @@ export interface NavItem {
 
 /** Нижняя панель: ровно 4 пункта, без «Добавить» (добавление — FAB). Учитывает safe-area Telegram. */
 export function TabBar({ items, className }: { items: NavItem[]; className?: string }) {
+  const t = useKitT();
   return (
-    <nav aria-label="Основное" className={cn("pb-safe glass fixed inset-x-0 bottom-0 z-40 border-t border-border md:hidden", className)}>
+    <nav aria-label={t("kit.nav.main")} className={cn("pb-safe glass fixed inset-x-0 bottom-0 z-40 border-t border-border md:hidden", className)}>
       <ul className="mx-auto grid max-w-lg grid-cols-4">
         {items.map(({ href, label, icon: I, active }) => (
           <li key={href}>
@@ -33,10 +35,11 @@ export function TabBar({ items, className }: { items: NavItem[]; className?: str
 
 /** Боковая панель ≥768px: те же пункты, что в TabBar. */
 export function Sidebar({ items, header, footer, className }: { items: NavItem[]; header?: React.ReactNode; footer?: React.ReactNode; className?: string }) {
+  const t = useKitT();
   return (
     <aside className={cn("hidden w-64 shrink-0 flex-col gap-4 border-r border-border bg-card p-4 md:flex", className)}>
       {header}
-      <nav aria-label="Основное" className="flex-1">
+      <nav aria-label={t("kit.nav.main")} className="flex-1">
         <ul className="flex flex-col gap-1">
           {items.map(({ href, label, icon: I, active }) => (
             <li key={href}>

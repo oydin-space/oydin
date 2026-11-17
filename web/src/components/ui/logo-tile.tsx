@@ -1,3 +1,6 @@
+"use client";
+
+import { useKitT, type KitKey } from "./kit-t";
 import Image from "next/image";
 import { Globe, Table2, Webhook } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,10 +44,10 @@ export function LogoMark({ logo, name, size = 40 }: { logo: LogoKey; name: strin
 
 export type IntegrationStatus = "connected" | "available" | "coming-soon";
 
-const STATUS: Record<IntegrationStatus, { tone: "positive" | "neutral" | "coming-soon"; label: string }> = {
-  connected: { tone: "positive", label: "Подключено" },
-  available: { tone: "neutral", label: "Доступно" },
-  "coming-soon": { tone: "coming-soon", label: "Скоро" },
+const STATUS: Record<IntegrationStatus, { tone: "positive" | "neutral" | "coming-soon"; key: KitKey }> = {
+  connected: { tone: "positive", key: "kit.integration.connected" },
+  available: { tone: "neutral", key: "kit.integration.available" },
+  "coming-soon": { tone: "coming-soon", key: "kit.integration.coming-soon" },
 };
 
 export interface LogoTileProps {
@@ -59,6 +62,7 @@ export interface LogoTileProps {
 
 /** Карточка интеграции. «Скоро» — неактивна и не выглядит как рабочий connect-flow. */
 export function LogoTile({ logo, name, description, status, statusLabel, onClick, className }: LogoTileProps) {
+  const t = useKitT();
   const s = STATUS[status];
   const soon = status === "coming-soon";
   const content = (
@@ -68,7 +72,7 @@ export function LogoTile({ logo, name, description, status, statusLabel, onClick
         <span className="truncate text-body font-medium">{name}</span>
         {description ? <span className="truncate text-small text-muted-foreground">{description}</span> : null}
       </span>
-      <Badge tone={s.tone}>{statusLabel ?? s.label}</Badge>
+      <Badge tone={s.tone}>{statusLabel ?? t(s.key)}</Badge>
     </>
   );
   const base = cn("flex min-h-row w-full items-center gap-3 rounded-card border border-border bg-card p-3", className);

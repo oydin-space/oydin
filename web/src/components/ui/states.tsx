@@ -1,3 +1,6 @@
+"use client";
+
+import { useKitT } from "./kit-t";
 import { AlertTriangle, CheckCircle2, Info, RotateCcw } from "lucide-react";
 import { Flower } from "@/components/brand/flower";
 import { cn } from "@/lib/utils";
@@ -5,13 +8,14 @@ import { Button } from "./button";
 import { Card } from "./card";
 import { SkeletonList } from "./skeleton";
 
-export function ErrorState({ message, onRetry, retryLabel = "Повторить", className }: { message: string; onRetry?: () => void; retryLabel?: string; className?: string }) {
+export function ErrorState({ message, onRetry, retryLabel, className }: { message: string; onRetry?: () => void; retryLabel?: string; className?: string }) {
+  const t = useKitT();
   return (
     <Card tint="rose" className={cn("flex items-center gap-3", className)} role="alert">
-      <span className="flex-1 text-small">Не получилось загрузить: {message}</span>
+      <span className="flex-1 text-small">{t("kit.error.prefix")} {message}</span>
       {onRetry ? (
         <Button size="sm" variant="secondary" icon={RotateCcw} onClick={onRetry}>
-          {retryLabel}
+          {retryLabel ?? t("kit.retry")}
         </Button>
       ) : null}
     </Card>
@@ -40,9 +44,10 @@ export type StateViewProps = {
 
 /** Единый порядок состояний данных: загрузка → ошибка → пусто → готово. */
 export function StateView({ status, error = "", onRetry, empty, skeleton, children }: StateViewProps) {
+  const t = useKitT();
   if (status === "loading") return <>{skeleton ?? <SkeletonList />}</>;
   if (status === "error") return <ErrorState message={error} onRetry={onRetry} />;
-  if (status === "empty") return <EmptyState title={empty?.title ?? "Пока пусто"} hint={empty?.hint} action={empty?.action} />;
+  if (status === "empty") return <EmptyState title={empty?.title ?? t("kit.empty.title")} hint={empty?.hint} action={empty?.action} />;
   return <>{children}</>;
 }
 
