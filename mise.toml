@@ -37,3 +37,10 @@ run = "uv run python -m evals.run"
 [tasks.deploy]
 description = "Build amd64 images, ship to the server over ssh, docker compose up (see docs/deploy.md)"
 run = "deploy/deploy.sh"
+
+[tasks.rollback]
+description = "Roll the server back to the previous images (oydin-*:previous), see docs/deploy.md"
+run = '''
+SERVER=${SERVER:-$(grep -E '^SERVER=' temp/secrets.env | cut -d= -f2- | tr -d '"')}
+ssh "oydin@$SERVER" 'cd ~/oydin && for s in api web; do docker tag oydin-$s:previous oydin-$s:latest; done && docker compose up -d --wait'
+'''

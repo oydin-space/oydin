@@ -1,0 +1,137 @@
+name: Deploy
+
+# Автодеплой на https://oydin.sayfi.uz после зелёного CI на main.
+# Ручной запуск с sha = откат/выкат уже собранного образа (сборка пропускается).
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Полный SHA коммита, образ которого уже в GHCR (откат). Пусто = собрать текущий main."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: production
+      url: https://oydin.sayfi.uz
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUBLIC_URL: https://oydin.sayfi.uz
+      SHA: ${{ inputs.sha || github.event.workflow_run.head_sha }}
+    steps:
+      - name: Validate sha
+        run: |
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "bad sha"; exit 1; }
+          echo "REGISTRY=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SHA }}
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: inputs.sha == ''
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: inputs.sha == ''
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push api
+        if: inputs.sha == ''
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: backend
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/oydin-api:${{ env.SHA }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - name: Build and push web
+        if: inputs.sha == ''
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: web
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY }}/oydin-web:${{ env.SHA }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host deploy\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  StrictHostKeyChecking yes\n' \
+            "${{ secrets.DEPLOY_HOST }}" "${{ secrets.DEPLOY_USER }}" > ~/.ssh/config
+
+      - name: Ship compose files
+        run: |
+          ssh deploy 'mkdir -p ~/oydin'
+          scp -q deploy/compose.yaml deploy/Caddyfile deploy:oydin/
+
+      - name: Pull images, switch, migrate
+        id: switch
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          # Токен живёт только в stdin этой сессии; docker logout в конце, на сервере ничего не остаётся.
+          # shellcheck disable=SC2029
+          printf '%s' "$GHCR_TOKEN" | ssh deploy "docker login ghcr.io -u '$GHCR_USER' --password-stdin >/dev/null"
+          ssh deploy bash -s -- "$REGISTRY" "$SHA" <<'REMOTE'
+          set -euo pipefail
+          REGISTRY=$1; SHA=$2
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          for svc in api web; do
+            docker pull -q "$REGISTRY/oydin-$svc:$SHA"
+          done
+          # Сохраняем текущие образы как :previous для отката.
+          for svc in api web; do
+            docker image inspect "oydin-$svc:latest" >/dev/null 2>&1 && docker tag "oydin-$svc:latest" "oydin-$svc:previous"
+            docker tag "$REGISTRY/oydin-$svc:$SHA" "oydin-$svc:latest"
+          done
+          cd ~/oydin
+          docker compose up -d --remove-orphans --wait
+          docker compose exec -T api python manage.py migrate --noinput
+          docker image prune -f >/dev/null
+          REMOTE
+
+      - name: Health check
+        id: health
+        run: |
+          for _ in $(seq 1 20); do
+            body=$(curl -fsS --max-time 10 "$PUBLIC_URL/api/health/" || true)
+            echo "$body"
+            if echo "$body" | jq -e '.ok == true' >/dev/null 2>&1; then exit 0; fi
+            sleep 5
+          done
+          echo "health check failed"; exit 1
+
+      - name: Roll back to previous images
+        if: failure() && (steps.switch.outcome == 'failure' || steps.health.outcome == 'failure')
+        run: |
+          ssh deploy 'cd ~/oydin && for s in api web; do docker image inspect oydin-$s:previous >/dev/null && docker tag oydin-$s:previous oydin-$s:latest; done && docker compose up -d --wait'
