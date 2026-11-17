@@ -2,13 +2,16 @@
 
 import { Toaster as Sonner } from "sonner";
 
+/** Тост: один слой, токены цвета/радиуса; текст объясняет результат, не «Успех!». */
 export function Toaster() {
   return (
     <Sonner
       position="top-center"
       toastOptions={{
         classNames: {
-          toast: "!bg-card !text-foreground !border-border !rounded-2xl !shadow-lg",
+          toast: "!rounded-card !border !border-border !bg-surface-raised !text-foreground !shadow-overlay !text-small",
+          description: "!text-muted-foreground",
+          actionButton: "!rounded-control !bg-primary !text-primary-foreground",
         },
       }}
     />

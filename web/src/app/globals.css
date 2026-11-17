@@ -1,16 +1,23 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *, [data-theme="dark"] *));
 
+/*
+ * Дизайн-токены Oydin. Единственное место с цветами, радиусами, тенями, размерами и движением.
+ * Компоненты в components/ui используют только эти роли (bg-card, text-muted-foreground, rounded-card ...).
+ */
 @theme inline {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, var(--font-onest), "Helvetica Neue", sans-serif;
 
+  /* Роли цвета */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--card);
+  --color-surface-raised: var(--surface-raised);
   --color-card: var(--card);
   --color-card-foreground: var(--foreground);
-  --color-popover: var(--card);
+  --color-popover: var(--surface-raised);
   --color-popover-foreground: var(--foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
@@ -20,19 +27,34 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--foreground);
-  --color-destructive: var(--destructive);
+  --color-destructive: var(--danger);
   --color-border: var(--border);
   --color-input: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-scrim: var(--scrim);
 
-  --color-brand: #ffd62c;
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
   --color-ink: var(--foreground);
+
+  /* Пастельные блоки и «чернила» к ним (текст на пастели) */
   --color-butter: var(--butter);
   --color-mint: var(--mint);
   --color-lavender: var(--lavender);
   --color-peach: var(--peach);
   --color-sky: var(--sky);
   --color-rose: var(--rose);
+  --color-butter-ink: var(--butter-ink);
+  --color-mint-ink: var(--mint-ink);
+  --color-lavender-ink: var(--lavender-ink);
+  --color-peach-ink: var(--peach-ink);
+  --color-sky-ink: var(--sky-ink);
+  --color-rose-ink: var(--rose-ink);
   --color-butter-deep: var(--butter-deep);
   --color-mint-deep: var(--mint-deep);
   --color-lavender-deep: var(--lavender-deep);
@@ -40,28 +62,76 @@
   --color-sky-deep: var(--sky-deep);
   --color-rose-deep: var(--rose-deep);
 
+  /* Радиусы: контрол 12, карточка 20, шит 24, пилюля */
   --radius-sm: 0.75rem;
   --radius-md: 1rem;
   --radius-lg: 1.25rem;
   --radius-xl: 1.75rem;
   --radius-2xl: 2.25rem;
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
+  --radius-sheet: 1.5rem;
+  --radius-pill: 999px;
+
+  /* Отступы: шкала Tailwind 1/2/3/4/6/8/12 = 4/8/12/16/24/32/48; плюс смысловые */
+  --spacing-page: 1rem;
+  --spacing-page-lg: 1.5rem;
+  --spacing-section: 1.5rem;
+  --spacing-card-gap: 0.75rem;
+  --spacing-target: 2.75rem;
+  --spacing-row: 4rem;
+
+  /* Типографика (rem, чтобы масштабировалась с настройками браузера) */
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.25rem;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.5rem;
+  --text-title: 1.25rem;
+  --text-title--line-height: 1.75rem;
+  --text-page: 1.75rem;
+  --text-page--line-height: 2.125rem;
+  --text-hero: 2.125rem;
+  --text-hero--line-height: 2.5rem;
+
+  /* Тени: рамка по умолчанию плоская, тень только у оверлеев */
+  --shadow-overlay: 0 8px 24px rgb(0 0 0 / 0.12);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-logo: 0 6px 18px -8px var(--brand-shadow);
+
+  /* Движение */
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
 :root {
   --radius: 1.25rem;
-  /* Тёплый крем и мягкие пастельные блоки. Без неона и резкого красного. */
+
+  --brand: #ffd62c;
+  --brand-foreground: #ffffff;
+  --brand-shadow: #e0b400;
+
+  /* Светлая тема: тёплый крем */
   --background: #fbf7ee;
   --foreground: #3b342a;
-  --muted: #f3ecdd;
-  --muted-foreground: #8a8071;
   --card: #fffdf8;
+  --surface-raised: #ffffff;
+  --muted: #f3ecdd;
+  --muted-foreground: #6f6659;
   --border: #ece3d1;
-  --ring: #e9c94a;
+  --border-strong: #8a8071;
+  --ring: #3b342a;
   --primary: #3b342a;
   --primary-foreground: #fffdf8;
   --secondary: #f3ecdd;
   --accent: #eee7fb;
-  --destructive: #c9776a;
+  --scrim: rgb(40 32 20 / 0.4);
+
+  --success: #2c7a53;
+  --warning: #8a5a00;
+  --danger: #b4443a;
+  --danger-foreground: #ffffff;
 
   --butter: #fff1b8;
   --mint: #d9f0e2;
@@ -70,7 +140,14 @@
   --sky: #d9ebf8;
   --rose: #f8d5d0;
 
-  /* насыщенные оттенки тех же цветов — для линий графиков и точек */
+  --butter-ink: #5e4a00;
+  --mint-ink: #1f5a3d;
+  --lavender-ink: #473a85;
+  --peach-ink: #7a3d1c;
+  --sky-ink: #1d4f73;
+  --rose-ink: #7c2f2a;
+
+  /* насыщенные оттенки тех же цветов: линии графиков и точки */
   --butter-deep: #e8c64a;
   --mint-deep: #6fbf97;
   --lavender-deep: #9a86df;
@@ -78,28 +155,43 @@
   --sky-deep: #6fa8d6;
   --rose-deep: #d98b82;
 
+  --brush-a: 0.55;
+  --brush-b: 0.35;
+  --brush-c: 0.25;
+
+  /* Длительности */
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-sheet: 240ms;
+
   --tg-top: 0px;
   --tg-bottom: 0px;
 }
 
-/* Тёмная тема: следует за ОС; Telegram выставляет data-theme на <html> */
+/* Тёмная тема: следует за ОС; Telegram и /kit выставляют data-theme на <html> */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --background: #17140f; --foreground: #f3ecdd; --muted: #26221a; --muted-foreground: #a69b87;
-    --brush-a: 0.07; --brush-b: 0.04; --brush-c: 0.03;
-    --card: #211d16; --border: #332d22; --ring: #e9c94a; --primary: #f3ecdd; --primary-foreground: #17140f;
-    --secondary: #26221a; --accent: #2e2744; --destructive: #d98b82;
+    --background: #17140f; --foreground: #f3ecdd; --card: #211d16; --surface-raised: #2a251b;
+    --muted: #26221a; --muted-foreground: #a69b87; --border: #332d22; --border-strong: #7d725f;
+    --ring: #f3ecdd; --primary: #f3ecdd; --primary-foreground: #17140f; --secondary: #26221a; --accent: #2e2744;
+    --scrim: rgb(0 0 0 / 0.55);
+    --success: #7fd1a6; --warning: #e8c15a; --danger: #f0958a; --danger-foreground: #17140f;
     --butter: #4a4021; --mint: #26402f; --lavender: #3a3358; --peach: #4d3426; --sky: #243a4b; --rose: #4d2f2c;
+    --butter-ink: #f2dc86; --mint-ink: #a9e3c2; --lavender-ink: #cfc3f5; --peach-ink: #f5c4a8; --sky-ink: #a9d3f0; --rose-ink: #f0b6ae;
+    --brush-a: 0.07; --brush-b: 0.04; --brush-c: 0.03;
   }
 }
 :root[data-theme="dark"] {
-  --brush-a: 0.07; --brush-b: 0.04; --brush-c: 0.03;
   color-scheme: dark;
-  --background: #17140f; --foreground: #f3ecdd; --muted: #26221a; --muted-foreground: #a69b87;
-  --card: #211d16; --border: #332d22; --ring: #e9c94a; --primary: #f3ecdd; --primary-foreground: #17140f;
-  --secondary: #26221a; --accent: #2e2744; --destructive: #d98b82;
+  --background: #17140f; --foreground: #f3ecdd; --card: #211d16; --surface-raised: #2a251b;
+  --muted: #26221a; --muted-foreground: #a69b87; --border: #332d22; --border-strong: #7d725f;
+  --ring: #f3ecdd; --primary: #f3ecdd; --primary-foreground: #17140f; --secondary: #26221a; --accent: #2e2744;
+  --scrim: rgb(0 0 0 / 0.55);
+  --success: #7fd1a6; --warning: #e8c15a; --danger: #f0958a; --danger-foreground: #17140f;
   --butter: #4a4021; --mint: #26402f; --lavender: #3a3358; --peach: #4d3426; --sky: #243a4b; --rose: #4d2f2c;
+  --butter-ink: #f2dc86; --mint-ink: #a9e3c2; --lavender-ink: #cfc3f5; --peach-ink: #f5c4a8; --sky-ink: #a9d3f0; --rose-ink: #f0b6ae;
+  --brush-a: 0.07; --brush-b: 0.04; --brush-c: 0.03;
 }
 
 @layer base {
@@ -156,12 +248,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-shimmer,
-  .animate-flower {
-    animation: none !important;
-  }
-}
 
 /* Безопасные зоны Telegram Mini App выставляет провайдер через --tg-top / --tg-bottom */
 .pt-safe {
@@ -219,4 +305,95 @@
     background: inherit;
     clip-path: path("M14.4 0V14.4H0C6.4 14 13.4 9.5 14.4 0Z");
   }
+}
+
+/* ---- Взаимодействие (правило 18): наведение 4 %, нажатие 8 % цвета текста ---- */
+@utility state-layer {
+  position: relative;
+  isolation: isolate;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-fast) var(--ease-enter);
+  }
+  &:active::before {
+    opacity: 0.08;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    &:hover::before {
+      opacity: 0.04;
+    }
+    &:active::before {
+      opacity: 0.08;
+    }
+  }
+}
+@utility press {
+  transition: transform var(--dur-fast) var(--ease-enter);
+  &:active {
+    transform: scale(0.98);
+  }
+}
+@utility motion-fast {
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-enter);
+}
+@utility motion-base {
+  transition-duration: var(--dur-base);
+  transition-timing-function: var(--ease-enter);
+}
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+@utility min-target {
+  min-height: var(--spacing-target);
+  min-width: var(--spacing-target);
+}
+
+@keyframes kit-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes kit-sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes kit-sheet-out {
+  from { transform: none; }
+  to { transform: translateY(100%); }
+}
+@keyframes kit-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kit-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes kit-pop-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes kit-pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 35%, transparent); }
+  100% { box-shadow: 0 0 0 14px transparent; }
+}
+
+@utility enter-fade {
+  animation: kit-fade-in var(--dur-base) var(--ease-enter) both;
+}
+
+/* Reduced motion: без переходов по transform и бесконечных анимаций, фейд не длиннее 80 мс */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 80ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 80ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-shimmer, .animate-flower, .animate-kit-pulse { animation: none !important; }
+  .press:active { transform: none !important; }
 }
