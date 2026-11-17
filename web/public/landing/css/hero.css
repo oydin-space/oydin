@@ -1,0 +1,128 @@
+/* Figma: hero 1772:7117, brief scene 1771:199. */
+html[data-hero-mode="night"]{--hero-sky:url("data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201440%201587.3%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20preserveAspectRatio%3D%22none%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22url(%23s)%22%2F%3E%3Cdefs%3E%3CradialGradient%20id%3D%22s%22%20gradientUnits%3D%22userSpaceOnUse%22%20cx%3D%220%22%20cy%3D%220%22%20r%3D%2210%22%20gradientTransform%3D%22matrix(-0.0000090905%20249.37%20-380.36%20-0.000012403%20720%20-324.27)%22%3E%3Cstop%20stop-color%3D%22%23101c46%22%20offset%3D%220.10724%22%2F%3E%3Cstop%20stop-color%3D%22%231d2d5b%22%20offset%3D%220.22433%22%2F%3E%3Cstop%20stop-color%3D%22%23293d70%22%20offset%3D%220.34143%22%2F%3E%3Cstop%20stop-color%3D%22%23475481%22%20offset%3D%220.4268%22%2F%3E%3Cstop%20stop-color%3D%22%23656a91%22%20offset%3D%220.51216%22%2F%3E%3Cstop%20stop-color%3D%22%23a08da7%22%20offset%3D%220.64225%22%2F%3E%3Cstop%20stop-color%3D%22%23c5b7c8%22%20offset%3D%220.77234%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E")}
+html[data-hero-mode="day"]{--hero-sky:url("data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%201440%201587.3%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20preserveAspectRatio%3D%22none%22%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20fill%3D%22url(%23s)%22%2F%3E%3Cdefs%3E%3CradialGradient%20id%3D%22s%22%20gradientUnits%3D%22userSpaceOnUse%22%20cx%3D%220%22%20cy%3D%220%22%20r%3D%2210%22%20gradientTransform%3D%22matrix(-0.0000090905%20249.37%20-380.36%20-0.000012403%20720%20-324.27)%22%3E%3Cstop%20stop-color%3D%22%23315b89%22%20offset%3D%220.10724%22%2F%3E%3Cstop%20stop-color%3D%22%234b739d%22%20offset%3D%220.22433%22%2F%3E%3Cstop%20stop-color%3D%22%23658bb0%22%20offset%3D%220.34143%22%2F%3E%3Cstop%20stop-color%3D%22%2383a1be%22%20offset%3D%220.4268%22%2F%3E%3Cstop%20stop-color%3D%22%23a1b6cb%22%20offset%3D%220.51216%22%2F%3E%3Cstop%20stop-color%3D%22%23d9cad0%22%20offset%3D%220.64225%22%2F%3E%3Cstop%20stop-color%3D%22%23f0dece%22%20offset%3D%220.77234%22%2F%3E%3C%2FradialGradient%3E%3C%2Fdefs%3E%3C%2Fsvg%3E")}
+.v2.home-page .hero-dawn{position:absolute;inset:0;width:100%;height:100%;z-index:-1;background:none;overflow:clip}
+.v2.home-page .hero-dawn::before,.v2.home-page .hero-dawn::after{display:none}
+.hero-sky-window{position:sticky;top:0;height:100svh;overflow:hidden}
+.hero-sky-sheet{width:100%;height:var(--sky-height,1587.3px);background-image:var(--hero-sky);background-size:100% 100%;background-repeat:no-repeat;transform:translateY(var(--sky-y,0px));will-change:transform}
+.v2 .hero{padding:64px 48px 24px}
+.v2 .hero .eyebrow{height:43px;margin-bottom:12px;gap:6px;font-size:20px;line-height:25px;font-weight:590;letter-spacing:-.45px}
+.hero-laurel{position:relative;display:block;overflow:hidden;width:28px;height:43px;flex:none;opacity:.65}
+.hero-laurel img{position:absolute;width:141.05%;height:142.48%;max-width:none;left:-20.94%;top:-17.48%;filter:none!important;opacity:1!important}
+.hero-laurel:first-child{transform:scaleX(-1)}.hero-laurel:last-child{transform:none}
+.v2 .hero h1{font-size:80px;line-height:1.08;letter-spacing:-.23px}
+.v2 .hero .intro{max-width:620px;margin:16px auto 36px;color:rgba(255,255,255,.85);font-size:22px;line-height:28px;text-wrap:pretty}
+.hero-story{position:relative;height:300svh;margin:64px -48px 0;text-align:left}
+.hero-stage{position:sticky;top:0;height:100svh;isolation:isolate}
+.v2 .hero-story .phone-wrap{position:absolute;left:50%;top:0;width:min(456px,calc(100% - 48px));margin:0;padding:0;transform:translate(-50%,var(--phone-y,0px));animation:none;will-change:transform,opacity}
+.v2 .phone{aspect-ratio:456/932.267}
+.v2 .phone-image{display:block;width:100%;height:100%;object-fit:contain}
+.hero-chat-reveal{position:absolute;inset:0;pointer-events:none}
+.hero-chat-mask{position:absolute;left:7.7%;right:7.7%;top:calc(var(--top)*100%);height:calc(var(--h)*100%);background:#fdfdfd;opacity:0}
+/* Covered from the first paint, so the finished chat never flashes before the conversation plays.
+   Without scripting the masks stay transparent and the whole chat shows. */
+@media(scripting:enabled){.hero-chat-mask{opacity:1}}
+.hero-chat-reveal.is-playing .hero-chat-mask{opacity:1}
+/* Each mask carries the same pixels as the message it hides, so the message can arrive
+   (rise, scale and fade, as the original chat did) and land exactly on the screenshot. */
+.hero-chat-mask::before{content:"";position:absolute;inset:0;background:image-set(url(/landing/assets/hero-phone-brief-2026-960.webp) 2x,url(/landing/assets/hero-phone-brief-2026-1280.webp) 3x) 50% calc(var(--top)/(1 - var(--h))*100%)/calc(100%/.846) calc(100%/var(--h)) no-repeat;opacity:0;transform:translateY(15px) scale(.96);transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.hero-chat-mask.is-visible::before{opacity:1;transform:none}
+/* Each mask reaches a little into the gaps around its message so no bubble edge or shadow peeks out. */
+.hero-chat-mask[data-hero-step="0"]{--top:.1845;--h:.0995}.hero-chat-mask[data-hero-step="1"]{--top:.2905;--h:.057}.hero-chat-mask[data-hero-step="2"]{--top:.355;--h:.0555}.hero-chat-mask[data-hero-step="3"]{--top:.4137;--h:.2895}.hero-chat-mask[data-hero-step="4"]{--top:.705;--h:.1015}
+.hero-typing{position:absolute;left:8.8%;top:36.2%;display:flex;gap:1cqw;padding:3cqw 4cqw;border-radius:6cqw;background:#eee;opacity:0;transform:translateY(10px) scale(.94);transform-origin:left center;transition:opacity .3s var(--ease),transform .3s var(--ease)}.hero-typing.is-visible{opacity:1;transform:none}
+.hero-typing:not(.is-visible) i{animation-play-state:paused}
+.hero-typing i{width:1.5cqw;height:1.5cqw;background:#aaa;border-radius:50%;animation:dot 1s infinite}.hero-typing i:nth-child(2){animation-delay:150ms}.hero-typing i:nth-child(3){animation-delay:300ms}
+.v2 .hero-read-aloud{padding:0;cursor:pointer}.v2 .hero-read-aloud[aria-pressed=true]{box-shadow:inset 0 0 0 2px #d9a800}
+
+
+
+
+
+.brief-sources{position:absolute;inset:0;pointer-events:none;z-index:3}
+.brief-layout{position:absolute;left:50%;top:50%;width:1296px;height:900px;transform:translate(-50%,-50%) scale(var(--scene-scale,1));transform-origin:center}
+.brief-source{position:absolute;width:356px;opacity:0;will-change:transform,opacity}
+.brief-source.source-0{left:0;top:163.5px}.brief-source.source-1{right:0;top:163.5px}.brief-source.source-2{left:0;top:505.5px}.brief-source.source-3{right:0;top:505.5px}
+.source-badge{display:flex;align-items:center;justify-content:center;gap:12px;width:max-content;height:60px;margin:0 auto 16px;padding:8px 20px 8px 16px;border-radius:1000px;background:linear-gradient(#ffffff40,#ffffff40),#b8b5b780;box-shadow:1.25px 0 0 -.75px #d0d0d0,-1.25px 0 0 -.75px #d0d0d0,0 0 0 .5px #e8e8e8,0 8px 15px #00000005;backdrop-filter:blur(16px);font-size:20px;line-height:25px;font-weight:590;letter-spacing:-.45px;color:#111214}
+.source-0 .source-badge{margin-bottom:12px}.source-1 .source-badge,.source-3 .source-badge{gap:8px}
+.source-art{position:relative;display:block;flex:none;height:44px;overflow:hidden}
+.source-art img{position:absolute;max-width:none}
+.art-fleet{width:53px}.art-fleet img{width:102.56%;height:123.54%;left:-2.22%;top:-11.15%}
+.art-insurance{width:39px}.art-insurance img{width:135.9%;height:120.45%;left:-17.95%;top:-10.23%}
+.art-safety{width:44px}.art-safety img{width:100%;height:100%;inset:0;object-fit:cover}
+.art-money{width:50px}.art-money img{width:108.71%;height:123.54%;left:-4.36%;top:-11.15%}
+.source-body{width:356px;padding:24px 28px;background:#ffffffcc;border-radius:36px}
+.source-body h3{margin:0;font-size:22px;line-height:28px;font-weight:700;letter-spacing:-.26px;color:#1a1a1a}
+.source-body p{margin:4px 0 0;font-size:20px;line-height:25px;font-weight:400;letter-spacing:-.45px;color:#595959}
+.brief-connectors{position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0}
+.brief-connector{position:absolute;left:0;top:0;width:172.711px;height:36.1304px;transform-origin:0 0}
+.brief-connector>img{display:block;max-width:none}
+.brief-connector>.connector-glow{position:absolute;left:0;top:0;filter:brightness(0) invert(1) drop-shadow(0 0 3px #fff);mask-image:linear-gradient(90deg,transparent,#000,transparent);mask-size:22px 100%;mask-repeat:no-repeat;animation:connector-pulse 2.4s linear infinite paused}
+.brief-connectors.is-pulsing .connector-glow{animation-play-state:running}
+.connector-1 .connector-glow{animation-delay:-.6s}.connector-2 .connector-glow{animation-delay:-1.2s}.connector-3 .connector-glow{animation-delay:-1.8s}
+@keyframes connector-pulse{from{mask-position:-24px 0}to{mask-position:200px 0}}
+
+.v2 .hero-block>.axle-divider i{background:linear-gradient(to bottom,#fff 50%,var(--circle-color,#c5b7c8) 50%)}
+@media(max-width:800px){
+ .v2 .hero{padding:48px 24px 24px}.v2 .hero h1{font-size:clamp(34px,7.4vw,56px)}.v2 .hero .eyebrow{font-size:17px;line-height:22px}.v2 .hero .intro{max-width:600px;font-size:18px;line-height:25px}
+ .hero-story{margin:48px -24px 0}.v2 .hero-story .phone-wrap{width:min(390px,calc(100% - 48px))}
+}
+
+@media(prefers-reduced-motion:reduce){.hero-story{height:calc(932.267px + 40px)}.hero-stage{position:relative;height:100%}.brief-sources,.brief-connectors{display:none}.hero-chat-mask::before,.hero-typing{transition:none}.hero-typing i{animation:none}}
+
+
+/* One physical phone throughout. Reader layers are original Figma 4x exports. */
+.hero-story{height:475svh}
+.hero-stage{position:sticky;top:64px;height:max(calc(100svh - 64px),var(--phone-height,932.267px));overflow:visible;clip-path:none}
+.v2 .hero-story .phone-wrap{z-index:4;transform:translate(-50%,var(--phone-y,0px));opacity:1}
+.brief-motion-layer{position:absolute;left:0;top:0;width:450px;height:920px;transform-origin:0 0;pointer-events:none;z-index:3}
+.brief-reader{position:absolute;left:24px;top:23px;width:402px;height:876px;overflow:hidden;border-radius:62px;background:#f5f5f5;opacity:0;pointer-events:none}
+.brief-reader img{display:block;max-width:none;pointer-events:none}
+.reader-status-art{position:absolute;left:0;top:0;width:402px;height:62px}
+.reader-toolbar-art{position:absolute;top:62px;left:0;width:402px;height:44px;z-index:3}
+.reader-toolbar-art>img{width:402px;height:44px}
+.reader-audio{position:absolute;top:0;left:285px;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:transparent;pointer-events:auto;cursor:pointer}
+.reader-audio[aria-pressed=true]{box-shadow:inset 0 0 0 2px #d9a800}
+.reader-body-window{position:absolute;left:0;top:187px;width:402px;height:689px;overflow:hidden}
+.reader-body{position:relative;margin:0 16px;width:370px;height:1195.8px;transform:translateY(calc(-1px * var(--reader-scroll,0)));will-change:transform}
+.reader-lead-art{position:absolute;left:0;top:0;width:370px;height:100px}
+.reader-divider-art{position:absolute;left:0;top:124px;width:370px;height:1px}
+.reader-footer-art{position:absolute;left:16px;top:801.2px;width:370px;height:50.8px;z-index:4;user-select:none}
+.brief-morph{position:absolute;left:39px;top:385px;width:272px;height:258px;opacity:0;pointer-events:none;background:linear-gradient(#fffaf0,#ffe9a3);border-radius:25px;overflow:hidden;z-index:5}
+.brief-morph>img{display:block;width:100%;height:auto;max-width:none;mask-image:linear-gradient(to bottom,transparent 0 26%,#000 26% 100%)}
+.brief-title-flight,.brief-date-flight{position:absolute;left:0;top:0;z-index:6;pointer-events:none;transform-origin:0 0;opacity:0}
+.reader-title-copy{position:absolute;left:0;top:0;width:370px;height:41px;max-width:none;transform-origin:0 0}
+.reader-date-copy{position:absolute;left:0;top:0;width:162px;height:20px;max-width:none;transform-origin:0 0}
+.source-title-crop,.source-date-crop{position:absolute;left:0;top:0;display:block;overflow:hidden;transform-origin:0 0;pointer-events:none}
+.source-title-crop{width:263px;height:34px}.source-date-crop{width:270px;height:24px}
+.source-title-crop img,.source-date-crop img{position:absolute;width:356px;height:337.64706px;max-width:none;left:-24.9px}
+.source-title-crop img{top:-20px}.source-date-crop img{top:-55px}
+.hero-chat-mask.is-lifted::before{opacity:0;transition:none}
+.v2 .hero-story .hero-read-aloud{left:36.7%;top:64.85%;width:29.3%;height:3.7%;right:auto;bottom:auto;border-radius:999px}
+.art-insurance img{inset:0;width:100%;height:100%;object-fit:contain}
+@media(max-width:700px){
+ .v2 .hero-story .phone-wrap{width:min(390px,calc((100svh - 88px) * .48913),calc(100% - 48px))}
+}
+@media(prefers-reduced-motion:reduce){.hero-story{height:calc(932.267px + 40px)}.hero-stage{position:relative;top:0;height:100%;overflow:visible;clip-path:none}.brief-motion-layer{display:none}}
+
+
+
+/* Cards use the full available 1296px span independently of scene height. */
+.brief-sources,.brief-connectors{height:calc(100svh - 64px);bottom:auto}
+@media(min-width:701px){
+ .brief-layout{width:min(1296px,calc(100% - 96px));height:calc(900px * var(--scene-scale,1));transform:translate(-50%,-50%)}
+ .brief-source{transform-origin:left top}.brief-source.source-1,.brief-source.source-3{transform-origin:right top}
+ .brief-source.source-0,.brief-source.source-1{top:calc(163.5px * var(--scene-scale,1))}
+ .brief-source.source-2,.brief-source.source-3{top:calc(505.5px * var(--scene-scale,1))}
+}
+.connector-1>img,.connector-2>img{transform:scaleX(-1);transform-origin:center}
+.reader-section{position:absolute;left:0;width:370px;overflow:hidden;will-change:opacity,transform}
+.reader-section>img{position:absolute;left:0;width:370px;height:948px;max-width:none}
+[data-reader-reveal]{opacity:0;will-change:opacity,transform,filter}
+.hero-sky-sheet{height:var(--sky-height,1587.3px);transform:translateY(var(--sky-y,0px));will-change:transform}
+
+/* Locking scroll must not shift the phone or fixed diagram anchors. */
+html.hero-scroll-stable{scrollbar-gutter:stable}
+
+
+/* Mobile goes directly from the conversation to the expanded brief. */
+@media(max-width:700px){.brief-sources,.brief-connectors{display:none}.hero-stage{height:var(--phone-height,700px)}}

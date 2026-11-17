@@ -1,6 +1,23 @@
-import type { ReactNode } from "react";
-import "./landing.css";
+import type { Metadata } from "next"
+import type { ReactNode } from "react"
+
+const STYLES = ["style", "v2", "review", "hero", "integration-grid", "lenis"]
+
+export const metadata: Metadata = {
+  title: "Oydin — второй мозг для вашего бизнеса",
+  description: "Прогноз кассовых разрывов, пульс бизнеса и AI-помощник для малого бизнеса Узбекистана.",
+  icons: { icon: "/icons/favicon-48.png" },
+  openGraph: { images: ["/og.png"] },
+}
 
 export default function LandingLayout({ children }: { children: ReactNode }) {
-  return children;
+  return (
+    <>
+      <link rel="preload" as="image" href="/landing/assets/hero-phone-brief-2026-960.webp" />
+      {STYLES.map((n) => (
+        <link key={n} rel="stylesheet" href={`/landing/css/${n}.css`} precedence="default" />
+      ))}
+      {children}
+    </>
+  )
 }

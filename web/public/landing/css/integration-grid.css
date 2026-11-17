@@ -1,0 +1,18 @@
+.logo-grid-demo{--grid-angle:40deg;position:relative;width:min(calc(100vw - 64px),1216px);left:50%;transform:translateX(-50%);margin-top:48px}
+/* Overscan gives side tiles room to lift; the fade stays inside this section. */
+.logo-grid-viewport{position:relative;width:calc(100% + 64px);margin-inline:-32px;height:320px;overflow:visible;isolation:isolate;mask-image:linear-gradient(#000 0% 62%,transparent 100%);-webkit-mask-image:linear-gradient(#000 0% 62%,transparent 100%)}
+.logo-grid-perspective{position:absolute;inset:0 48px;display:flex;justify-content:center;align-items:flex-end;perspective:1200px;perspective-origin:calc(50% + 12px) 100%}
+.logo-grid{display:grid;grid-template-columns:repeat(8,400px);grid-template-rows:repeat(3,400px);gap:80px;width:3760px;height:1360px;flex:none;transform:rotateX(var(--grid-angle)) scale(var(--grid-scale,.25));transform-origin:calc(50% + 12px) bottom;transform-style:preserve-3d}
+.logo-slot{position:relative;width:400px;height:400px;transform-style:flat;z-index:0;opacity:1;transform:translateY(0) scale(1)}
+.logo-grid-demo.motion-enabled .logo-slot{opacity:0;transform:translateY(72px) scale(.88);transition:opacity 700ms cubic-bezier(.25,.1,.25,1),transform 700ms cubic-bezier(.25,.1,.25,1);transition-delay:0ms}
+.logo-grid-demo.motion-enabled.is-visible .logo-slot{opacity:1;transform:translateY(0) scale(1);transition-delay:calc((var(--row) + 1) * 60ms)}
+.logo-slot.is-lifted,.logo-slot:focus-within{z-index:10}
+.logo-tile{display:block;width:400px;height:400px;padding:0;border:0;border-radius:64px;background:transparent;overflow:hidden;box-shadow:0 12px 0 #ddd,0 16px 12px #00000014;transform-origin:var(--tile-origin);position:relative;cursor:pointer}
+.logo-tile img{display:block;width:400px;height:400px;max-width:none;pointer-events:none}
+.logo-tile:focus-visible{outline:8px solid #284b80;outline-offset:-8px}
+.logo-ground{position:absolute;width:312px;height:88px;left:44px;bottom:6px;background:radial-gradient(ellipse,rgba(0,0,0,.4) 0%,rgba(0,0,0,.28) 28%,rgba(0,0,0,.1) 54%,transparent 76%);opacity:.88;filter:blur(10px);pointer-events:none}
+@media(max-width:800px){.logo-grid-demo{width:calc(100vw - 32px);margin-top:32px}.integrations-wide .integration-title-line{display:inline}.integrations-wide .integration-title-break{display:none}}
+@media(max-width:479px){.logo-grid-viewport{height:200px}}
+@media(prefers-reduced-motion:reduce){.logo-grid-demo.motion-enabled .logo-slot{opacity:1;transform:none;transition:none}.logo-tile{transform:none!important}.logo-ground{opacity:.88!important;filter:blur(10px)!important;transform:none!important}}
+
+@media(max-width:800px){.logo-ground{display:none}.logo-tile{box-shadow:0 12px 0 #ddd}}

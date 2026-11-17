@@ -1,0 +1,103 @@
+/* Figma review: flat page surfaces and boundary decorations. */
+body.v2::after{content:none}
+.v2 .dark-wordmark{filter:brightness(0)}
+.v2 .faq-section{background:#f5f5f7}
+.axle-divider[data-design-node="130:235"] i{background:linear-gradient(to bottom,#fff 50%,#ffe9a3 50%)}
+.axle-divider[data-design-node="171:97"] i,
+.axle-divider[data-design-node="151:371"] i,
+.axle-divider[data-design-node="153:281"] i{background:linear-gradient(to bottom,#f5f5f7 50%,#fff 50%)}
+.axle-divider[data-design-node="137:118"] i,
+.axle-divider[data-design-node="151:380"] i{background:linear-gradient(to bottom,#f5f5f7 50%,#fff 50%);transform:rotate(180deg)}
+.axle-divider[data-design-node="149:244"] i{background:#f5f5f7;transform:rotate(180deg)}
+.axle-divider{gap:24px}
+.axle-divider span{gap:8px}
+.axle-divider i{width:18px;height:18px;flex:none}
+
+/* Keep the outgoing phone inside the right-hand carousel viewport. */
+.v2 .mockup-stage{overflow:hidden;isolation:isolate}
+/* This image already contains the cropped lower portion of the Figma phone. */
+.v2 .control-visual .parallax-phone{top:auto;bottom:10.5263%}
+
+/* The word supplies the inline group's baseline and stays attached to its art. */
+.reading-attachment{display:inline-block;vertical-align:baseline;white-space:nowrap}
+.reading-attachment .inline-logos{vertical-align:-.09em;margin-right:8px}
+.reading-attachment .inline-alert{vertical-align:-.09em;margin-right:8px}
+.inline-logos img{position:relative;transition:translate .3s cubic-bezier(.22,1,.36,1)}
+@media(hover:hover){.inline-logos img:hover{z-index:1}}
+.quote-tail{left:-25px;bottom:-2px;width:49px;height:31px}
+
+.v2 :is(.hero-block,.booking-hero-block) .nav .text-link{color:#f0f0f0}
+.v2 :is(.hero-block,.booking-hero-block) .nav .text-link:hover{color:#fff}
+.v2 .hero-dawn::before{display:none}
+.v2.home-page .hero-dawn::after,.v2.booking-dawn-page .hero-dawn::after{display:block;content:"";position:absolute;inset:0;background-image:url("data:image/svg+xml;utf8,<svg viewBox='0 0 1440 1678.3' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect width='100%' height='100%' fill='url(%23grad)'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-0.0000090905 263.67 -226.24 -0.000013479 720 -342.86)'><stop stop-color='%23284B80' offset='.11'/><stop stop-color='%23647DA4' offset='.34'/><stop stop-color='%23A4AEC4' offset='.51'/><stop stop-color='%23D8BEC5' offset='.64'/><stop stop-color='%23F3D4BA' offset='.77'/></radialGradient></defs></svg>");background-size:100% 100%;animation:hero-dawn-arrival 3.2s cubic-bezier(.4,0,.2,1) both;pointer-events:none}
+
+.booking-hero-block{position:relative;isolation:isolate}
+.v2.booking-dawn-page .hero-dawn{inset:0;height:100%;background-image:var(--booking-sky);background-size:100% 100%;background-repeat:no-repeat}
+.booking-dawn-page .booking-page{padding-block:96px;gap:84px}
+.booking-dawn-page .booking-heading>p{margin-top:16px}
+.booking-dawn-page .booking-heading .eyebrow{color:#f5f5f5}
+.booking-dawn-page .booking-email{gap:12px;padding-inline:24px}
+.booking-dawn-page .booking-notes{margin-top:-48px}
+.v2.booking-dawn-page .faq-section{background:#fff}
+.booking-dawn-page .dawn-cta{background:#fff}
+@media(max-width:800px){
+ .reading-attachment .inline-logos,.reading-attachment .inline-alert{margin-right:5px}
+ .booking-dawn-page .booking-page{padding-block:64px;gap:56px}
+ .booking-dawn-page .booking-notes{margin-top:-24px}
+}
+@media(prefers-reduced-motion:reduce){
+ .v2.home-page .hero-dawn::after,.v2.booking-dawn-page .hero-dawn::after{display:none}
+ .inline-logos img:hover{}
+}
+
+.booking-hero-block{--booking-sky:url("data:image/svg+xml;utf8,<svg viewBox='0 0 1440 1395' xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='none'><rect x='0' y='0' height='100%' width='100%' fill='url(%23grad)' opacity='1'/><defs><radialGradient id='grad' gradientUnits='userSpaceOnUse' cx='0' cy='0' r='10' gradientTransform='matrix(-0.0000090905 219.17 -226.24 -0.000011204 720 -284.99)'><stop stop-color='rgba(94,91,134,1.0)' offset='0.10724'/><stop stop-color='rgba(104,101,145,1.0)' offset='0.16578'/><stop stop-color='rgba(117,114,156,1.0)' offset='0.22433'/><stop stop-color='rgba(154,149,183,1.0)' offset='0.34143'/><stop stop-color='rgba(197,185,186,1.0)' offset='0.4268'/><stop stop-color='rgba(237,216,169,1.0)' offset='0.51216'/><stop stop-color='rgba(255,227,142,1.0)' offset='0.64225'/><stop stop-color='rgba(255,235,167,1.0)' offset='0.77234'/></radialGradient></defs></svg>")}
+
+/* Floating navbar — corrected Figma frame 153:266. */
+.floating-nav>.button{background:#111214;color:#fff}
+.floating-nav>.button:hover{background:#292a2c;color:#fff}
+
+/* Divider halves meet their section colors after rotating every circle. */
+.axle-divider[data-design-node="171:97"] i{transform:rotate(180deg)}
+.dark-wordmark{filter:brightness(0)}
+.booking-dawn-page .booking-heading .eyebrow img{filter:brightness(0) invert(1);opacity:.5}
+.booking-calendar{animation:booking-calendar-arrival .9s cubic-bezier(.25,.1,.25,1) .3s backwards}
+@keyframes booking-calendar-arrival{from{opacity:0;translate:0 24px}to{opacity:1;translate:0 0}}
+@media(prefers-reduced-motion:reduce){.booking-calendar{animation:none}#hero-phone [data-step].visible{animation:none}}
+
+.floating-nav{background:rgba(255,255,255,.6)}
+.v2.home-page .faq-section{background:linear-gradient(180deg,#f5f5f7 0%,#fff 100%)}
+@media(max-width:800px){
+ .v2.home-page .hero-dawn,.v2.booking-dawn-page .hero-dawn{background-image:linear-gradient(180deg,#0647b5 11%,#5279bf 34%,#a0a6cd 51%,#ddbec9 64%,#f6d6b5 77%)}
+ .v2.home-page .hero-dawn::after,.v2.booking-dawn-page .hero-dawn::after{background-image:linear-gradient(180deg,#284b80 11%,#647da4 34%,#a4aec4 51%,#d8bec5 64%,#f3d4ba 77%)}
+}
+
+/* Keep the updated systems description easy to read at every width. */
+#integrations .split-copy>div>p{text-wrap:pretty}
+
+/* Motion review: UI responds promptly; marketing entrances retain their timing. */
+.faq-answer{transition:opacity 180ms cubic-bezier(.23,1,.32,1)}
+.faq-sign::after{transition:transform 180ms cubic-bezier(.23,1,.32,1),opacity 180ms}
+.faq-item.instant-motion .faq-answer,.faq-item.instant-motion .faq-sign::after{transition:none}
+img,.phone,.parallax-visual,.story,.step-card,.feature-option,.category-pill,.checks-panel,.brief-image-card,button,.button{-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
+@media(prefers-reduced-motion:reduce){.faq-answer,.faq-sign::after{transition:none}}
+
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .button:hover,.feature-controls button:hover,.story-controls button:hover,.question-pill:hover{transform:translateY(-2px)}
+ .inline-logos img:hover{translate:0 -5px}
+}
+
+/* Focused polish: animate the space an accordion actually opens. */
+.faq-answer{transition:grid-template-rows 340ms cubic-bezier(.4,0,.2,1),opacity 220ms cubic-bezier(.4,0,.2,1)}
+.faq-item.is-open .faq-answer{transition-duration:420ms,260ms}
+.faq-toggle{transition:padding-bottom 340ms cubic-bezier(.4,0,.2,1),color 200ms ease}
+.faq-item.is-open .faq-toggle{transition-duration:420ms,200ms}
+.faq-sign::after{transition:transform 340ms cubic-bezier(.4,0,.2,1),opacity 260ms cubic-bezier(.4,0,.2,1)}
+.faq-item.instant-motion .faq-answer,.faq-item.instant-motion .faq-toggle,.faq-item.instant-motion .faq-sign::after{transition:none}
+.floating-nav{transition:transform 380ms cubic-bezier(.4,0,.2,1),opacity 260ms cubic-bezier(.4,0,.2,1),visibility 380ms}
+/* Native, independently scrollable manifesto, even while Lenis is stopped. */
+body.manifesto-open{overflow:hidden}
+#manifesto-dialog{position:fixed;inset:0;height:100dvh;min-height:0;max-height:100dvh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;--manifesto-duration:340ms;transition:opacity var(--manifesto-duration) cubic-bezier(.4,0,.2,1)}
+#manifesto-dialog::-webkit-scrollbar{display:none;width:0;height:0}
+body.manifesto-visible #manifesto-dialog{--manifesto-duration:440ms}
+.manifesto-paper{transition:transform var(--manifesto-duration,340ms) cubic-bezier(.4,0,.2,1)}
+@media(prefers-reduced-motion:reduce){.faq-answer,.faq-toggle,.faq-sign::after,.floating-nav,#manifesto-dialog,.manifesto-paper{transition:none}}

@@ -1,0 +1,2 @@
+// Generated from the moonin.ai markup; copy lives in ../copy.ts ({{section.n}} tokens).
+export const nav = `<header data-design-node="153:266" class="floating-nav" aria-label="{{a.0}}" aria-hidden="true" inert><a href="#top" aria-label="{{a.2}}"><img draggable="false" src="/landing/assets/oydin-wordmark-white.png" width="89" height="24" alt="{{a.3}}"></a><nav><button class="text-link" id="floating-manifesto" type="button">{{nav.1}}</button></nav><a class="button" href="/app">{{nav.2}}</a></header>`

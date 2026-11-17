@@ -1,0 +1,9 @@
+/* Lenis recommended stylesheet (MIT, darkroom.engineering). */
+html.lenis,html.lenis body{height:auto}
+.lenis:not(.lenis-autoToggle).lenis-stopped{overflow:clip}
+.lenis [data-lenis-prevent],.lenis [data-lenis-prevent-wheel],.lenis [data-lenis-prevent-touch],.lenis [data-lenis-prevent-vertical],.lenis [data-lenis-prevent-horizontal]{overscroll-behavior:contain}
+.lenis.lenis-smooth iframe{pointer-events:none}
+.lenis.lenis-autoToggle{transition-property:overflow;transition-duration:1ms;transition-behavior:allow-discrete}
+/* Booking embeds must remain interactive during page scrolling. */
+.lenis.lenis-smooth iframe[data-lenis-prevent]{pointer-events:auto}
+html.lenis{scroll-behavior:auto!important}

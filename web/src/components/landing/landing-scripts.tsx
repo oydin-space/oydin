@@ -1,0 +1,41 @@
+"use client"
+
+import { useEffect } from "react"
+import { words, type Locale } from "./copy"
+
+const SCRIPTS = [
+  "hero-mode", "smooth-scroll", "dialog", "navigation", "mobile-panel-motion", "app", "faq", "motion",
+  "v2", "hero-chat", "hero-sky", "scroll-motion", "integration-grid", "cta-crop",
+]
+
+type LandingWindow = Window & { __oydinWords?: { night: string; day: string }; __oydinLoaded?: boolean }
+
+/** The moonin scripts bind to the DOM once; load them in order after hydration. */
+export function LandingScripts({ locale }: { locale: Locale }) {
+  useEffect(() => {
+    const w = window as LandingWindow
+    if (w.__oydinLoaded) {
+      location.reload() // scripts can't be re-bound after a client-side remount
+      return
+    }
+    document.body.classList.add("home-page", "v2")
+    document.documentElement.lang = locale === "uz" ? "uz" : locale
+    w.__oydinWords = words[locale]
+    const added: HTMLScriptElement[] = []
+    const timer = setTimeout(() => {
+      w.__oydinLoaded = true
+      for (const name of SCRIPTS) {
+        const s = document.createElement("script")
+        s.src = `/landing/js/${name}.js`
+        s.async = false
+        document.body.appendChild(s)
+        added.push(s)
+      }
+    }, 0)
+    return () => {
+      clearTimeout(timer)
+      document.body.classList.remove("home-page", "v2")
+    }
+  }, [locale])
+  return null
+}
