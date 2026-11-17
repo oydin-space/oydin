@@ -49,8 +49,10 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://openrouter.ai/api/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-google/gemini-3.5-flash}
-      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-google/gemini-3.1-flash-lite}
+      LLM_MODEL: ${LLM_MODEL:-google/gemini-3.1-flash-lite}
+      LLM_CLASSIFY_MODEL: ${LLM_CLASSIFY_MODEL:-google/gemini-3.1-flash-lite}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-google/gemini-3.5-flash}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       STT_MODEL: ${STT_MODEL:-google/gemini-3.5-flash-lite}
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
@@ -75,6 +77,18 @@ services:
       timeout: 5s
       retries: 5
       start_period: 60s
+    restart: unless-stopped
+  # Доставка вебхуков публичного API; окружение и образ те же, что у api.
+  webhooks:
+    image: oydin-api:latest
+    command: ["python", "manage.py", "deliver_webhooks", "--loop"]
+    environment:
+      DATABASE_URL: postgres://oydin:${POSTGRES_PASSWORD}@db:5432/oydin
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?нужен .env}
+      DEBUG: "0"
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
   web:
     image: oydin-web:latest
