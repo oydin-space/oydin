@@ -1,0 +1,39 @@
+[tools]
+uv = "0.13.7"
+bun = "1.4.4"
+
+[tasks.install]
+description = "Install all dependencies"
+run = ["uv sync --project backend", "bun install --cwd web"]
+
+[tasks.db]
+description = "Start local Postgres on :5433"
+run = "docker compose up -d db"
+
+[tasks.backend]
+description = "Django API on :8010"
+dir = "backend"
+run = "uv run python manage.py migrate && uv run python manage.py runserver 8010"
+
+[tasks.seed]
+description = "Reset Print Lab demo data"
+dir = "backend"
+run = "uv run python manage.py seed"
+
+[tasks.web]
+description = "Next.js web (landing + app + Telegram Mini App) on :3010"
+dir = "web"
+run = "bun run dev --port 3010"
+
+[tasks.check]
+description = "Backend tests + web lint/typecheck/build"
+run = ["cd backend && uv run python manage.py test", "cd web && bun run lint && bunx tsc --noEmit"]
+
+[tasks.evals]
+description = "Run AI golden evals"
+dir = "backend"
+run = "uv run python -m evals.run"
+
+[tasks.deploy]
+description = "Build and start production stack (needs deploy/.env)"
+run = "docker compose -f deploy/compose.yaml --env-file deploy/.env up -d --build --remove-orphans"

@@ -1,0 +1,444 @@
+openapi: 3.1.0
+info:
+  title: Oydin API
+  version: 0.1.0
+  description: |
+    Второй мозг для малого бизнеса. Все суммы — целые UZS (int), даты — ISO 8601 (YYYY-MM-DD).
+    Ошибки: `{"error": "..."}`. Пути заканчиваются на `/`. Аутентификация — Django session cookie
+    (`sessionid`) для веба; Telegram Mini App получает тот же session через `POST /api/auth/telegram/`.
+    Мутирующие запросы с cookie требуют `X-CSRFToken` (получить через `GET /api/auth/csrf/`).
+servers:
+  - url: /api
+security:
+  - session: []
+components:
+  securitySchemes:
+    session: { type: apiKey, in: cookie, name: sessionid }
+  responses:
+    Error:
+      description: Ошибка
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties: { error: { type: string } }
+    Tone:
+      type: string
+      enum: [calm, watch, risk]
+      description: calm — всё хорошо, watch — обратить внимание, risk — нужен шаг сейчас
+    User:
+      type: object
+      required: [id, name, business]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        business: { $ref: '#/components/schemas/Business' }
+    Business:
+      type: object
+      required: [id, name, industry, city, tax_regime]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        industry: { type: string }
+        city: { type: string }
+        tax_regime:
+          type: string
+          enum: [unknown, turnover, simplified_vat, general]
+    Pulse:
+      type: object
+      required: [score, tone, headline, balance, safe_to_spend, runway_days, promises, gap, metrics]
+      properties:
+        score: { type: integer, minimum: 0, maximum: 100, description: Индекс живучести }
+        tone: { $ref: '#/components/schemas/Tone' }
+        headline: { type: string, description: 'Одна фраза, напр. "Зарплату 10-го закроете спокойно"' }
+        balance: { type: integer }
+        safe_to_spend: { type: integer, description: Можно потратить сегодня, не задев обязательства и конверты }
+        runway_days: { type: integer }
+        promises:
+          type: object
+          required: [kept, total]
+          properties: { kept: { type: integer }, total: { type: integer } }
+        gap:
+          description: Ближайший кассовый разрыв в горизонте 30 дней или null
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [date, amount, reason]
+              properties:
+                date: { type: string, format: date }
+                amount: { type: integer }
+                reason: { type: string }
+        metrics:
+          type: array
+          items: { $ref: '#/components/schemas/Metric' }
+    Metric:
+      type: object
+      required: [key, label, value, unit, tone, hint]
+      properties:
+        key: { type: string }
+        label: { type: string }
+        value: { type: number }
+        unit: { type: string, enum: [sum, pct, days, count] }
+        tone: { $ref: '#/components/schemas/Tone' }
+        hint: { type: string }
+        trend:
+          type: array
+          items: { type: number }
+    Insight:
+      type: object
+      required: [id, kind, title, body, tone, source, as_of, confidence]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [market, local, tax, own] }
+        title: { type: string }
+        body: { type: string }
+        tone: { $ref: '#/components/schemas/Tone' }
+        source: { type: string }
+        source_url: { type: [string, 'null'] }
+        as_of: { type: string, format: date }
+        confidence: { type: string, enum: [high, medium, low] }
+        action: { type: [string, 'null'], description: Вопрос для чата по клику }
+    Account:
+      type: object
+      required: [id, name, kind, balance]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        kind: { type: string, enum: [cash, card, bank] }
+        balance: { type: integer }
+    Transaction:
+      type: object
+      required: [id, date, amount, direction, category, purpose, account_id, note, status, source]
+      properties:
+        id: { type: integer }
+        date: { type: string, format: date }
+        amount: { type: integer, minimum: 1 }
+        direction: { type: string, enum: [in, out, transfer] }
+        category: { type: string }
+        purpose:
+          type: string
+          enum: [business, personal, unclear]
+          description: целевая (business) / нецелевая (personal) трата
+        account_id: { type: integer }
+        counterparty: { type: [string, 'null'] }
+        note: { type: string }
+        status: { type: string, enum: [draft, confirmed] }
+        source: { type: string, enum: [manual, voice, chat, import, seed] }
+    TransactionInput:
+      type: object
+      required: [amount, direction, category, account_id]
+      properties:
+        date: { type: string, format: date }
+        amount: { type: integer, minimum: 1 }
+        direction: { type: string, enum: [in, out, transfer] }
+        category: { type: string }
+        purpose: { type: string, enum: [business, personal, unclear] }
+        account_id: { type: integer }
+        counterparty: { type: [string, 'null'] }
+        note: { type: string }
+    Obligation:
+      type: object
+      required: [id, title, kind, amount, due_date, status, covered]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        kind: { type: string, enum: [salary, rent, tax, supplier, loan, other, receivable] }
+        amount: { type: integer }
+        due_date: { type: string, format: date }
+        status: { type: string, enum: [planned, paid, overdue] }
+        covered: { type: boolean, description: Хватает ли прогнозного остатка на дату }
+    Envelope:
+      type: object
+      required: [id, title, target, saved, due_date, daily]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        target: { type: integer }
+        saved: { type: integer }
+        due_date: { type: string, format: date }
+        daily: { type: integer, description: Сколько откладывать в день }
+    ForecastPoint:
+      type: object
+      required: [date, balance, inflow, outflow]
+      properties:
+        date: { type: string, format: date }
+        balance: { type: integer }
+        inflow: { type: integer }
+        outflow: { type: integer }
+    Product:
+      type: object
+      required: [id, name, price, unit_cost, margin_pct, markup_pct, cost_is_estimate]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        price: { type: integer }
+        unit_cost: { type: integer }
+        margin_pct: { type: number }
+        markup_pct: { type: number }
+        cost_is_estimate: { type: boolean }
+    Order:
+      type: object
+      required: [id, client, channel, total, prepaid, status, due_date, items]
+      properties:
+        id: { type: integer }
+        client: { type: string }
+        channel: { type: string, enum: [retail, showroom, b2b, online] }
+        total: { type: integer }
+        prepaid: { type: integer }
+        status: { type: string, enum: [brief, sample, production, qc, delivered, paid] }
+        due_date: { type: string, format: date }
+        items:
+          type: array
+          items:
+            type: object
+            required: [product_id, qty, price]
+            properties:
+              product_id: { type: integer }
+              qty: { type: integer }
+              price: { type: integer }
+    Chart:
+      type: object
+      required: [type, title, unit, data]
+      properties:
+        type: { type: string, enum: [bar, line, area, pie] }
+        title: { type: string }
+        unit: { type: string }
+        data:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items:
+            type: object
+            required: [label, value]
+            properties: { label: { type: string }, value: { type: number } }
+    AiReply:
+      type: object
+      required: [reply, suggestions, trace_id]
+      properties:
+        reply: { type: string, description: Markdown, русский }
+        suggestions: { type: array, items: { type: string }, maxItems: 4 }
+        chart: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Chart' }] }
+        draft:
+          description: Предложенная операция — сохраняется только после подтверждения пользователем
+          oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/TransactionInput' }]
+        trace_id: { type: [string, 'null'] }
+        fallback: { type: boolean }
+paths:
+  /health/:
+    get:
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { ok: { type: boolean }, db: { type: boolean }, ai: { type: boolean } }
+  /auth/csrf/:
+    get:
+      security: []
+      responses: { '200': { description: Ставит csrftoken cookie } }
+  /auth/demo/:
+    post:
+      security: []
+      summary: Вход в демо-бизнес Print Lab (только при DEMO_LOGIN=1)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+  /auth/telegram/:
+    post:
+      security: []
+      summary: Вход из Telegram Mini App; HMAC-проверка initData ботовым токеном, auth_date не старше 24ч
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [init_data], properties: { init_data: { type: string } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/logout/:
+    post:
+      responses: { '204': { description: OK } }
+  /me/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /business/:
+    patch:
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { tax_regime: { $ref: '#/components/schemas/Business/properties/tax_regime' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Business' } } } }
+  /dashboard/pulse/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Pulse' } } } }
+  /insights/:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Insight' } } } }
+  /accounts/:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Account' } } } }
+  /transactions/:
+    get:
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [draft, confirmed] } }
+        - { name: purpose, in: query, schema: { type: string, enum: [business, personal, unclear] } }
+        - { name: q, in: query, schema: { type: string }, description: Поиск по заметке/контрагенту/категории (trigram) }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Transaction' } } } }
+    post:
+      summary: Создаёт подтверждённую операцию
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TransactionInput' } } }
+      responses:
+        '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Transaction' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+  /transactions/{id}/:
+    parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+    patch:
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/TransactionInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Transaction' } } } }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      responses: { '204': { description: OK } }
+  /obligations/:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Obligation' } } } }
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [title, kind, amount, due_date], properties: { title: { type: string }, kind: { type: string }, amount: { type: integer }, due_date: { type: string, format: date } } }
+      responses:
+        '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Obligation' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+  /envelopes/:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Envelope' } } } }
+  /forecast/:
+    get:
+      parameters: [{ name: days, in: query, schema: { type: integer, default: 30, maximum: 90 } }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [points], properties: { points: { type: array, items: { $ref: '#/components/schemas/ForecastPoint' } } } }
+  /products/:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Product' } } } }
+  /orders/:
+    get:
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Order' } } } }
+  /analytics/summary/:
+    get:
+      parameters: [{ name: period, in: query, schema: { type: string, enum: [week, month, quarter], default: month } }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revenue, expenses, profit, personal_share, by_category, by_week]
+                properties:
+                  revenue: { type: integer }
+                  expenses: { type: integer }
+                  profit: { type: integer }
+                  personal_share: { type: number, description: Доля нецелевых трат от расходов, 0..1 }
+                  by_category: { type: array, items: { type: object, properties: { label: { type: string }, value: { type: integer } } } }
+                  by_week: { type: array, items: { type: object, properties: { label: { type: string }, inflow: { type: integer }, outflow: { type: integer } } } }
+  /ai/chat/:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  maxItems: 20
+                  items: { type: object, required: [role, content], properties: { role: { type: string, enum: [user, assistant] }, content: { type: string, maxLength: 4000 } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AiReply' } } } }
+        '429': { $ref: '#/components/responses/Error' }
+  /ai/voice/:
+    post:
+      summary: Аудио → текст → черновик операции (не сохраняется)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { type: object, required: [audio], properties: { audio: { type: string, format: binary, description: 'webm/ogg/mp4, ≤ 2 МБ, ≤ 60 с' } } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [text, draft]
+                properties:
+                  text: { type: string }
+                  draft: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/TransactionInput' }] }
+        '400': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /ai/feedback/:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [trace_id, value], properties: { trace_id: { type: string }, value: { type: integer, enum: [0, 1] } } }
+      responses: { '204': { description: OK } }
