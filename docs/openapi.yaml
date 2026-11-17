@@ -1,12 +1,16 @@
 openapi: 3.1.0
 info:
   title: Oydin API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Второй мозг для малого бизнеса. Все суммы — целые UZS (int), даты — ISO 8601 (YYYY-MM-DD).
     Ошибки: `{"error": "..."}`. Пути заканчиваются на `/`. Аутентификация — Django session cookie
     (`sessionid`) для веба; Telegram Mini App получает тот же session через `POST /api/auth/telegram/`.
     Мутирующие запросы с cookie требуют `X-CSRFToken` (получить через `GET /api/auth/csrf/`).
+    Роли в бизнесе: owner (всё), accountant (операции, импорт/экспорт, отчёты; без команды, интеграций и токенов),
+    seller (создаёт операции; видит только свои операции и пульс). Недостаточно прав → 403.
+    Язык ответов AI и уведомлений берётся из `User.locale` (fallback `Business.locale`).
+    Публичный API — `/api/v1/` с `Authorization: Bearer oyd_…` (без CSRF и cookie).
 servers:
   - url: /api
 security:
@@ -14,12 +18,16 @@ security:
 components:
   securitySchemes:
     session: { type: apiKey, in: cookie, name: sessionid }
+    bearer: { type: http, scheme: bearer, description: 'Персональный токен `oyd_<base62>`; в БД хранится только SHA-256' }
+    telegramSecret: { type: apiKey, in: header, name: X-Telegram-Bot-Api-Secret-Token }
   responses:
     Error:
-      description: Ошибка
+      description: Ошибка (400 валидация, 401 нет сессии/токена, 403 нет прав, 404 не найдено, 409 конфликт, 413 файл велик, 429 лимит, 502 внешний сервис)
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: integer } }
   schemas:
     Error:
       type: object
@@ -29,16 +37,31 @@ components:
       type: string
       enum: [calm, watch, risk]
       description: calm — всё хорошо, watch — обратить внимание, risk — нужен шаг сейчас
+    Locale: { type: string, enum: [ru, uz, en], description: 'uz — латиница' }
+    Role: { type: string, enum: [owner, accountant, seller] }
+    Permission:
+      type: string
+      enum: [transactions.read_all, transactions.write, reports.read, imports.manage, exports.read, team.manage, integrations.manage, tokens.manage, settings.manage]
+      description: |
+        owner — все; accountant — transactions.read_all, transactions.write, reports.read, imports.manage, exports.read;
+        seller — transactions.write.
     User:
       type: object
-      required: [id, name, business]
+      required: [id, name, business, locale, role, permissions, consent_version]
       properties:
         id: { type: integer }
         name: { type: string }
+        locale: { $ref: '#/components/schemas/Locale' }
+        role: { $ref: '#/components/schemas/Role' }
+        permissions: { type: array, items: { $ref: '#/components/schemas/Permission' } }
+        consent_version: { type: [string, 'null'], description: 'Принятая версия юр. документов; null или < актуальной → consent screen' }
+        email: { type: [string, 'null'] }
+        telegram_linked: { type: boolean }
+        google_linked: { type: boolean }
         business: { $ref: '#/components/schemas/Business' }
     Business:
       type: object
-      required: [id, name, industry, city, tax_regime]
+      required: [id, name, industry, city, tax_regime, locale, segment, plan]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -47,6 +70,10 @@ components:
         tax_regime:
           type: string
           enum: [unknown, turnover, simplified_vat, general]
+        locale: { $ref: '#/components/schemas/Locale' }
+        segment: { $ref: '#/components/schemas/Segment' }
+        plan: { type: string, enum: [free, pro], description: Биллинга нет; pro выдаётся вручную по заявке доступа }
+    Segment: { type: string, enum: [textile_print, retail, horeca, marketplace_seller, services] }
     Pulse:
       type: object
       required: [score, tone, headline, balance, safe_to_spend, runway_days, promises, gap, metrics]
@@ -126,7 +153,7 @@ components:
         counterparty: { type: [string, 'null'] }
         note: { type: string }
         status: { type: string, enum: [draft, confirmed] }
-        source: { type: string, enum: [manual, voice, chat, import, seed] }
+        source: { type: string, enum: [manual, voice, chat, import, seed, integration, ocr, telegram, api] }
     TransactionInput:
       type: object
       required: [amount, direction, category, account_id]
@@ -162,12 +189,14 @@ components:
         daily: { type: integer, description: Сколько откладывать в день }
     ForecastPoint:
       type: object
-      required: [date, balance, inflow, outflow]
+      required: [date, balance, inflow, outflow, seasonality]
       properties:
         date: { type: string, format: date }
         balance: { type: integer }
         inflow: { type: integer }
         outflow: { type: integer }
+        seasonality: { type: number, description: 'Множитель выручки на дату (1.0 — норма) из локального календаря сегмента' }
+        event: { type: [string, 'null'], description: 'Напр. "Навруз", "1 сентября", "Рамадан"' }
     Product:
       type: object
       required: [id, name, price, unit_cost, margin_pct, markup_pct, cost_is_estimate]
@@ -216,16 +245,237 @@ components:
             properties: { label: { type: string }, value: { type: number } }
     AiReply:
       type: object
-      required: [reply, suggestions, trace_id]
+      required: [reply, suggestions, trace_id, ui]
       properties:
-        reply: { type: string, description: Markdown, русский }
+        reply: { type: string, description: Markdown на языке пользователя }
         suggestions: { type: array, items: { type: string }, maxItems: 4 }
         chart: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Chart' }] }
+        ui:
+          type: [string, 'null']
+          maxLength: 50000
+          description: OpenUI Lang — генеративный интерфейс (графики, таблицы, слайдеры сценариев, калькуляторы) на компонентах Oydin; можно закрепить через POST /tools/.
         draft:
           description: Предложенная операция — сохраняется только после подтверждения пользователем
           oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/TransactionInput' }]
         trace_id: { type: [string, 'null'] }
         fallback: { type: boolean }
+    Ok:
+      type: object
+      required: [ok]
+      properties: { ok: { type: boolean } }
+    Member:
+      type: object
+      required: [id, user_id, name, role, joined_at]
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        name: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        joined_at: { type: string, format: date-time }
+    Invite:
+      type: object
+      required: [id, role, token, url, telegram_url, expires_at, status]
+      properties:
+        id: { type: integer }
+        role: { $ref: '#/components/schemas/Role' }
+        token: { type: string }
+        url: { type: string, description: 'https://oydin.sayfi.uz/join/<token>' }
+        telegram_url: { type: string, description: 't.me/<bot>?start=join_<token>' }
+        expires_at: { type: string, format: date-time, description: 7 дней }
+        status: { type: string, enum: [pending, accepted, revoked, expired] }
+    Goal:
+      type: object
+      required: [id, kind, title, target, current, due_date, streak_days, best_streak, status]
+      properties:
+        id: { type: integer }
+        kind: { type: string, enum: [safety_cushion, savings, revenue, expense_cap, no_personal_leaks] }
+        title: { type: string }
+        target: { type: integer, description: 'UZS (для safety_cushion — дни запаса × средний дневной расход)' }
+        current: { type: integer }
+        due_date: { type: [string, 'null'], format: date }
+        streak_days: { type: integer, description: Дней подряд с выполненным дневным шагом }
+        best_streak: { type: integer }
+        status: { type: string, enum: [active, achieved, archived] }
+    GoalInput:
+      type: object
+      required: [kind, title, target]
+      properties:
+        kind: { type: string, enum: [safety_cushion, savings, revenue, expense_cap, no_personal_leaks] }
+        title: { type: string, maxLength: 120 }
+        target: { type: integer, minimum: 1 }
+        due_date: { type: [string, 'null'], format: date }
+        status: { type: string, enum: [active, archived] }
+    Benchmark:
+      type: object
+      required: [metric, label, value, peer_p25, peer_median, peer_p75, peers, source, tone]
+      properties:
+        metric: { type: string, enum: [margin_pct, rent_share, payroll_share, personal_share, runway_days, receivables_days] }
+        label: { type: string }
+        value: { type: number }
+        peer_p25: { type: number }
+        peer_median: { type: number }
+        peer_p75: { type: number }
+        peers: { type: integer, description: 'Размер анонимной когорты (сегмент+город); k-анонимность ≥ 5, иначе source=public_stats' }
+        source: { type: string, enum: [peers, public_stats] }
+        tone: { $ref: '#/components/schemas/Tone' }
+    LeakItem:
+      type: object
+      required: [category, amount, count, share]
+      properties:
+        category: { type: string }
+        amount: { type: integer }
+        count: { type: integer }
+        share: { type: number, description: Доля от нецелевых трат, 0..1 }
+    IntegrationKind:
+      type: string
+      enum: [google_sheets, payme, click, uzum_market, moysklad, billz, didox, faktura]
+    Connection:
+      type: object
+      required: [id, kind, status, label, last_sync_at, last_error, settings]
+      properties:
+        id: { type: integer }
+        kind: { $ref: '#/components/schemas/IntegrationKind' }
+        status: { type: string, enum: [active, error, disconnected] }
+        label: { type: string }
+        last_sync_at: { type: [string, 'null'], format: date-time }
+        last_error: { type: [string, 'null'] }
+        settings: { type: object, additionalProperties: true, description: 'Нечувствительные настройки (spreadsheet_id, account_id, sync_direction). Секреты никогда не возвращаются.' }
+    ConnectionInput:
+      type: object
+      required: [kind, credentials]
+      properties:
+        kind: { $ref: '#/components/schemas/IntegrationKind' }
+        label: { type: string }
+        credentials:
+          type: object
+          additionalProperties: { type: string }
+          description: |
+            Шифруются Fernet (INTEGRATIONS_FERNET_KEY) до записи. По kind:
+            payme {merchant_id, key}; click {service_id, merchant_user_id, secret_key}; uzum_market {api_token, shop_id};
+            moysklad {token}; billz {secret_token}; didox {login, password, tin}; faktura {login, password, tin}.
+            google_sheets создаётся только через GET /auth/google/start/?purpose=sheets (POST → 400).
+        settings: { type: object, additionalProperties: true }
+    ConnectionPatch:
+      type: object
+      properties:
+        label: { type: string }
+        credentials: { type: object, additionalProperties: { type: string } }
+        settings: { type: object, additionalProperties: true }
+    SyncRun:
+      type: object
+      required: [id, status, created, updated, skipped, started_at, finished_at, error]
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [running, ok, error] }
+        created: { type: integer }
+        updated: { type: integer }
+        skipped: { type: integer }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: [string, 'null'], format: date-time }
+        error: { type: [string, 'null'] }
+    ImportKind:
+      type: string
+      enum: [csv, xlsx, 1c_bank, commerceml, kapitalbank, tbc, uzum_business, hamkorbank]
+    ColumnMapping:
+      type: object
+      description: Колонка файла → поле операции
+      additionalProperties: { type: string, enum: [date, amount, inflow, outflow, direction, category, counterparty, note, account, skip] }
+    ImportPreviewRow:
+      type: object
+      required: [row, draft, duplicate, errors]
+      properties:
+        row: { type: integer }
+        draft: { $ref: '#/components/schemas/TransactionInput' }
+        duplicate: { type: boolean, description: Совпадение дата+сумма+контрагент с существующей операцией }
+        errors: { type: array, items: { type: string } }
+    Import:
+      type: object
+      required: [id, kind, filename, status, mapping, mapping_confidence, columns, total_rows, preview, created_count]
+      properties:
+        id: { type: integer }
+        kind: { $ref: '#/components/schemas/ImportKind' }
+        filename: { type: string }
+        status: { type: string, enum: [preview, committed, failed] }
+        mapping: { $ref: '#/components/schemas/ColumnMapping' }
+        mapping_confidence: { type: number, description: '0..1; AI-маппинг для csv/xlsx, 1.0 для известных форматов' }
+        columns: { type: array, items: { type: string } }
+        total_rows: { type: integer }
+        preview: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/ImportPreviewRow' } }
+        created_count: { type: integer }
+    NotificationSettings:
+      type: object
+      required: [daily_brief, daily_brief_time, gap_alerts, weekly_cfo_call, weekly_cfo_weekday, timezone, telegram_connected]
+      properties:
+        daily_brief: { type: boolean }
+        daily_brief_time: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', default: '09:00' }
+        gap_alerts: { type: boolean }
+        weekly_cfo_call: { type: boolean, description: 'Голосовая (TTS) сводка ~2 мин в Telegram' }
+        weekly_cfo_weekday: { type: integer, minimum: 0, maximum: 6, default: 0, description: 0 — понедельник }
+        timezone: { type: string, default: Asia/Tashkent }
+        telegram_connected: { type: boolean, readOnly: true }
+    ApiToken:
+      type: object
+      required: [id, name, prefix, scopes, created_at, last_used_at]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        prefix: { type: string, description: Первые 8 символов для опознания }
+        scopes: { type: array, items: { type: string, enum: [read, write] } }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: [string, 'null'], format: date-time }
+    WebhookEvent: { type: string, enum: [transaction.created, gap.detected] }
+    WebhookSubscription:
+      type: object
+      required: [id, url, events, active, created_at, last_delivery_status]
+      properties:
+        id: { type: integer }
+        url: { type: string, format: uri, description: Только https }
+        events: { type: array, minItems: 1, items: { $ref: '#/components/schemas/WebhookEvent' } }
+        active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        last_delivery_status: { type: [integer, 'null'] }
+    WebhookPayload:
+      type: object
+      description: |
+        POST на url подписки. Заголовки: `X-Oydin-Event`, `X-Oydin-Delivery` (uuid), `X-Oydin-Timestamp` (unix),
+        `X-Oydin-Signature: sha256=<hex HMAC-SHA256(secret, timestamp + "." + raw_body)>`. Ретраи 1м/10м/1ч при не-2xx, таймаут 5 с.
+      required: [id, event, created_at, data]
+      properties:
+        id: { type: string, format: uuid }
+        event: { $ref: '#/components/schemas/WebhookEvent' }
+        created_at: { type: string, format: date-time }
+        data:
+          oneOf:
+            - { $ref: '#/components/schemas/Transaction' }
+            - type: object
+              required: [date, shortfall, obligation_id]
+              properties: { date: { type: string, format: date }, shortfall: { type: integer }, obligation_id: { type: [integer, 'null'] } }
+    SavedTool:
+      type: object
+      required: [id, title, ui, state, pinned, position, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        title: { type: string, maxLength: 120 }
+        ui: { type: string, maxLength: 50000, description: OpenUI Lang исходник калькулятора/планировщика }
+        state: { type: object, additionalProperties: true, description: Последние значения полей/слайдеров }
+        pinned: { type: boolean, description: Показывать на дашборде }
+        position: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    SavedToolInput:
+      type: object
+      properties:
+        title: { type: string, maxLength: 120 }
+        ui: { type: string, maxLength: 50000 }
+        state: { type: object, additionalProperties: true }
+        pinned: { type: boolean }
+        position: { type: integer }
+    OcrResult:
+      type: object
+      required: [text, drafts]
+      properties:
+        text: { type: string, description: Распознанный текст чека/SMS }
+        drafts: { type: array, items: { $ref: '#/components/schemas/TransactionInput' }, description: Черновики; сохраняются только после подтверждения через POST /transactions/ }
 paths:
   /health/:
     get:
@@ -238,10 +488,13 @@ paths:
               schema:
                 type: object
                 properties: { ok: { type: boolean }, db: { type: boolean }, ai: { type: boolean } }
+        '503': { $ref: '#/components/responses/Error' }
   /auth/csrf/:
     get:
       security: []
-      responses: { '200': { description: Ставит csrftoken cookie } }
+      responses:
+        '200': { description: Ставит csrftoken cookie, content: { application/json: { schema: { type: object, properties: { csrftoken: { type: string } } } } } }
+        '500': { $ref: '#/components/responses/Error' }
   /auth/demo/:
     post:
       security: []
@@ -263,24 +516,48 @@ paths:
         '401': { $ref: '#/components/responses/Error' }
   /auth/logout/:
     post:
-      responses: { '204': { description: OK } }
+      responses:
+        '204': { description: OK }
+        '401': { $ref: '#/components/responses/Error' }
   /me/:
     get:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
         '401': { $ref: '#/components/responses/Error' }
+    patch:
+      summary: Профиль пользователя (язык интерфейса и AI)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { name: { type: string, maxLength: 80 }, locale: { $ref: '#/components/schemas/Locale' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
   /business/:
     patch:
+      summary: Настройки бизнеса (permission settings.manage)
       requestBody:
         content:
           application/json:
-            schema: { type: object, properties: { tax_regime: { $ref: '#/components/schemas/Business/properties/tax_regime' } } }
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 120 }
+                city: { type: string }
+                tax_regime: { $ref: '#/components/schemas/Business/properties/tax_regime' }
+                locale: { $ref: '#/components/schemas/Locale' }
+                segment: { $ref: '#/components/schemas/Segment' }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Business' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
   /dashboard/pulse/:
     get:
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Pulse' } } } }
+        '401': { $ref: '#/components/responses/Error' }
   /insights/:
     get:
       responses:
@@ -289,6 +566,7 @@ paths:
           content:
             application/json:
               schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Insight' } } } }
+        '401': { $ref: '#/components/responses/Error' }
   /accounts/:
     get:
       responses:
@@ -297,6 +575,7 @@ paths:
           content:
             application/json:
               schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Account' } } } }
+        '401': { $ref: '#/components/responses/Error' }
   /transactions/:
     get:
       parameters:
@@ -310,6 +589,7 @@ paths:
           content:
             application/json:
               schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Transaction' } } } }
+        '401': { $ref: '#/components/responses/Error' }
     post:
       summary: Создаёт подтверждённую операцию
       requestBody:
@@ -327,7 +607,9 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Transaction' } } } }
         '404': { $ref: '#/components/responses/Error' }
     delete:
-      responses: { '204': { description: OK } }
+      responses:
+        '204': { description: OK }
+        '404': { $ref: '#/components/responses/Error' }
   /obligations/:
     get:
       responses:
@@ -336,6 +618,7 @@ paths:
           content:
             application/json:
               schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Obligation' } } } }
+        '401': { $ref: '#/components/responses/Error' }
     post:
       requestBody:
         required: true
@@ -353,6 +636,7 @@ paths:
           content:
             application/json:
               schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Envelope' } } } }
+        '401': { $ref: '#/components/responses/Error' }
   /forecast/:
     get:
       parameters: [{ name: days, in: query, schema: { type: integer, default: 30, maximum: 90 } }]
@@ -362,6 +646,7 @@ paths:
           content:
             application/json:
               schema: { type: object, required: [points], properties: { points: { type: array, items: { $ref: '#/components/schemas/ForecastPoint' } } } }
+        '401': { $ref: '#/components/responses/Error' }
   /products/:
     get:
       responses:
@@ -370,6 +655,7 @@ paths:
           content:
             application/json:
               schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Product' } } } }
+        '401': { $ref: '#/components/responses/Error' }
   /orders/:
     get:
       responses:
@@ -378,6 +664,7 @@ paths:
           content:
             application/json:
               schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Order' } } } }
+        '401': { $ref: '#/components/responses/Error' }
   /analytics/summary/:
     get:
       parameters: [{ name: period, in: query, schema: { type: string, enum: [week, month, quarter], default: month } }]
@@ -396,6 +683,7 @@ paths:
                   personal_share: { type: number, description: Доля нецелевых трат от расходов, 0..1 }
                   by_category: { type: array, items: { type: object, properties: { label: { type: string }, value: { type: integer } } } }
                   by_week: { type: array, items: { type: object, properties: { label: { type: string }, inflow: { type: integer }, outflow: { type: integer } } } }
+        '401': { $ref: '#/components/responses/Error' }
   /ai/chat/:
     post:
       requestBody:
@@ -441,4 +729,552 @@ paths:
         content:
           application/json:
             schema: { type: object, required: [trace_id, value], properties: { trace_id: { type: string }, value: { type: integer, enum: [0, 1] } } }
-      responses: { '204': { description: OK } }
+      responses:
+        '204': { description: OK }
+        '400': { $ref: '#/components/responses/Error' }
+  # ───────────── v0.2: auth ─────────────
+  /auth/telegram/widget/:
+    post:
+      security: []
+      summary: Вход через Telegram Login Widget на вебе; проверка hash = HMAC-SHA256(SHA256(bot_token), data_check_string), auth_date ≤ 24ч
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, auth_date, hash]
+              properties:
+                id: { type: integer }
+                first_name: { type: string }
+                last_name: { type: string }
+                username: { type: string }
+                photo_url: { type: string }
+                auth_date: { type: integer }
+                hash: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/google/start/:
+    get:
+      security: []
+      summary: Редирект на Google OAuth (state в сессии, PKCE). purpose=login — openid email profile; purpose=sheets — + spreadsheets + drive.file, требует сессию и integrations.manage
+      parameters:
+        - { name: purpose, in: query, schema: { type: string, enum: [login, sheets], default: login } }
+        - { name: next, in: query, schema: { type: string }, description: Относительный путь для возврата }
+      responses:
+        '302': { description: Redirect на accounts.google.com }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /auth/google/callback/:
+    get:
+      security: []
+      summary: Обмен code→tokens. login — создаёт/входит пользователя; sheets — создаёт Connection(kind=google_sheets) с зашифрованным refresh_token
+      parameters:
+        - { name: code, in: query, required: true, schema: { type: string } }
+        - { name: state, in: query, required: true, schema: { type: string } }
+      responses:
+        '302': { description: 'Redirect на next (по умолчанию /app или /app/settings/integrations); при ошибке ?error=<code>' }
+        '400': { $ref: '#/components/responses/Error' }
+  /legal/consent/:
+    get:
+      security: []
+      summary: Актуальная версия юр. документов
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, documents]
+                properties:
+                  version: { type: string, example: '2026-11-18' }
+                  documents: { type: array, items: { type: object, required: [kind, url], properties: { kind: { type: string, enum: [privacy, terms] }, url: { type: string } } } }
+        '500': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Принять версию (пишется ConsentRecord с IP/UA/временем)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [version], properties: { version: { type: string } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /pricing/access-request/:
+    post:
+      security: []
+      summary: Заявка на доступ к Pro / партнёрство банка (без оплаты). Rate limit 5/ч на IP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, contact, plan]
+              properties:
+                name: { type: string, maxLength: 120 }
+                contact: { type: string, maxLength: 120, description: Телефон, email или @telegram }
+                plan: { type: string, enum: [pro, team, bank_partner] }
+                business_name: { type: string, maxLength: 120 }
+                segment: { $ref: '#/components/schemas/Segment' }
+                message: { type: string, maxLength: 2000 }
+                locale: { $ref: '#/components/schemas/Locale' }
+      responses:
+        '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  # ───────────── team ─────────────
+  /team/members/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Member' } } } } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /team/members/{id}/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      summary: Сменить роль (team.manage). Нельзя понизить последнего owner
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [role], properties: { role: { $ref: '#/components/schemas/Role' } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Member' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+    delete:
+      responses:
+        '204': { description: OK }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /team/invites/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Invite' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [role], properties: { role: { $ref: '#/components/schemas/Role' } } } } }
+      responses:
+        '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Invite' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /team/invites/{id}/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    delete:
+      summary: Отозвать приглашение
+      responses:
+        '204': { description: OK }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /team/join/:
+    post:
+      summary: Принять приглашение текущим пользователем (переключает активный бизнес)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [token], properties: { token: { type: string } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  # ───────────── goals, benchmarks, leaks ─────────────
+  /goals/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Goal' } } } } } } }
+        '401': { $ref: '#/components/responses/Error' }
+    post:
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GoalInput' } } }
+      responses:
+        '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Goal' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /goals/{id}/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/GoalInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Goal' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      responses:
+        '204': { description: OK }
+        '404': { $ref: '#/components/responses/Error' }
+  /benchmarks/:
+    get:
+      summary: Анонимные сравнения с похожими бизнесами (сегмент+город), за 90 дней
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [segment, items], properties: { segment: { $ref: '#/components/schemas/Segment' }, items: { type: array, items: { $ref: '#/components/schemas/Benchmark' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /reports/leaks/:
+    get:
+      summary: Отчёт о нецелевых тратах (purpose=personal) и неразмеченных (unclear)
+      parameters: [{ name: period, in: query, schema: { type: string, enum: [week, month, quarter], default: month } }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [period_start, period_end, personal_total, unclear_count, share_of_expenses, by_category, top]
+                properties:
+                  period_start: { type: string, format: date }
+                  period_end: { type: string, format: date }
+                  personal_total: { type: integer }
+                  unclear_count: { type: integer, description: Операций, которые нужно разметить }
+                  share_of_expenses: { type: number }
+                  by_category: { type: array, items: { $ref: '#/components/schemas/LeakItem' } }
+                  top: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/Transaction' } }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  # ───────────── integrations ─────────────
+  /integrations/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Connection' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Подключить (integrations.manage). Креды проверяются тестовым запросом до сохранения
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ConnectionInput' } } }
+      responses:
+        '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Connection' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+  /integrations/{id}/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ConnectionPatch' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Connection' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Отключить — удаляет зашифрованные креды (для google_sheets ещё и revoke токена); импортированные операции остаются
+      responses:
+        '204': { description: OK }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /integrations/{id}/test/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [ok, message], properties: { ok: { type: boolean }, message: { type: string } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /integrations/{id}/sync/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      summary: История синхронизаций (последние 20)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/SyncRun' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Запустить синк сейчас (идемпотентно по external_id). Для google_sheets — import из листа + live export в лист
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { since: { type: string, format: date } } } } }
+      responses:
+        '202': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SyncRun' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+  # ───────────── imports / exports / OCR ─────────────
+  /imports/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Import' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Загрузить файл (≤ 10 МБ) → разбор + AI-маппинг колонок → превью. Ничего не сохраняется в операции
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                kind: { $ref: '#/components/schemas/ImportKind', description: Если не задан — автоопределение }
+                account_id: { type: integer, description: Счёт по умолчанию для строк }
+      responses:
+        '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Import' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+  /imports/{id}/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Import' } } } }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      summary: Поправить маппинг → пересчитанное превью
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, properties: { mapping: { $ref: '#/components/schemas/ColumnMapping' }, account_id: { type: integer } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Import' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /imports/{id}/commit/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      summary: Сохранить строки как confirmed операции (source=import); дубликаты пропускаются, если skip_duplicates
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { skip_duplicates: { type: boolean, default: true }, exclude_rows: { type: array, items: { type: integer } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Import' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /exports/transactions/:
+    get:
+      summary: Выгрузка операций (exports.read)
+      parameters:
+        - { name: format, in: query, required: true, schema: { type: string, enum: [xlsx, csv, 1c_bank] } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Файл (Content-Disposition attachment)
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } }
+            text/csv: { schema: { type: string } }
+            text/plain: { schema: { type: string, description: 1CClientBankExchange, windows-1251 } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /ocr/:
+    post:
+      summary: Фото чека или текст банковского SMS → черновики операций (не сохраняются)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image: { type: string, format: binary, description: 'jpeg/png/webp/heic, ≤ 5 МБ' }
+                text: { type: string, maxLength: 4000, description: Текст SMS; нужно image или text }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OcrResult' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '413': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  # ───────────── telegram & notifications ─────────────
+  /telegram/webhook/:
+    post:
+      security: [{ telegramSecret: [] }]
+      summary: Telegram Bot API update. Секрет сравнивается с TELEGRAM_WEBHOOK_SECRET (constant-time). Текст/голос/фото/пересланные SMS → черновик с inline-кнопкой подтверждения
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [update_id], additionalProperties: true, properties: { update_id: { type: integer } } } } }
+      responses:
+        '200': { description: 'Принято (всегда 200 после проверки секрета, чтобы Telegram не ретраил)', content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+  /notifications/settings/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationSettings' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+    patch:
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/NotificationSettings' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationSettings' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /notifications/test/:
+    post:
+      summary: Отправить пробный бриф/CFO call в Telegram сейчас
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [kind], properties: { kind: { type: string, enum: [daily_brief, weekly_cfo_call] } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '409': { $ref: '#/components/responses/Error', description: Telegram не привязан }
+        '502': { $ref: '#/components/responses/Error' }
+  # ───────────── OpenUI saved tools ─────────────
+  /tools/:
+    get:
+      parameters: [{ name: pinned, in: query, schema: { type: boolean } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/SavedTool' } } } } } } }
+        '401': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Закрепить сгенерированный калькулятор/планировщик (ui валидируется парсером OpenUI Lang)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { allOf: [{ $ref: '#/components/schemas/SavedToolInput' }, { required: [title, ui] }] } } }
+      responses:
+        '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SavedTool' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /tools/{id}/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SavedTool' } } } }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SavedToolInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SavedTool' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      responses:
+        '204': { description: OK }
+        '404': { $ref: '#/components/responses/Error' }
+  # ───────────── personal tokens & webhooks (session, owner) ─────────────
+  /developer/tokens/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/ApiToken' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [name], properties: { name: { type: string, maxLength: 80 }, scopes: { type: array, items: { type: string, enum: [read, write] }, default: [read] } } } } }
+      responses:
+        '201':
+          description: Токен показывается один раз
+          content: { application/json: { schema: { allOf: [{ $ref: '#/components/schemas/ApiToken' }, { type: object, required: [token], properties: { token: { type: string } } }] } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /developer/tokens/{id}/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    delete:
+      responses:
+        '204': { description: OK }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /developer/webhooks/:
+    get:
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/WebhookSubscription' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [url, events], properties: { url: { type: string, format: uri }, events: { type: array, minItems: 1, items: { $ref: '#/components/schemas/WebhookEvent' } } } } } }
+      responses:
+        '201':
+          description: Секрет подписи показывается один раз
+          content: { application/json: { schema: { allOf: [{ $ref: '#/components/schemas/WebhookSubscription' }, { type: object, required: [secret], properties: { secret: { type: string } } }] } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /developer/webhooks/{id}/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    patch:
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, properties: { active: { type: boolean }, events: { type: array, minItems: 1, items: { $ref: '#/components/schemas/WebhookEvent' } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/WebhookSubscription' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      responses:
+        '204': { description: OK }
+        '404': { $ref: '#/components/responses/Error' }
+  /developer/webhooks/{id}/ping/:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      summary: Отправить тестовую подписанную доставку
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [status], properties: { status: { type: [integer, 'null'], description: HTTP-статус получателя } } } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  # ───────────── public API v1 (Bearer) ─────────────
+  /v1/business/:
+    get:
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Business' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /v1/accounts/:
+    get:
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Account' } } } } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /v1/transactions/:
+    get:
+      security: [{ bearer: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 100, maximum: 500 } }
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { type: object, required: [items, next_cursor], properties: { items: { type: array, items: { $ref: '#/components/schemas/Transaction' } }, next_cursor: { type: [string, 'null'] } } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+    post:
+      security: [{ bearer: [] }]
+      summary: Создать операцию (scope write, source=api). Idempotency-Key заголовок — защита от дублей 24ч
+      parameters: [{ name: Idempotency-Key, in: header, schema: { type: string, maxLength: 80 } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TransactionInput' } } }
+      responses:
+        '201': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Transaction' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /v1/pulse/:
+    get:
+      security: [{ bearer: [] }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Pulse' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+  /v1/forecast/:
+    get:
+      security: [{ bearer: [] }]
+      parameters: [{ name: days, in: query, schema: { type: integer, default: 30, maximum: 90 } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [points], properties: { points: { type: array, items: { $ref: '#/components/schemas/ForecastPoint' } } } } } } }
+        '401': { $ref: '#/components/responses/Error' }
+webhooks:
+  transaction.created:
+    post:
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookPayload' } } }
+      responses: { '200': { description: Любой 2xx — доставлено } }
+  gap.detected:
+    post:
+      requestBody:
+        content: { application/json: { schema: { $ref: '#/components/schemas/WebhookPayload' } } }
+      responses: { '200': { description: Любой 2xx — доставлено } }
