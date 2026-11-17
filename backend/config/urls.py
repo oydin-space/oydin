@@ -28,4 +28,6 @@ urlpatterns = [
     path("api/", include("imports.urls")),
     path("api/", include("sharing.urls")),
     path("api/", include("publicapi.urls")),
+    path("api/", include("bot.urls")),
+    path("api/", include("tools.urls")),
 ]

@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     "imports",
     "sharing",
     "publicapi",
+    "bot",
+    "tools",
 ]
 
 MIDDLEWARE = [
