@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { ChatMessage } from "@/lib/use-chat";
 import type { Account, Direction, Purpose, TransactionInput } from "@/lib/types";
 import { money, todayIso, dateShort } from "@/lib/format";
+import { haptic } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 
 const DIRECTION: Record<Direction, string> = { in: "Приход", out: "Расход", transfer: "Перевод между счетами" };
@@ -33,6 +34,7 @@ export function DraftCard({
   const save = async () => {
     try {
       await onSave({ ...draft, date: draft.date ?? todayIso(), purpose });
+      haptic("success");
       toast.success("Операция сохранена");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Не удалось сохранить");
@@ -67,7 +69,7 @@ export function DraftCard({
         ) : null}
       </dl>
       {draft.direction !== "transfer" ? (
-        <div className="mt-3 inline-flex rounded-full bg-white/70 p-0.5" role="radiogroup" aria-label="Тип траты">
+        <div className="mt-3 inline-flex rounded-full bg-card/70 p-0.5" role="radiogroup" aria-label="Тип траты">
           {(["business", "personal"] as const).map((p) => (
             <button
               key={p}
@@ -98,7 +100,7 @@ export function DraftCard({
             >
               {state === "saving" ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} Сохранить
             </button>
-            <button type="button" onClick={onDismiss} className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm text-ink/70 active:scale-95">
+            <button type="button" onClick={onDismiss} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-sm text-ink/70 active:scale-95">
               <X size={15} /> Не сохранять
             </button>
           </>

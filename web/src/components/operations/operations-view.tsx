@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { PlainCard } from "@/components/shared/pastel-card";
 import { EmptyState, ErrorState, PageTitle } from "@/components/shared/states";
 import { Skeleton } from "@/components/ui/skeleton";
-import { dateShort, money } from "@/lib/format";
+import { dateLong, softSum } from "@/lib/format";
 import { PURPOSE_LABEL } from "@/lib/tone";
 import type { Purpose, Transaction } from "@/lib/types";
 import { useApi } from "@/lib/use-api";
@@ -17,6 +17,12 @@ const FILTERS: { value: Purpose | ""; label: string }[] = [
   { value: "personal", label: "Нецелевые" },
   { value: "unclear", label: "Не ясно" },
 ];
+
+function groupByDate(items: Transaction[]): [string, Transaction[]][] {
+  const m = new Map<string, Transaction[]>();
+  for (const t of items) m.set(t.date, [...(m.get(t.date) ?? []), t]);
+  return [...m];
+}
 
 export function OperationsView() {
   const [q, setQ] = useState("");
@@ -32,12 +38,12 @@ export function OperationsView() {
   const { data, error, loading, reload } = useApi<{ items: Transaction[] }>(`/transactions/?${params}`);
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 pb-4">
+    <div className="mx-auto max-w-3xl space-y-4 pb-6">
       <PageTitle title="Операции" hint="Последние движения денег" />
       <label className="relative block">
         <span className="sr-only">Поиск по операциям</span>
         <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: заметка, контрагент, категория" className="w-full rounded-full border border-border bg-card py-2.5 pl-10 pr-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-lavender-deep" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Поиск: заметка, контрагент, категория" className="w-full rounded-xl bg-muted py-2.5 pl-10 pr-4 text-[1rem] outline-none focus-visible:ring-2 focus-visible:ring-lavender-deep" />
       </label>
       <div className="no-scrollbar flex gap-2 overflow-x-auto" role="radiogroup" aria-label="Фильтр по типу">
         {FILTERS.map((f) => (
@@ -47,23 +53,28 @@ export function OperationsView() {
         ))}
       </div>
       {error ? <ErrorState message={error} onRetry={reload} /> : loading && !data ? (
-        <div className="space-y-2">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-16 rounded-2xl" />)}</div>
+        <Skeleton className="h-72 rounded-[1.25rem]" />
       ) : data && data.items.length ? (
-        <ul className="space-y-2">
-          {data.items.map((t) => (
-            <li key={t.id}>
-              <PlainCard className="flex items-center gap-3 !p-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{t.category}{t.counterparty ? ` · ${t.counterparty}` : ""}</p>
-                  <p className="truncate text-xs text-muted-foreground">{dateShort(t.date)} · {PURPOSE_LABEL[t.purpose]}{t.status === "draft" ? " · черновик" : ""}{t.note ? ` · ${t.note}` : ""}</p>
-                </div>
-                <span className={cn("tabular whitespace-nowrap font-semibold", t.direction === "in" && "text-mint-deep")}>
-                  {t.direction === "in" ? "+" : t.direction === "out" ? "−" : ""}{money(t.amount)}
-                </span>
-              </PlainCard>
-            </li>
+        <div className="space-y-5">
+          {groupByDate(data.items).map(([date, items]) => (
+            <section key={date} aria-label={dateLong(date)}>
+              <h2 className="mb-1.5 px-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">{dateLong(date)}</h2>
+              <ul className="inset-group divide-y divide-border/70">
+                {items.map((t) => (
+                  <li key={t.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{t.category}{t.counterparty ? ` · ${t.counterparty}` : ""}</p>
+                      <p className="truncate text-xs text-muted-foreground">{PURPOSE_LABEL[t.purpose]}{t.status === "draft" ? " · черновик" : ""}{t.note ? ` · ${t.note}` : ""}</p>
+                    </div>
+                    <span className={cn("tabular whitespace-nowrap font-semibold", t.direction === "in" && "text-mint-deep")}>
+                      {t.direction === "in" ? "+" : t.direction === "out" ? "−" : ""}{softSum(t.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       ) : <EmptyState title="Операций не найдено" hint="Надиктуйте трату в чате на главной — она появится здесь" />}
     </div>
   );

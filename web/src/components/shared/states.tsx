@@ -27,8 +27,8 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
 
 export function PageTitle({ title, hint }: { title: string; hint?: string }) {
   return (
-    <header className="mb-4">
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+    <header className="mb-4 px-1 pt-1">
+      <h1 className="text-[2rem] font-bold leading-tight tracking-tight">{title}</h1>
       {hint ? <p className="mt-1 text-sm text-muted-foreground">{hint}</p> : null}
     </header>
   );

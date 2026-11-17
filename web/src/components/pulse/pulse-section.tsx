@@ -1,4 +1,5 @@
 import { HandCoins, Handshake } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Insight, Pulse } from "@/lib/types";
 import { softSum } from "@/lib/format";
 import { TONE_LABEL, TONE_PASTEL } from "@/lib/tone";
@@ -25,14 +26,14 @@ export function PulseSection({ pulse }: { pulse: Pulse }) {
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2.5">
-            <div className="flex items-center gap-3 rounded-xl bg-white/60 p-3">
+            <div className="flex items-center gap-3 rounded-xl bg-card/60 p-3">
               <CrayonIcon name="salary" fallback={HandCoins} size={36} />
               <div className="min-w-0">
                 <p className="text-xs text-ink/65">Можно потратить сегодня</p>
                 <p className="tabular font-semibold">{softSum(pulse.safe_to_spend)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 rounded-xl bg-white/60 p-3">
+            <div className="flex items-center gap-3 rounded-xl bg-card/60 p-3">
               <CrayonIcon name="envelope" fallback={Handshake} size={36} />
               <div className="min-w-0">
                 <p className="text-xs text-ink/65">Обещания выполнены</p>
@@ -47,9 +48,11 @@ export function PulseSection({ pulse }: { pulse: Pulse }) {
           <GapCard gap={pulse.gap} />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {pulse.metrics.slice(0, 4).map((m, i) => (
-          <MetricCard key={m.key} metric={m} index={i} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+        {pulse.metrics.map((m, i, all) => (
+          <div key={m.key} className={cn("flex", i < 3 ? "md:col-span-2" : "md:col-span-3", all.length % 2 && i === all.length - 1 && "col-span-2")}>
+            <MetricCard metric={m} index={i} />
+          </div>
         ))}
       </div>
     </section>
@@ -62,7 +65,7 @@ export function InsightsSection({ items, onAsk }: { items: Insight[]; onAsk?: (q
     <section aria-label="Инсайты" className="space-y-2">
       <h2 className="px-1 text-sm font-medium text-muted-foreground">Инсайты</h2>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {items.slice(0, 3).map((i) => (
+        {items.map((i) => (
           <InsightCard key={i.id} insight={i} onAsk={onAsk} />
         ))}
       </div>
@@ -82,9 +85,9 @@ export function PulseSkeleton() {
         </div>
         <Skeleton className="h-40 rounded-2xl lg:col-span-2 lg:h-56" />
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-32 rounded-2xl" />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className={cn("h-32 rounded-2xl", i < 3 ? "md:col-span-2" : "md:col-span-3", i === 4 && "col-span-2")} />
         ))}
       </div>
     </div>

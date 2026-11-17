@@ -14,7 +14,7 @@ export function InsightCard({ insight, onAsk }: { insight: Insight; onAsk?: (que
     <PastelCard tone={insight.tone === "calm" ? "lavender" : TONE_PASTEL[insight.tone]} className="flex h-full flex-col gap-2">
       <div className="flex items-center gap-2 text-xs text-ink/65">
         <CrayonIcon name="insight" fallback={Lightbulb} size={28} />
-        <span className="rounded-full bg-white/60 px-2 py-0.5">{KIND_LABEL[insight.kind]}</span>
+        <span className="rounded-full bg-card/60 px-2 py-0.5">{KIND_LABEL[insight.kind]}</span>
       </div>
       <h3 className="font-semibold leading-snug">{insight.title}</h3>
       <p className="text-sm text-ink/80">{insight.body}</p>
@@ -37,7 +37,7 @@ export function InsightCard({ insight, onAsk }: { insight: Insight; onAsk?: (que
         </span>
       </div>
       {insight.action && onAsk ? (
-        <button type="button" onClick={() => onAsk(insight.action!)} className="self-start rounded-full bg-white/70 px-3 py-1.5 text-sm font-medium shadow-sm active:scale-95">
+        <button type="button" onClick={() => onAsk(insight.action!)} className="self-start rounded-full bg-card/70 px-3 py-1.5 text-sm font-medium shadow-sm active:scale-95">
           Спросить Oydin
         </button>
       ) : null}

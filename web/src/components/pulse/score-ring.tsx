@@ -14,7 +14,7 @@ export function ScoreRing({ score, tone, size = 132, label = true }: { score: nu
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={`Индекс живучести: ${score} из 100`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(255 255 255 / 0.6)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--card)" strokeOpacity={0.6} strokeWidth={stroke} />
         <motion.circle
           cx={size / 2}
           cy={size / 2}

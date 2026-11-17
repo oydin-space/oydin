@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Segoe UI", Roboto, var(--font-onest), "Helvetica Neue", sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -33,6 +33,12 @@
   --color-peach: var(--peach);
   --color-sky: var(--sky);
   --color-rose: var(--rose);
+  --color-butter-deep: var(--butter-deep);
+  --color-mint-deep: var(--mint-deep);
+  --color-lavender-deep: var(--lavender-deep);
+  --color-peach-deep: var(--peach-deep);
+  --color-sky-deep: var(--sky-deep);
+  --color-rose-deep: var(--rose-deep);
 
   --radius-sm: 0.75rem;
   --radius-md: 1rem;
@@ -76,6 +82,26 @@
   --tg-bottom: 0px;
 }
 
+/* Тёмная тема: следует за ОС; Telegram выставляет data-theme на <html> */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --background: #17140f; --foreground: #f3ecdd; --muted: #26221a; --muted-foreground: #a69b87;
+    --brush-a: 0.07; --brush-b: 0.04; --brush-c: 0.03;
+    --card: #211d16; --border: #332d22; --ring: #e9c94a; --primary: #f3ecdd; --primary-foreground: #17140f;
+    --secondary: #26221a; --accent: #2e2744; --destructive: #d98b82;
+    --butter: #4a4021; --mint: #26402f; --lavender: #3a3358; --peach: #4d3426; --sky: #243a4b; --rose: #4d2f2c;
+  }
+}
+:root[data-theme="dark"] {
+  --brush-a: 0.07; --brush-b: 0.04; --brush-c: 0.03;
+  color-scheme: dark;
+  --background: #17140f; --foreground: #f3ecdd; --muted: #26221a; --muted-foreground: #a69b87;
+  --card: #211d16; --border: #332d22; --ring: #e9c94a; --primary: #f3ecdd; --primary-foreground: #17140f;
+  --secondary: #26221a; --accent: #2e2744; --destructive: #d98b82;
+  --butter: #4a4021; --mint: #26402f; --lavender: #3a3358; --peach: #4d3426; --sky: #243a4b; --rose: #4d2f2c;
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -91,15 +117,17 @@
       radial-gradient(50rem 36rem at 105% 8%, color-mix(in srgb, var(--lavender) 60%, transparent), transparent 60%),
       radial-gradient(46rem 34rem at 50% 115%, color-mix(in srgb, var(--mint) 55%, transparent), transparent 60%);
     background-attachment: fixed;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
 /* «Кистевая» мягкая текстура: наслоённые радиальные мазки поверх цвета блока */
 @utility brush {
   background-image:
-    radial-gradient(120% 90% at 0% 0%, rgb(255 255 255 / 0.55), transparent 55%),
-    radial-gradient(90% 80% at 100% 100%, rgb(255 255 255 / 0.35), transparent 60%),
-    radial-gradient(40% 30% at 70% 20%, rgb(255 255 255 / 0.25), transparent 70%);
+    radial-gradient(120% 90% at 0% 0%, rgb(255 255 255 / var(--brush-a, 0.55)), transparent 55%),
+    radial-gradient(90% 80% at 100% 100%, rgb(255 255 255 / var(--brush-b, 0.35)), transparent 60%),
+    radial-gradient(40% 30% at 70% 20%, rgb(255 255 255 / var(--brush-c, 0.25)), transparent 70%);
 }
 
 @utility tabular {
@@ -141,4 +169,54 @@
 }
 .pb-safe {
   padding-bottom: max(env(safe-area-inset-bottom), var(--tg-bottom));
+}
+
+/* Полупрозрачные размытые панели в духе iOS */
+@utility glass {
+  background-color: color-mix(in srgb, var(--background) 72%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Сгруппированный список: карточка со скруглением и разделителями */
+@utility inset-group {
+  border-radius: 1.25rem;
+  background: var(--card);
+  overflow: hidden;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+/* Хвостики iMessage: фон наследуется от пузыря */
+@utility tail-r {
+  position: relative;
+  border-bottom-right-radius: 0.4rem;
+  &::after {
+    content: "";
+    position: absolute;
+    right: -0.4rem;
+    bottom: 0;
+    width: 0.9rem;
+    height: 0.9rem;
+    background: inherit;
+    clip-path: path("M0 0V14.4H14.4C8 14 1 9.5 0 0Z");
+  }
+}
+@utility tail-l {
+  position: relative;
+  border-bottom-left-radius: 0.4rem;
+  &::after {
+    content: "";
+    position: absolute;
+    left: -0.4rem;
+    bottom: 0;
+    width: 0.9rem;
+    height: 0.9rem;
+    background: inherit;
+    clip-path: path("M14.4 0V14.4H0C6.4 14 13.4 9.5 14.4 0Z");
+  }
 }

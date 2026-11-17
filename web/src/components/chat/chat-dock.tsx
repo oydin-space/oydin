@@ -25,10 +25,10 @@ export function ChatDock({ chat, onOpen }: { chat: ReturnType<typeof useChat>; o
     : undefined;
 
   return (
-    <div className="pb-1 pt-1" onFocusCapture={onOpen}>
+    <div className="pb-2 pt-1" onFocusCapture={onOpen}>
       <PromptBar
-        background="#ffffff"
-        color="#2f2a22"
+        background="var(--card)"
+        color="var(--foreground)"
         sparkColor="#b9a6f0"
         width={760}
         busy={chat.busy}

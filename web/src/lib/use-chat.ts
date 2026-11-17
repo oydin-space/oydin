@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { haptic } from "./telegram";
 import { ApiError, api, post } from "./api";
 import type { AiReply, Chart, ChatTurn, Transaction, TransactionInput, VoiceReply } from "./types";
 
@@ -71,14 +72,15 @@ export function useChat({ onSaved }: { onSaved?: () => void } = {}) {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
+    const userId = nextId();
+    setMessages((all) => [...all.map((m) => ({ ...m, suggestions: undefined })), { id: userId, role: "user", content: "🎙 Слушаю запись…" }]);
     try {
       const form = new FormData();
       const ext = audio.type.includes("mp4") ? "m4a" : audio.type.includes("ogg") ? "ogg" : "webm";
       form.append("audio", audio, `voice.${ext}`);
       const r = await api<VoiceReply>("/ai/voice/", { method: "POST", body: form });
       setMessages((all) => [
-        ...all,
-        { id: nextId(), role: "user", content: r.text || "(голосовое сообщение)" },
+        ...all.map((m) => (m.id === userId ? { ...m, content: r.text || "(голосовое сообщение)" } : m)),
         {
           id: nextId(),
           role: "assistant",
@@ -87,8 +89,10 @@ export function useChat({ onSaved }: { onSaved?: () => void } = {}) {
           draftState: r.draft ? "pending" : undefined,
         },
       ]);
+      haptic(r.draft ? "success" : "tap");
     } catch (e) {
-      setMessages((all) => [...all, { id: nextId(), role: "assistant", content: describeError(e), error: true }]);
+      setMessages((all) => [...all.filter((m) => m.id !== userId), { id: nextId(), role: "assistant", content: describeError(e), error: true }]);
+      haptic("error");
     } finally {
       busyRef.current = false;
       setBusy(false);

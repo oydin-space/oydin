@@ -10,7 +10,7 @@ const ORDER: Pastel[] = ["sky", "lavender", "butter", "mint"];
 export function MetricCard({ metric, index }: { metric: Metric; index: number }) {
   const pastel = metric.tone === "risk" ? TONE_PASTEL.risk : ORDER[index % ORDER.length];
   return (
-    <PastelCard tone={pastel} className="flex min-h-32 flex-col justify-between gap-2">
+    <PastelCard tone={pastel} className="flex min-h-32 w-full flex-col justify-between gap-2">
       <div>
         <p className="text-sm text-ink/70">{metric.label}</p>
         <p className="tabular mt-1 text-xl font-semibold leading-tight sm:text-2xl">{metricValue(metric.unit, metric.value)}</p>
