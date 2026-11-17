@@ -1,0 +1,6 @@
+DejaVu Sans / DejaVu Sans Bold — https://dejavu-fonts.github.io/
+Fonts are (c) Bitstream (Bitstream Vera glyphs) and Tavmjong Bah (Arev glyphs); DejaVu changes are public domain.
+Licence: Bitstream Vera / DejaVu Fonts Licence — free to use, copy, embed and redistribute (including bundled in
+software), provided the copyright notice and licence text accompany the fonts and the fonts are not sold on their own.
+Full text: https://dejavu-fonts.github.io/License.html
+Covers Cyrillic and Latin Extended (Uzbek Latin incl. U+02BB/U+02BC).
