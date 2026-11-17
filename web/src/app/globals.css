@@ -1,0 +1,144 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-onest), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--ring);
+
+  --color-brand: #ffd62c;
+  --color-ink: var(--foreground);
+  --color-butter: var(--butter);
+  --color-mint: var(--mint);
+  --color-lavender: var(--lavender);
+  --color-peach: var(--peach);
+  --color-sky: var(--sky);
+  --color-rose: var(--rose);
+
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --radius-2xl: 2.25rem;
+}
+
+:root {
+  --radius: 1.25rem;
+  /* Тёплый крем и мягкие пастельные блоки. Без неона и резкого красного. */
+  --background: #fbf7ee;
+  --foreground: #3b342a;
+  --muted: #f3ecdd;
+  --muted-foreground: #8a8071;
+  --card: #fffdf8;
+  --border: #ece3d1;
+  --ring: #e9c94a;
+  --primary: #3b342a;
+  --primary-foreground: #fffdf8;
+  --secondary: #f3ecdd;
+  --accent: #eee7fb;
+  --destructive: #c9776a;
+
+  --butter: #fff1b8;
+  --mint: #d9f0e2;
+  --lavender: #e6dffa;
+  --peach: #ffe0d0;
+  --sky: #d9ebf8;
+  --rose: #f8d5d0;
+
+  /* насыщенные оттенки тех же цветов — для линий графиков и точек */
+  --butter-deep: #e8c64a;
+  --mint-deep: #6fbf97;
+  --lavender-deep: #9a86df;
+  --peach-deep: #ec9a76;
+  --sky-deep: #6fa8d6;
+  --rose-deep: #d98b82;
+
+  --tg-top: 0px;
+  --tg-bottom: 0px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    background-image:
+      radial-gradient(60rem 40rem at 8% -10%, color-mix(in srgb, var(--butter) 70%, transparent), transparent 60%),
+      radial-gradient(50rem 36rem at 105% 8%, color-mix(in srgb, var(--lavender) 60%, transparent), transparent 60%),
+      radial-gradient(46rem 34rem at 50% 115%, color-mix(in srgb, var(--mint) 55%, transparent), transparent 60%);
+    background-attachment: fixed;
+  }
+}
+
+/* «Кистевая» мягкая текстура: наслоённые радиальные мазки поверх цвета блока */
+@utility brush {
+  background-image:
+    radial-gradient(120% 90% at 0% 0%, rgb(255 255 255 / 0.55), transparent 55%),
+    radial-gradient(90% 80% at 100% 100%, rgb(255 255 255 / 0.35), transparent 60%),
+    radial-gradient(40% 30% at 70% 20%, rgb(255 255 255 / 0.25), transparent 70%);
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes flower-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer,
+  .animate-flower {
+    animation: none !important;
+  }
+}
+
+/* Безопасные зоны Telegram Mini App выставляет провайдер через --tg-top / --tg-bottom */
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top), var(--tg-top));
+}
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), var(--tg-bottom));
+}
