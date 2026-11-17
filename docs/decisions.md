@@ -16,3 +16,14 @@ Source of truth for scope. Production-ready quality: everything works end to end
 - **LLM**: best by eval quality/latency on OpenRouter, cheaper model for classification; test spend cap ~$30.
 - **Machine cleanup allowed**: caches, unused docker images and volumes, docker restart.
 - **GitHub**: CI (tests, lint, typecheck, image build) + auto-deploy to server on push to main (SSH deploy key in repo secrets).
+
+## Round 2 answers (2026-11-18)
+- **Yes**: USD + UZS accounts with CBU rate; "Can I afford it?" decision button; 60-second onboarding (statement or 3 voice notes → first pulse); read-only accountant report link/PDF; tax deadline reminders in the bot (subject to the tax-fit research below); bank/MFO partner cabinet with consented anonymised leads; offline quick entry in the PWA; public /impact page; pitch kit (deck, demo script, 2-min HyperFrames video).
+- **Tenancy**: every business is an organization (tenant); one user can belong to several organizations with a role in each; switcher in the UI. Refine project structure around this.
+- **No**: Uzbek Cyrillic.
+- **Untested integrations**: ship only what can be verified; the rest is listed as "coming soon" (no beta code paths presented as working).
+- **Taxes**: open — research product fit, customer coverage and custdev before deciding how much tax functionality to keep. Outcome recorded in the product changelog.
+- **Data residency**: keep the current server; not a concern for now.
+- **UI**: standardized atomic components reused everywhere (personal library at ~/Projects/components + shadcn), no hardcoded one-off elements; real company logos and coloured icons for integrations; hover/motion where useful; fix or drop custom block icons (no boxed backgrounds); unified "brushed" look. Fable + Astra review.
+- **Product work**: research cases, sources, custdev; prune functionality where research says so; keep a gitignored product changelog (`temp/product-changelog.md`) of what was removed/added and why.
+- **Process**: after each deploy a Fable 5.2 UI/UX review (code + screenshots); CodeGraph for token economy; 10+ product iterations; log in `docs/iterations.md`.
