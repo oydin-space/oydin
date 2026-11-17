@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from django.utils import timezone
 
-from accounts.access import FINANCE_READERS, SELLER, require_role
+from accounts.access import FINANCE_READERS, OWNER, SELLER, require_role
 from accounts.http import ApiError, api_view, json_response, parse_json
 
 from . import rates
@@ -10,12 +10,18 @@ from .models import Obligation, Transaction
 from .validation import PURPOSES, parse_amount, parse_date, transaction_fields
 
 OBLIGATION_KINDS = {c for c, _ in Obligation.Kind.choices}
+OWNER_PURPOSES = {"owner_draw", "owner_contribution"}
 
 
 def own_transactions(request):
     """Операции бизнеса; продавец видит и правит только свои."""
     qs = Transaction.objects.filter(business=request.business)
     return qs.filter(created_by=request.user) if request.role == SELLER else qs
+
+
+def _owner_purpose_only(request, fields):
+    if request.role != OWNER and fields.get("purpose") in OWNER_PURPOSES:
+        raise ApiError(403, "forbidden")
 
 
 def int_param(request, name, default, maximum):
@@ -55,12 +61,14 @@ def transactions(request):
     if request.method == "POST":
         body = parse_json(request)
         fields = transaction_fields(body, business, partial=False)
+        _owner_purpose_only(request, fields)
         fields.setdefault("date", timezone.localdate())
         tx = Transaction.objects.create(
             business=business, status=Transaction.Status.CONFIRMED, source=Transaction.Source.MANUAL,
             created_by=request.user, **fields
         )
-        tx = svc.merge_transfer(tx)
+        if request.role != SELLER:
+            tx = svc.merge_transfer(tx)
         return json_response(svc.serialize_transaction(tx), status=201)
     qs = own_transactions(request)
     status = request.GET.get("status")
@@ -87,6 +95,7 @@ def transaction_detail(request, id):
         tx.delete()
         return HttpResponse(status=204)
     fields = transaction_fields(parse_json(request), request.business, partial=True, instance=tx)
+    _owner_purpose_only(request, fields)
     for key, value in fields.items():
         setattr(tx, key, value)
     if tx.direction != "transfer":
@@ -134,10 +143,16 @@ def forecast(request):
 
 @api_view("GET")
 def products(request):
-    return json_response({"items": svc.products(request.business)})
+    items = svc.products(request.business)
+    if request.role == SELLER:
+        for item in items:
+            for key in ("unit_cost", "margin_pct", "markup_pct"):
+                item.pop(key, None)
+    return json_response({"items": items})
 
 
 @api_view("GET")
+@require_role(*FINANCE_READERS)
 def orders(request):
     return json_response({"items": svc.orders(request.business)})
 

@@ -4,6 +4,9 @@ from django.http import HttpResponse
 
 from accounts.http import ApiError, api_view, error, json_response, parse_json
 
+from accounts.consent import has_consent
+from accounts.models import Membership
+
 from . import chat, llm, observability, voice
 
 ROLES = {"user", "assistant"}
@@ -22,6 +25,14 @@ def throttle(user, kind, limit):
         count = 1
     if count > limit:
         raise ApiError(429, "Слишком много запросов, подождите минуту")
+
+
+def require_ai(request):
+    """До любого исходящего вызова: продавцу ИИ закрыт, остальным нужно отдельное согласие ai."""
+    if request.role == Membership.Role.SELLER:
+        raise ApiError(403, "forbidden")
+    if not has_consent(request.user, "ai"):
+        raise ApiError(403, "ai_consent_required")
 
 
 def check_messages(body):
@@ -43,6 +54,7 @@ def check_messages(body):
 
 @api_view("POST")
 def chat_view(request):
+    require_ai(request)
     messages = check_messages(parse_json(request))
     throttle(request.user, "chat", settings.AI_CHAT_PER_MINUTE)
     reply = chat.answer(request.business, request.user, messages)
@@ -52,6 +64,7 @@ def chat_view(request):
 
 @api_view("POST")
 def voice_view(request):
+    require_ai(request)
     upload = request.FILES.get("audio")
     if upload is None:
         return error(400, "Приложите аудио в поле audio")
@@ -73,6 +86,7 @@ def voice_view(request):
 
 @api_view("POST")
 def feedback_view(request):
+    require_ai(request)
     body = parse_json(request)
     trace_id, value = body.get("trace_id"), body.get("value")
     if not isinstance(trace_id, str) or not trace_id or isinstance(value, bool) or value not in (0, 1):

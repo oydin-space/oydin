@@ -7,6 +7,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db.models import F
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.core.validators import validate_email
@@ -20,6 +21,7 @@ RESEND_SECONDS = 60
 MAX_ATTEMPTS = 5
 PER_EMAIL_HOURLY = 5
 PER_IP_HOURLY = 20
+VERIFY_PER_IP_HOURLY = 30
 
 TEXTS = {
     "ru": ("Код входа в Oydin: {code}", "Ваш код входа в Oydin: {code}\n\nКод действует 10 минут. "
@@ -44,15 +46,15 @@ def _hash(email, code):
     return hmac.new(settings.SECRET_KEY.encode(), f"{email}:{code}".encode(), hashlib.sha256).hexdigest()
 
 
-def _ip_allowed(ip):
-    key = f"otp-ip:{ip}"
+def _ip_allowed(ip, prefix, limit):
+    key = f"{prefix}:{ip}"
     cache.add(key, 0, 3600)
     try:
         count = cache.incr(key)
     except ValueError:
         cache.set(key, 1, 3600)
         count = 1
-    return count <= PER_IP_HOURLY
+    return count <= limit
 
 
 def request_code(email, ip, lang):
@@ -63,25 +65,32 @@ def request_code(email, ip, lang):
     recent = EmailCode.objects.filter(email=email, created_at__gt=now - timedelta(hours=1))
     if recent.filter(created_at__gt=now - timedelta(seconds=RESEND_SECONDS)).exists() or recent.count() >= PER_EMAIL_HOURLY:
         raise ApiError(429, "rate_limited")
-    if not _ip_allowed(ip):
+    if not _ip_allowed(ip, "otp-ip", PER_IP_HOURLY):
         raise ApiError(429, "rate_limited")
     code = f"{secrets.randbelow(10**6):06d}"
-    # Новый код отменяет прежние.
-    EmailCode.objects.filter(email=email, used=False).update(used=True)
     EmailCode.objects.create(email=email, code_hash=_hash(email, code), expires_at=now + TTL)
     subject, body = TEXTS.get(lang, TEXTS["ru"])
     send_mail(subject.format(code=code), body.format(code=code), settings.DEFAULT_FROM_EMAIL, [email])
 
 
-def verify_code(email, code):
-    """True — код верный (и погашен). Неверный/просроченный — ApiError 400, исчерпаны попытки — 429."""
-    row = EmailCode.objects.filter(email=email, used=False, expires_at__gt=timezone.now()).first()
-    if row is None:
-        raise ApiError(400, "invalid_code")
-    if row.attempts >= MAX_ATTEMPTS:
+def verify_code(email, code, ip=None):
+    """True — код верный (и погашен). Неверный/просроченный — ApiError 400, исчерпаны попытки — 429.
+    Принимается любой живой код на адрес; попытка списывается атомарно с каждой строки."""
+    if ip is not None and not _ip_allowed(ip, "otp-verify-ip", VERIFY_PER_IP_HOURLY):
         raise ApiError(429, "rate_limited")
-    if not isinstance(code, str) or not hmac.compare_digest(row.code_hash, _hash(email, code.strip())):
-        EmailCode.objects.filter(pk=row.pk).update(attempts=row.attempts + 1)
+    live = list(EmailCode.objects.filter(email=email, used=False, expires_at__gt=timezone.now()))
+    if not live:
         raise ApiError(400, "invalid_code")
-    EmailCode.objects.filter(pk=row.pk).update(used=True)
-    return True
+    consumed = [
+        row for row in live
+        if EmailCode.objects.filter(pk=row.pk, used=False, attempts__lt=MAX_ATTEMPTS).update(attempts=F("attempts") + 1)
+    ]
+    if not consumed:
+        raise ApiError(429, "rate_limited")
+    if isinstance(code, str):
+        digest = _hash(email, code.strip())
+        for row in consumed:
+            if hmac.compare_digest(row.code_hash, digest):
+                if EmailCode.objects.filter(pk=row.pk, used=False).update(used=True) == 1:
+                    return True
+    raise ApiError(400, "invalid_code")

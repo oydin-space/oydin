@@ -7,6 +7,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.db import transaction
 
+from accounts.consent import set_consent
 from accounts.models import Business, Membership, Profile
 from finance import services as svc
 from finance.models import Account, Currency, Envelope, ExchangeRate, Obligation, Order, OrderItem, Product, Transaction
@@ -62,6 +63,7 @@ def seed_demo():
         tax_regime=Business.TaxRegime.TURNOVER, is_demo=True,
     )
     Profile.objects.create(user=user, business=business)
+    set_consent(user, "ai", True)  # синтетические данные
     cash = Account.objects.create(business=business, name="Наличные", kind=Account.Kind.CASH)
     card = Account.objects.create(business=business, name="Карта Uzcard", kind=Account.Kind.CARD)
     bank = Account.objects.create(business=business, name="Расчётный счёт", kind=Account.Kind.BANK)

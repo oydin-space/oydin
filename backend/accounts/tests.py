@@ -339,8 +339,8 @@ class TenancyTests(TestCase):
         url = f"/api/businesses/{self.biz.id}/members/"
         r = jpost(self.client, url, {"email": "EX@example.com", "role": "seller"})
         self.assertEqual(r.status_code, 201)
-        self.assertEqual(r.json()["user_id"], existing.id)
-        self.assertFalse(r.json()["pending"])
+        self.assertIsNone(r.json()["user_id"])
+        self.assertTrue(r.json()["pending"])
         r = jpost(self.client, url, {"email": "new@example.com", "role": "accountant"})
         self.assertEqual(r.status_code, 201)
         self.assertTrue(r.json()["pending"])
@@ -349,6 +349,7 @@ class TenancyTests(TestCase):
         self.assertEqual(len(self.client.get(url).json()["items"]), 3)
         # приглашённый видит бизнес в списке
         self.client.force_login(existing)
+        self.client.get("/api/me/")  # claim_invites привязывает приглашение при входе
         ids = [b["id"] for b in self.client.get("/api/businesses/").json()["items"]]
         self.assertEqual(ids, [self.biz.id])
 
@@ -413,3 +414,116 @@ class EnsureAdminTests(TestCase):
         self.client.post("/admin/auth/user/", {"action": "deactivate_users", "_selected_action": [victim.id]})
         victim.refresh_from_db()
         self.assertFalse(victim.is_active)
+
+
+class ConsentApiTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        from .models import Business, Membership, Profile
+
+        self.user = get_user_model().objects.create(username="cons")
+        self.business = Business.objects.create(name="cons")
+        Profile.objects.create(user=self.user, business=self.business)
+        self.client.force_login(self.user)
+
+    def put(self, body):
+        return self.client.put("/api/consents/", body, content_type="application/json")
+
+    def test_requires_auth(self):
+        self.client.logout()
+        self.assertEqual(self.client.get("/api/consents/").status_code, 401)
+
+    def test_defaults_off(self):
+        data = self.client.get("/api/consents/").json()
+        self.assertEqual((data["ai"], data["marketing"], data["partner_leads"], data["terms_version"]), (False, False, False, None))
+
+    def test_grant_withdraw_logged(self):
+        from .models import ConsentEvent
+
+        data = self.put({"ai": True, "terms_version": "2026-11-18"}).json()
+        self.assertTrue(data["ai"])
+        self.assertEqual(data["terms_version"], "2026-11-18")
+        self.assertIsNotNone(data["updated_at"])
+        self.assertFalse(self.put({"ai": False}).json()["ai"])
+        self.put({"ai": False})  # без изменения — не логируется
+        events = list(ConsentEvent.objects.filter(user=self.user).values_list("purpose", "granted"))
+        self.assertEqual(events, [("ai", True), ("ai", False)])
+
+    def test_partial_update_keeps_others(self):
+        self.put({"marketing": True})
+        data = self.put({"partner_leads": True}).json()
+        self.assertTrue(data["marketing"] and data["partner_leads"])
+        self.assertFalse(data["ai"])
+
+    def test_validation(self):
+        self.assertEqual(self.put({"ai": "yes"}).status_code, 400)
+
+    def test_per_user(self):
+        from django.contrib.auth import get_user_model
+
+        self.put({"ai": True})
+        other = get_user_model().objects.create(username="other")
+        self.client.force_login(other)
+        self.assertFalse(self.client.get("/api/consents/").json()["ai"])
+
+
+class AiConsentGateTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        from .models import Business, Membership, Profile
+
+        self.user = get_user_model().objects.create(username="gate")
+        self.business = Business.objects.create(name="gate")
+        Profile.objects.create(user=self.user, business=self.business)
+        self.client.force_login(self.user)
+
+    def chat(self):
+        return self.client.post("/api/ai/chat/", {"messages": [{"role": "user", "content": "привет"}]}, content_type="application/json")
+
+    def test_denied_without_consent_and_no_outbound_call(self):
+        from unittest import mock
+
+        with mock.patch("ai.llm.complete") as complete, mock.patch("ai.llm._post") as post, mock.patch("ai.observability.flush") as flush:
+            r = self.chat()
+            v = self.client.post("/api/ai/voice/")
+            f = self.client.post("/api/ai/feedback/", {"trace_id": "t", "value": 1}, content_type="application/json")
+        for resp in (r, v, f):
+            self.assertEqual(resp.status_code, 403)
+            self.assertEqual(resp.json(), {"error": "ai_consent_required"})
+        complete.assert_not_called()
+        post.assert_not_called()
+        flush.assert_not_called()
+
+    def test_allowed_with_consent(self):
+        from .consent import set_consent
+
+        set_consent(self.user, "ai", True)
+        with override_settings(LLM_API_KEY="", ANTHROPIC_API_KEY=""):
+            self.assertEqual(self.chat().status_code, 200)
+
+    def test_withdrawal_blocks_again(self):
+        from .consent import set_consent
+
+        set_consent(self.user, "ai", True)
+        set_consent(self.user, "ai", False)
+        self.assertEqual(self.chat().status_code, 403)
+
+    def test_seller_denied(self):
+        from .consent import set_consent
+        from .models import Membership
+
+        set_consent(self.user, "ai", True)
+        Membership.objects.filter(user=self.user).update(role=Membership.Role.SELLER)
+        r = self.chat()
+        self.assertEqual((r.status_code, r.json()), (403, {"error": "forbidden"}))
+
+    def test_demo_has_consent(self):
+        from finance.seed import seed_demo
+
+        seed_demo()
+        from .consent import has_consent
+        from django.contrib.auth import get_user_model
+
+        self.assertTrue(has_consent(get_user_model().objects.get(username="demo"), "ai"))

@@ -22,6 +22,8 @@ def json_response(data, status=200):
 
 
 def parse_json(request, *, required=True):
+    if request.method in ("POST", "PUT", "PATCH") and request.body and request.content_type != "application/json":
+        raise ApiError(415, "unsupported_media_type")
     if not request.body:
         if required:
             raise ApiError(400, "Нужно тело запроса в формате JSON")

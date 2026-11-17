@@ -31,6 +31,8 @@ class Profile(models.Model):
     business = models.ForeignKey(Business, null=True, blank=True, on_delete=models.SET_NULL, related_name="profiles")
     telegram_id = models.BigIntegerField(null=True, blank=True, unique=True)
     google_sub = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    terms_version = models.CharField(max_length=20, blank=True, default="")
+    terms_accepted_at = models.DateTimeField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
         # Профиль, созданный сразу с бизнесом (Telegram, демо, старый код), делает пользователя владельцем.
@@ -87,3 +89,34 @@ class EmailCode(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+
+
+class Consent(models.Model):
+    """Текущее состояние отдельного согласия пользователя. Условия использования — Profile.terms_version."""
+
+    class Purpose(models.TextChoices):
+        AI = "ai"
+        MARKETING = "marketing"
+        PARTNER_LEADS = "partner_leads"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="consents")
+    purpose = models.CharField(max_length=20, choices=Purpose.choices)
+    granted = models.BooleanField(default=False)
+    text_version = models.CharField(max_length=20, blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "purpose"], name="uniq_consent_user_purpose")]
+
+
+class ConsentEvent(models.Model):
+    """Журнал выдачи и отзыва согласий: только добавление."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="consent_events")
+    purpose = models.CharField(max_length=20, choices=Consent.Purpose.choices)
+    granted = models.BooleanField()
+    text_version = models.CharField(max_length=20, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]

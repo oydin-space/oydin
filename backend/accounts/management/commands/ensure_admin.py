@@ -19,6 +19,5 @@ class Command(BaseCommand):
             User.objects.create_superuser(username=email, email=email, password=password)
             self.stdout.write(f"ensure_admin: создан {email}")
             return
-        user.is_staff = user.is_superuser = user.is_active = True
-        user.save(update_fields=["is_staff", "is_superuser", "is_active"])
-        self.stdout.write(f"ensure_admin: {email} уже есть")
+        # Существующих пользователей не повышаем: иначе вход по почте/Google дал бы доступ в админку.
+        self.stdout.write(f"ensure_admin: {email} уже есть, не меняю")

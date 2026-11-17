@@ -24,4 +24,8 @@ urlpatterns = [
     path("api/", include("finance.urls")),
     path("api/", include("insights.urls")),
     path("api/", include("ai.urls")),
+    path("api/", include("planning.urls")),
+    path("api/", include("imports.urls")),
+    path("api/", include("sharing.urls")),
+    path("api/", include("publicapi.urls")),
 ]

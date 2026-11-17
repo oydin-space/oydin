@@ -1,6 +1,7 @@
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.db import transaction
 from django.contrib.auth import login, logout
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
@@ -94,8 +95,11 @@ def email_request(request):
 def email_verify(request):
     body = parse_json(request)
     email = otp.normalize_email(body.get("email"))
-    otp.verify_code(email, body.get("code"))
-    return _login(request, user_for_email(email))
+    otp.verify_code(email, body.get("code"), _client_ip(request))
+    user = user_for_email(email)
+    if user.is_staff or user.is_superuser:
+        raise ApiError(403, "forbidden")
+    return _login(request, user)
 
 
 def safe_next(value):
@@ -137,7 +141,10 @@ def google_callback(request):
         claims = google.verify_id_token(id_token, flow["nonce"])
     except google.GoogleAuthError as exc:
         return _auth_error(exc.code)
-    login(request, user_for_google(claims), backend=BACKEND)
+    user = user_for_google(claims)
+    if user.is_staff or user.is_superuser:
+        return _auth_error("forbidden")
+    login(request, user, backend=BACKEND)
     return HttpResponseRedirect(safe_next(flow.get("next")))
 
 
@@ -200,6 +207,8 @@ def _membership_in(request, business_id, owner=False):
 @api_view("PATCH", business=False)
 def business_detail(request, business_id):
     membership = _membership_in(request, business_id, owner=True)
+    if membership.business.is_demo:
+        raise ApiError(403, "forbidden")
     body = parse_json(request)
     b = membership.business
     fields = []
@@ -236,24 +245,21 @@ def serialize_member(m):
 
 @api_view("GET", "POST", business=False)
 def members(request, business_id):
-    _membership_in(request, business_id, owner=True)
+    membership = _membership_in(request, business_id, owner=True)
     if request.method == "GET":
         items = Membership.objects.filter(business_id=business_id).select_related("user").order_by("created_at", "id")
         return json_response({"items": [serialize_member(m) for m in items]})
+    if membership.business.is_demo:
+        raise ApiError(403, "forbidden")
     body = parse_json(request)
     email = otp.normalize_email(body.get("email"))
     role = body.get("role")
     if role not in ROLES:
         raise ApiError(400, "invalid_role")
-    from django.contrib.auth import get_user_model
-
-    user = get_user_model().objects.filter(email__iexact=email).order_by("id").first()
-    taken = Membership.objects.filter(business_id=business_id)
-    if (user and taken.filter(user=user).exists()) or taken.filter(user__isnull=True, invited_email=email).exists():
+    # Всегда «ожидающее» приглашение: привязка к пользователю — в claim_invites при его входе; ответ не раскрывает аккаунты.
+    if Membership.objects.filter(business_id=business_id, user__isnull=True, invited_email=email).exists():
         raise ApiError(400, "already_member")
-    m = Membership.objects.create(business_id=business_id, user=user, role=role, invited_email=email)
-    if user:
-        get_profile(user)
+    m = Membership.objects.create(business_id=business_id, user=None, role=role, invited_email=email)
     return json_response(serialize_member(m), status=201)
 
 
@@ -264,8 +270,13 @@ def _is_last_owner(member):
 
 
 @api_view("PATCH", "DELETE", business=False)
+@transaction.atomic
 def member_detail(request, business_id, member_id):
-    _membership_in(request, business_id, owner=True)
+    membership = _membership_in(request, business_id, owner=True)
+    if membership.business.is_demo:
+        raise ApiError(403, "forbidden")
+    # Сериализуем конкурентные смены/удаления владельцев: блокируем строки владельцев до проверки.
+    list(Membership.objects.select_for_update().filter(business_id=business_id, role=OWNER).order_by("id"))
     member = get_object_or_404(Membership.objects.select_related("user"), pk=member_id, business_id=business_id)
     if request.method == "DELETE":
         if _is_last_owner(member):

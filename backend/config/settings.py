@@ -36,6 +36,10 @@ INSTALLED_APPS = [
     "finance",
     "insights",
     "ai",
+    "planning",
+    "imports",
+    "sharing",
+    "publicapi",
 ]
 
 MIDDLEWARE = [
@@ -46,7 +50,10 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+X_FRAME_OPTIONS = "DENY"
 
 ROOT_URLCONF = "config.urls"
 TEMPLATES = [
@@ -69,12 +76,25 @@ DATABASES = {
     "default": env.db("DATABASE_URL", default="postgres://oydin:oydin@127.0.0.1:5433/oydin"),
 }
 
-# Общий для всех воркеров gunicorn кэш: лимиты запросов к ИИ.
-CACHES = {
-    "default": {"BACKEND": "django.core.cache.backends.filebased.FileBasedCache", "LOCATION": "/tmp/oydin-cache"},
-}
+# Общий для всех воркеров gunicorn кэш: лимиты запросов к ИИ и OTP. В проде — таблица oydin_cache (manage.py createcachetable).
+if DEBUG:
+    CACHES = {
+        "default": {"BACKEND": "django.core.cache.backends.filebased.FileBasedCache", "LOCATION": "/tmp/oydin-cache"},
+    }
+else:
+    CACHES = {
+        "default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "oydin_cache"},
+    }
 
-AUTH_PASSWORD_VALIDATORS = []
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": f"django.contrib.auth.password_validation.{name}"}
+    for name in (
+        "UserAttributeSimilarityValidator",
+        "MinimumLengthValidator",
+        "CommonPasswordValidator",
+        "NumericPasswordValidator",
+    )
+]
 LANGUAGE_CODE = "ru"
 TIME_ZONE = "Asia/Tashkent"
 USE_I18N = True

@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase, override_settings
 
+from accounts.consent import set_consent
 from accounts.models import Business, Profile
 from finance.models import Account
 
@@ -35,6 +36,7 @@ class ChatTests(TestCase):
         user = get_user_model().objects.create(username="c")
         self.business = Business.objects.create(name="c")
         Profile.objects.create(user=user, business=self.business)
+        set_consent(user, "ai", True)
         Account.objects.create(business=self.business, name="Наличные", kind="cash")
         self.client.force_login(user)
 

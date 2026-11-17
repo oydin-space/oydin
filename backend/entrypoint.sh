@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 python manage.py migrate --noinput
+# Таблица общего кэша (лимиты OTP/ИИ) для DatabaseCache в проде; идемпотентно.
+python manage.py createcachetable
 # Суперпользователь из ADMIN_EMAIL/ADMIN_PASSWORD; без переменных — ничего не делает.
 python manage.py ensure_admin
 # Курс ЦБ на сегодня; недоступность cbu.uz не должна мешать старту.
