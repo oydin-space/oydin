@@ -7,6 +7,60 @@ import { flushStashedConsent } from "@/lib/auth-api";
 import type { User } from "@/lib/types";
 import { useTelegram } from "./telegram-provider";
 
+export const ME_SNAPSHOT_KEY = "oydin_me_v1";
+
+type SnapshotStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+function browserStorage(): SnapshotStorage | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Выход из аккаунта: снимок Me больше не нужен. */
+export function clearMeSnapshot(storage: SnapshotStorage | null = browserStorage()) {
+  try {
+    storage?.removeItem(ME_SNAPSHOT_KEY);
+  } catch {}
+}
+
+function readSnapshot(storage: SnapshotStorage | null): User | null {
+  try {
+    const raw = storage?.getItem(ME_SNAPSHOT_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * GET /auth/me/ со снимком: успех → сохранить; 401/403 → стереть и пробросить;
+ * сетевая ошибка (не HTTP-ответ) + снимок → офлайн-пользователь; иначе пробросить.
+ */
+export async function loadMe(
+  fetchMe: () => Promise<User>,
+  storage: SnapshotStorage | null,
+  isOnline: () => boolean = () => typeof navigator === "undefined" || navigator.onLine !== false,
+): Promise<{ me: User; offline: boolean }> {
+  try {
+    const me = await fetchMe();
+    try {
+      storage?.setItem(ME_SNAPSHOT_KEY, JSON.stringify(me));
+    } catch {}
+    return { me, offline: false };
+  } catch (e) {
+    if (e instanceof ApiError) {
+      if (e.status === 401 || e.status === 403) clearMeSnapshot(storage);
+      throw e;
+    }
+    const snap = readSnapshot(storage);
+    if (snap && (!isOnline() || e instanceof TypeError)) return { me: snap, offline: true };
+    throw e;
+  }
+}
+
 type Status = "loading" | "ready" | "error";
 
 interface SessionState {
@@ -18,6 +72,8 @@ interface SessionState {
   applyMe: (me: User) => void;
   /** Перечитать /auth/me/. */
   refresh: () => Promise<void>;
+  /** true: /auth/me/ недоступен по сети, пользователь восстановлен из локального снимка. */
+  offline: boolean;
 }
 
 const Ctx = createContext<SessionState | null>(null);
@@ -34,6 +90,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const path = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [offline, setOffline] = useState(false);
   const [status, setStatus] = useState<Status>("loading");
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -48,7 +105,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           me = await post<User>("/auth/telegram/", { init_data: tg.initData });
         } else {
           try {
-            me = await api<User>("/auth/me/");
+            const r = await loadMe(() => api<User>("/auth/me/"), browserStorage());
+            me = r.me;
+            if (r.offline && !cancelled) setOffline(true);
           } catch (e) {
             if (!(e instanceof ApiError) || e.status !== 401) throw e;
             router.replace(`/login?next=${encodeURIComponent(path)}`);
@@ -62,7 +121,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Не удалось войти");
+          setError(e instanceof Error ? e.message : null);
           setStatus("error");
         }
       }
@@ -80,7 +139,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const applyMe = useCallback((me: User) => setUser(me), []);
   const refresh = useCallback(async () => {
-    setUser(await api<User>("/auth/me/"));
+    const r = await loadMe(() => api<User>("/auth/me/"), browserStorage());
+    setUser(r.me);
+    setOffline(r.offline);
   }, []);
 
   const retry = useCallback(() => {
@@ -89,6 +150,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setAttempt((n) => n + 1);
   }, []);
 
-  const value = useMemo(() => ({ user, status, error, retry, applyMe, refresh }), [user, status, error, retry, applyMe, refresh]);
+  const value = useMemo(() => ({ user, status, error, offline, retry, applyMe, refresh }), [user, status, error, offline, retry, applyMe, refresh]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
