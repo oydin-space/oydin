@@ -3,14 +3,18 @@ import json
 import logging
 
 from django.conf import settings
+from django.core.cache import cache
 from django.views.decorators.csrf import csrf_exempt
 
+from accounts.access import active_membership
+from accounts.services import DEMO_USERNAME
 from accounts.http import ApiError, api_view, error, json_response, parse_json
 
 from . import conf, services
 from .models import NotificationSettings, TelegramLink
 
 log = logging.getLogger(__name__)
+UPDATE_TTL = 24 * 3600
 FLAGS = ("daily_brief", "gap_alerts", "weekly_digest", "tax_reminders")
 
 
@@ -19,10 +23,14 @@ def webhook(request):
     if request.method != "POST":
         return error(405, "Метод не поддерживается")
     given = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-    if not settings.TELEGRAM_BOT_TOKEN or not hmac.compare_digest(given, conf.webhook_secret()):
+    if not settings.TELEGRAM_BOT_TOKEN or not hmac.compare_digest(given.encode(), conf.webhook_secret().encode()):
         return error(403, "forbidden")
     try:
-        services.handle_update(json.loads(request.body))
+        update = json.loads(request.body)
+        update_id = update.get("update_id")
+        if update_id is not None and not cache.add(f"tg-update:{update_id}", 1, UPDATE_TTL):
+            return json_response({})  # повтор от Telegram
+        services.handle_update(update)
     except Exception:  # Telegram повторяет не-200 бесконечно: ошибку пишем в лог и отвечаем 200
         log.exception("telegram update failed")
     return json_response({})
@@ -32,6 +40,9 @@ def webhook(request):
 def link(request):
     existing = TelegramLink.objects.filter(user=request.user).first()
     if request.method == "POST":
+        membership = active_membership(request.user)
+        if request.user.username == DEMO_USERNAME or (membership and membership.business.is_demo):
+            return error(403, "forbidden")
         code = services.create_link_code(request.user)
         return json_response({
             "url": f"https://t.me/{conf.bot_username()}?start={code}", "expires_in": int(services.LINK_TTL.total_seconds()),

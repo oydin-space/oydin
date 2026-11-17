@@ -58,6 +58,19 @@ class WebhookTests(Base):
         self.assertEqual(self.post(conf.webhook_secret()).status_code, 200)
         self.assertIn("Пришлите", self.last_text())
 
+    def test_non_ascii_secret_rejected(self):
+        self.assertEqual(self.post("секрет").status_code, 403)
+
+    def test_update_id_deduped(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        body = msg(500, "/help")
+        body["update_id"] = 777
+        self.assertEqual(self.post(conf.webhook_secret(), body).status_code, 200)
+        self.assertEqual(self.post(conf.webhook_secret(), body).status_code, 200)
+        self.assertEqual(len(self.sent()), 1)
+
     @override_settings(TELEGRAM_BOT_TOKEN="")
     def test_no_token_rejects(self):
         self.assertEqual(self.post("").status_code, 403)
@@ -91,6 +104,7 @@ class LinkTests(Base):
         code = self.start()
         self.assertFalse(LinkCode.objects.filter(code_hash=code).exists())  # хранится хеш
         services.handle_update(msg(777, f"/start {code}"))
+        self.press(777, self.sent()[-1]["reply_markup"]["inline_keyboard"][0][0]["callback_data"])
         self.assertEqual(TelegramLink.objects.get(user=self.user).chat_id, 777)
         self.assertTrue(self.client.get("/api/telegram/link/").json()["linked"])
         services.handle_update(msg(778, f"/start {code}"))  # одноразовый
@@ -98,6 +112,55 @@ class LinkTests(Base):
         self.assertIn("устарела", self.last_text())
         self.assertFalse(self.client.delete("/api/telegram/link/").json()["linked"])
         self.assertFalse(TelegramLink.objects.exists())
+
+    def press(self, chat_id, data):
+        services.handle_update({"callback_query": {"id": "q", "from": {"id": chat_id}, "data": data,
+                                                   "message": {"message_id": 3, "chat": {"id": chat_id}}}})
+
+    def test_start_asks_confirmation_before_binding(self):
+        code = self.start()
+        services.handle_update(msg(777, f"/start {code}"))
+        self.assertFalse(TelegramLink.objects.exists())
+        sent = self.sent()[-1]
+        self.assertIn("Лавка", sent["text"])
+        data = sent["reply_markup"]["inline_keyboard"][0][0]["callback_data"]
+        self.assertLessEqual(len(data.encode()), 64)
+        self.press(777, data)
+        self.assertEqual(TelegramLink.objects.get(user=self.user).chat_id, 777)
+        self.press(777, data)  # одноразовый
+        self.assertEqual(TelegramLink.objects.count(), 1)
+
+    def test_start_refused_when_chat_linked_to_other_user(self):
+        other = User.objects.create(username="other")
+        TelegramLink.objects.create(user=other, chat_id=777)
+        code = self.start()
+        services.handle_update(msg(777, f"/start {code}"))
+        self.assertIn("/unlink", self.last_text())
+        self.assertEqual(TelegramLink.objects.get().user, other)
+
+    def test_unlink_command(self):
+        TelegramLink.objects.create(user=self.user, chat_id=777)
+        services.handle_update(msg(777, "/unlink"))
+        self.assertFalse(TelegramLink.objects.exists())
+
+    def test_staff_not_auto_linked(self):
+        User.objects.filter(pk=self.user.pk).update(is_staff=True)
+        Profile.objects.filter(user=self.user).update(telegram_id=900)
+        services.handle_update(msg(900, "/start"))
+        self.assertFalse(TelegramLink.objects.exists())
+
+    def test_inactive_not_auto_linked(self):
+        User.objects.filter(pk=self.user.pk).update(is_active=False)
+        Profile.objects.filter(user=self.user).update(telegram_id=900)
+        services.handle_update(msg(900, "/start"))
+        self.assertFalse(TelegramLink.objects.exists())
+
+    def test_demo_business_cannot_link(self):
+        from accounts.models import Business
+
+        Business.objects.filter(pk=self.business.pk).update(is_demo=True)
+        res = self.client.post("/api/telegram/link/")
+        self.assertEqual((res.status_code, res.json()), (403, {"error": "forbidden"}))
 
     def test_expiry(self):
         code = self.start()
@@ -167,6 +230,29 @@ class JobBase(Base):
 
 
 class JobTests(JobBase):
+    def test_deliver_lost_race_no_second_send(self):
+        biz = self.business
+        SentNotification.objects.create(user=self.user, business=biz, kind="brief", key="d")
+        self.assertFalse(jobs._deliver(self.link, biz, "brief", "d", "x"))
+        self.assertEqual(self.sent(), [])
+
+    def test_deliver_claims_before_send_and_releases_on_failure(self):
+        seen = []
+        self.call.side_effect = lambda *a: seen.append(SentNotification.objects.count()) or (_ for _ in ()).throw(
+            jobs.client.BotError(500, "boom"))
+        self.assertFalse(jobs._deliver(self.link, self.business, "brief", "d", "x"))
+        self.assertEqual(seen, [1])
+        self.assertEqual(SentNotification.objects.count(), 0)
+
+    def test_deliver_refresh_lost_race(self):
+        row = SentNotification.objects.create(user=self.user, business=self.business, kind="gap", key="k")
+        stale = SentNotification.objects.get(pk=row.pk)
+        SentNotification.objects.filter(pk=row.pk).update(sent_at=timezone.now() + timedelta(seconds=5))
+        with mock.patch.object(jobs.SentNotification.objects, "filter", side_effect=[mock.Mock(first=lambda: stale),
+                               SentNotification.objects.filter(pk=row.pk, sent_at=stale.sent_at)]):
+            self.assertFalse(jobs._deliver(self.link, self.business, "gap", "k", "x", refresh=True))
+        self.assertEqual(self.sent(), [])
+
     def test_brief_sent_once_per_day(self):
         self.prefs(daily_brief=True)
         now = timezone.now().astimezone(TZ).replace(hour=12)
@@ -262,6 +348,34 @@ class MessageTests(Base):
         self.assertEqual(tx.status, "confirmed")
         self.assertIn("Записано", self.last_text())
 
+    def test_confirm_emits_event(self):
+        services.handle_update(msg(500, "заплатил 200 тыс за аренду"))
+        tx = Transaction.objects.get()
+        with mock.patch("publicapi.services.emit") as emit:
+            services.handle_update({"callback_query": {"id": "q", "from": {"id": 500}, "data": f"ok:{tx.id}",
+                                                       "message": {"message_id": 9, "chat": {"id": 500}}}})
+        self.assertEqual(emit.call_args.args[0], "transaction.confirmed")
+
+    def test_throttle(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        for _ in range(13):
+            services.handle_update(msg(500, "заплатил 200 тыс за аренду"))
+        self.assertEqual(Transaction.objects.count(), 12)
+
+    def test_big_photo_rejected_before_download(self):
+        with mock.patch("bot.client.download_file") as dl:
+            services.handle_update(msg(500, photo=[{"file_id": "x", "file_size": 6 * 1024 * 1024}]))
+        dl.assert_not_called()
+        self.assertFalse(Transaction.objects.exists())
+        self.assertIn("5", self.last_text())
+
+    def test_inactive_user_ignored(self):
+        User.objects.filter(pk=self.user.pk).update(is_active=False)
+        services.handle_update(msg(500, "заплатил 200 тыс за аренду"))
+        self.assertFalse(Transaction.objects.exists())
+
     def test_cancel_deletes_and_replay_is_noop(self):
         services.handle_update(msg(500, "заплатил 200 тыс за аренду"))
         tx = Transaction.objects.get()
@@ -350,10 +464,9 @@ class SellerTests(Base):
         TelegramLink.objects.create(user=self.seller, chat_id=600)
         set_consent(self.seller, "ai", True)
 
-    def test_seller_draft_own_no_balances(self):
+    def test_seller_has_no_ai(self):
         services.handle_update(msg(600, "получил 300 тыс от клиента"))
-        tx = Transaction.objects.get()
-        self.assertEqual((tx.created_by, tx.status), (self.seller, "draft"))
+        self.assertFalse(Transaction.objects.exists())
         self.assertNotIn("Остаток", self.last_text())
         services.handle_update(msg(600, "/brief"))
         self.assertIn("недоступна", self.last_text())

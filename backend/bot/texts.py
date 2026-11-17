@@ -61,6 +61,33 @@ T = {
         "uz": "Rasmni yuklab bo'lmadi. Qayta urinib ko'ring.",
         "en": "Couldn't download the photo. Please try again.",
     },
+    "confirm_bind": {
+        "ru": "Привязать этот чат к аккаунту {who} (бизнес «{business}»)?",
+        "uz": "Bu chatni {who} hisobiga (biznes «{business}») bog'laymizmi?",
+        "en": "Link this chat to account {who} (business \"{business}\")?",
+    },
+    "btn_bind": {"ru": "✅ Привязать", "uz": "✅ Bog'lash", "en": "✅ Link"},
+    "linked_other": {
+        "ru": "Этот чат уже привязан к другому аккаунту. Отправьте /unlink и повторите.",
+        "uz": "Bu chat boshqa hisobga bog'langan. /unlink yuboring va qayta urinib ko'ring.",
+        "en": "This chat is already linked to another account. Send /unlink first, then try again.",
+    },
+    "unlinked": {"ru": "Чат отвязан.", "uz": "Chat uzildi.", "en": "Chat unlinked."},
+    "no_ai_role": {
+        "ru": "ИИ-разбор недоступен для вашей роли.",
+        "uz": "AI tahlili sizning rolingiz uchun mavjud emas.",
+        "en": "AI parsing isn't available for your role.",
+    },
+    "throttled": {
+        "ru": "Слишком много запросов, подождите минуту.",
+        "uz": "Juda ko'p so'rov, bir daqiqa kuting.",
+        "en": "Too many requests, please wait a minute.",
+    },
+    "too_big": {
+        "ru": "Файл больше 5 МБ — пришлите поменьше.",
+        "uz": "Fayl 5 MB dan katta — kichikroq yuboring.",
+        "en": "The file is over 5 MB — please send a smaller one.",
+    },
     "confirmed": {"ru": "Записано.", "uz": "Yozildi.", "en": "Saved."},
     "cancelled": {"ru": "Черновик удалён.", "uz": "Qoralama o'chirildi.", "en": "Draft deleted."},
     "gone": {

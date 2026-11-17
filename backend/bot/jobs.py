@@ -3,7 +3,7 @@
 import logging
 from datetime import timedelta
 
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from accounts.access import FINANCE_READERS, active_membership
@@ -48,21 +48,28 @@ def _deliver(link, business, kind, key, text, *, refresh=False):
     row = SentNotification.objects.filter(user=link.user, business=business, kind=kind, key=key).first()
     if row and not refresh:
         return False
+    if row:
+        # claim: сдвигаем метку только если её никто не успел поменять
+        if SentNotification.objects.filter(pk=row.pk, sent_at=row.sent_at).update(sent_at=now) != 1:
+            return False
+    else:
+        try:
+            with transaction.atomic():
+                row = SentNotification.objects.create(user=link.user, business=business, kind=kind, key=key, sent_at=now)
+        except IntegrityError:
+            return False
+    previous = row.sent_at if row.sent_at != now else None
     try:
         client.call("sendMessage", {"chat_id": link.chat_id, "text": text})
     except client.BotError as exc:
+        if previous is None:
+            SentNotification.objects.filter(pk=row.pk).delete()
+        else:
+            SentNotification.objects.filter(pk=row.pk).update(sent_at=previous)
         if exc.status == 403:
             link.delete()
         log.warning("bot send failed: %s", exc)
         return False
-    if row:
-        row.sent_at = now
-        row.save(update_fields=["sent_at"])
-    else:
-        try:
-            SentNotification.objects.create(user=link.user, business=business, kind=kind, key=key, sent_at=now)
-        except IntegrityError:
-            pass
     return True
 
 
