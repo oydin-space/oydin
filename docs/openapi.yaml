@@ -563,6 +563,15 @@ components:
         name: { type: string }
         kind: { type: string, enum: [bank, mfo] }
         logo_url: { type: [string, 'null'] }
+    Consents:
+      type: object
+      required: [terms_version, ai, marketing, partner_leads, updated_at]
+      properties:
+        terms_version: { type: [string, 'null'] }
+        ai: { type: boolean, description: 'Без true все /ai/* отвечают 403 {"error":"ai_consent_required"}; продавцу — 403 forbidden' }
+        marketing: { type: boolean }
+        partner_leads: { type: boolean }
+        updated_at: { type: [string, 'null'], format: date-time }
     PartnerConsent:
       type: object
       required: [partner, granted, granted_at, revoked_at, scope]
@@ -1471,6 +1480,7 @@ paths:
                   items: { type: object, required: [role, content], properties: { role: { type: string, enum: [user, assistant] }, content: { type: string, maxLength: 4000 } } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AiReply' } } } }
+        '403': { description: 'ai_consent_required (нет согласия ai) или forbidden (роль seller)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '429': { $ref: '#/components/responses/Error' }
   /ai/voice/:
     post:
@@ -1493,6 +1503,7 @@ paths:
                   text: { type: string }
                   draft: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/OperationInput' }] }
         '400': { $ref: '#/components/responses/Error' }
+        '403': { description: 'ai_consent_required (нет согласия ai) или forbidden (роль seller)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '429': { $ref: '#/components/responses/Error' }
   /ai/feedback/:
     post:
@@ -1505,6 +1516,7 @@ paths:
       responses:
         '204': { description: OK }
         '400': { $ref: '#/components/responses/Error' }
+        '403': { description: 'ai_consent_required (нет согласия ai) или forbidden (роль seller)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
   /tools/:
     get:
       x-roles: [owner, accountant, seller]
@@ -1561,16 +1573,29 @@ paths:
                   version: { type: string, example: '2026-11-18' }
                   documents: { type: array, items: { type: object, required: [kind, url], properties: { kind: { type: string, enum: [privacy, terms] }, url: { type: string } } } }
         '500': { $ref: '#/components/responses/Error' }
-    post:
-      x-roles: []
-      summary: Принять версию (ConsentRecord с IP/UA/временем)
+  /consents/:
+    get:
+      x-roles: [owner, accountant, seller]
+      summary: Текущие согласия пользователя (ИИ, маркетинг, лиды партнёрам) и принятая версия условий
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Consents' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+    put:
+      x-roles: [owner, accountant, seller]
+      summary: Выдать или отозвать согласия (false = отзыв). Изменения пишутся в журнал; terms_version фиксирует принятие условий
       requestBody:
         required: true
         content:
           application/json:
-            schema: { type: object, required: [version], properties: { version: { type: string } } }
+            schema:
+              type: object
+              properties:
+                ai: { type: boolean }
+                marketing: { type: boolean }
+                partner_leads: { type: boolean }
+                terms_version: { type: string, maxLength: 20 }
       responses:
-        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Me' } } } }
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Consents' } } } }
         '400': { $ref: '#/components/responses/Error' }
         '401': { $ref: '#/components/responses/Error' }
   /pricing/access-request/:
