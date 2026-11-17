@@ -26,13 +26,32 @@ def is_configured():
 PROVIDER_DOWN = (401, 402, 429)
 
 
+def _anthropic_content(content):
+    """Части формата OpenAI (image_url) → блоки Anthropic; строка остаётся строкой."""
+    if isinstance(content, str):
+        return content
+    blocks = []
+    for part in content:
+        if part.get("type") != "image_url":
+            blocks.append(part)
+            continue
+        url = part["image_url"]["url"]
+        if url.startswith("data:"):
+            meta, _, data = url[5:].partition(",")
+            source = {"type": "base64", "media_type": meta.split(";")[0], "data": data}
+        else:
+            source = {"type": "url", "url": url}
+        blocks.append({"type": "image", "source": source})
+    return blocks
+
+
 def _anthropic_post(model, messages, *, timeout, temperature=None):
     system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
     body = {
         "model": model,
         "max_tokens": 2048,
         "system": system + "\nОтвечай одним JSON-объектом без пояснений вокруг.",
-        "messages": [m for m in messages if m["role"] != "system"],
+        "messages": [{"role": m["role"], "content": _anthropic_content(m["content"])} for m in messages if m["role"] != "system"],
     }
     # temperature у новых Claude объявлен устаревшим (400), поэтому не передаём.
     request = Request("https://api.anthropic.com/v1/messages", data=json.dumps(body, ensure_ascii=False).encode(), headers={

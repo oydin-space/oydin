@@ -45,19 +45,19 @@ def to_wav(audio, content_type):
     return done.stdout
 
 
-def to_draft(business, text):
+def to_draft(business, text, user=None):
     accounts = [{"id": a["id"], "name": a["name"], "kind": a["kind"]} for a in fin.list_accounts(business)]
     try:
         out = llm.complete(
             EXTRACT, [{"role": "user", "content": f"Счета: {json.dumps(accounts, ensure_ascii=False)}\nФраза: {text}"}],
             timeout=40, name="draft", temperature=0, model=settings.LLM_CLASSIFY_MODEL,
         )
-        parsed = drafts.validate_draft(business, out.get("draft"))
+        parsed = drafts.validate_draft(business, out.get("draft"), created_by=user)
         if parsed:
             return parsed
     except llm.AiUnavailable:
         pass
-    return drafts.parse_text_draft(business, text)
+    return drafts.parse_text_draft(business, text, created_by=user)
 
 
 def handle(business, user, audio, content_type):
@@ -65,6 +65,6 @@ def handle(business, user, audio, content_type):
         text = llm.transcribe(to_wav(audio, content_type), "audio/wav")
         if not text:
             return {"text": "", "draft": None}
-        result = {"text": text, "draft": to_draft(business, text)}
+        result = {"text": text, "draft": to_draft(business, text, user)}
         observability.set_output("voice", text)
         return result

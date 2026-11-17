@@ -142,3 +142,121 @@ class VoiceConversionTests(SimpleTestCase):
             voice.to_wav(b"not audio at all" * 100, "audio/webm")
         with self.assertRaises(ValueError):
             voice.to_wav(b"x", "text/plain")
+
+
+from unittest.mock import patch  # noqa: E402
+
+from . import ui  # noqa: E402
+
+GOOD_UI = '''root = Stack([s, calc])
+s = StatCard("На счетах", 2480000, "по данным", "mint")
+calc = Calculator("Что если", [a, b], [o])
+a = MoneyField("extra", "Доп. расход", 0)
+b = SliderField("days", "Задержка, дней", 10, 0, 60, 5)
+o = Output("Останется", "max(0, 2480000 - extra) / max(days, 1)", "money")'''
+
+
+class UiValidationTests(SimpleTestCase):
+    def test_allowed_components(self):
+        self.assertEqual(ui.validate(GOOD_UI), GOOD_UI)
+        self.assertIsNotNone(ui.validate_tool(GOOD_UI))
+
+    def test_unknown_component_and_syntax(self):
+        self.assertIsNone(ui.validate('root = Stack([x])\nx = Script("alert(1)")'))
+        self.assertIsNone(ui.validate('root = Stack([x])\nx = TextBlock($name)'))
+        self.assertIsNone(ui.validate('root = Stack([x])\nx = Query("a")'))
+        self.assertIsNone(ui.validate('x = TextBlock("без root")'))
+        self.assertIsNone(ui.validate('root = Stack([missing])'))
+        self.assertIsNone(ui.validate('root = Stack([root])'))
+
+    def test_formula_safety(self):
+        bad = GOOD_UI.replace("max(days, 1)", "__import__(days)")
+        self.assertIsNone(ui.validate(bad))
+        self.assertIsNone(ui.validate(GOOD_UI.replace("extra) /", "unknown) /")))
+        with self.assertRaises(ui.Invalid):
+            ui.check_formula("a ** 2", {"a"})
+        ui.check_formula("round(min(a, 2) * (b + 1) / 3, 2)", {"a", "b"})
+
+    def test_size_limit(self):
+        big = 'root = Stack([t])\nt = TextBlock("' + "x" * 1500 + '")\n' + "\n".join(f'p{i} = TextBlock("{"y" * 100}")' for i in range(700))
+        self.assertGreater(len(big.encode()), ui.MAX_SIZE)
+        self.assertIsNone(ui.validate(big))
+
+    def test_grounding_in_chat(self):
+        evidence = grounding.Evidence({"balance": 2_480_000})
+        self.assertIsNotNone(ui.validate(GOOD_UI, evidence))
+        self.assertIsNone(ui.validate(GOOD_UI.replace("2480000, \"по", "9100000, \"по"), evidence))
+
+    def test_tool_needs_calculator(self):
+        self.assertIsNone(ui.validate_tool('root = Stack([t])\nt = TextBlock("привет")'))
+
+    def test_library_prompt_lists_components(self):
+        for name in ui.COMPONENTS:
+            self.assertIn(name + "(", ui.LIBRARY_PROMPT)
+
+
+class ChatUiTests(ChatTests):
+    def reply(self, ui_text):
+        return {"reply": "На счетах пока пусто.", "suggestions": [], "chart": None, "draft": None, "ui": ui_text}
+
+    @override_settings(LLM_API_KEY="k", LLM_BASE_URL="http://x", LLM_MODEL="m")
+    def test_chat_returns_valid_ui(self):
+        text = 'root = Stack([t])\nt = TextBlock("Сводка", "title")'
+        with patch("ai.chat.llm.complete", return_value=self.reply(text)):
+            body = self.post("Покажи сводку").json()
+        self.assertFalse(body["fallback"])
+        self.assertEqual(body["ui"], text)
+
+    @override_settings(LLM_API_KEY="k", LLM_BASE_URL="http://x", LLM_MODEL="m")
+    def test_chat_omits_invalid_ui(self):
+        for bad in ['root = Stack([t])\nt = Iframe("x")', 'root = Stack([s])\ns = StatCard("Выдумка", 77000000)']:
+            with patch("ai.chat.llm.complete", return_value=self.reply(bad)):
+                body = self.post("Покажи сводку").json()
+            self.assertFalse(body["fallback"])
+            self.assertNotIn("ui", body)
+
+
+class ToolGenerateTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.user = get_user_model().objects.create(username="g")
+        self.business = Business.objects.create(name="g")
+        Profile.objects.create(user=self.user, business=self.business)
+        Account.objects.create(business=self.business, name="Наличные", kind="cash")
+        self.client.force_login(self.user)
+
+    def gen(self, **body):
+        return self.client.post("/api/ai/tools/generate/", body, content_type="application/json")
+
+    @override_settings(LLM_API_KEY="", ANTHROPIC_API_KEY="")
+    def test_builtin_kinds_without_llm_or_consent(self):
+        for kind in ["what_if_gap", "unit_cost", "break_even", "payroll", "loan", "envelope_plan_fact", "receivables_aging"]:
+            r = self.gen(prompt="", kind=kind)
+            self.assertEqual(r.status_code, 200, kind)
+            body = r.json()
+            self.assertEqual(body["kind"], kind)
+            self.assertTrue(body["title"])
+            self.assertIsNotNone(ui.validate_tool(body["spec"]), kind)
+
+    @override_settings(LLM_API_KEY="", ANTHROPIC_API_KEY="")
+    def test_kind_inferred_from_prompt(self):
+        self.assertEqual(self.gen(prompt="посчитай кредит на 12 месяцев").json()["kind"], "loan")
+
+    def test_tax_refused(self):
+        self.assertEqual(self.gen(prompt="x", kind="tax").json(), {"error": "unsupported_kind"})
+        r = self.gen(prompt="калькулятор НДС")
+        self.assertEqual((r.status_code, r.json()["error"]), (400, "unsupported_kind"))
+
+    @override_settings(LLM_API_KEY="", ANTHROPIC_API_KEY="")
+    def test_custom_needs_consent(self):
+        self.assertEqual(self.gen(prompt="маржа по кофе", kind="custom").json()["error"], "ai_consent_required")
+
+    @override_settings(LLM_API_KEY="k", LLM_BASE_URL="http://x", LLM_MODEL="m")
+    def test_custom_with_llm(self):
+        set_consent(self.user, "ai", True)
+        spec = 'root = Stack([c])\nc = Calculator("Кофе", [p], [o])\np = MoneyField("price", "Цена", 20000)\no = Output("x2", "price * 2", "money")'
+        with patch("ai.views.llm.complete", return_value={"title": "Кофе", "ui": spec}):
+            body = self.gen(prompt="маржа по кофе", kind="custom").json()
+        self.assertEqual((body["kind"], body["spec"]), ("custom", spec))
+        with patch("ai.views.llm.complete", return_value={"title": "Кофе", "ui": "root = Stack([x])\nx = Bad()"}):
+            self.assertEqual(self.gen(prompt="маржа по кофе", kind="custom").status_code, 502)

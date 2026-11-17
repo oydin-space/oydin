@@ -47,7 +47,14 @@ def _text(value, limit):
     return value.strip()[:limit] if isinstance(value, str) else ""
 
 
-def validate_draft(business, raw):
+def _with_author(draft, created_by):
+    """Автор черновика (id пользователя) — чтобы созданная из него операция принадлежала тому, кто говорил с ИИ."""
+    if created_by is not None:
+        draft["created_by"] = getattr(created_by, "pk", created_by)
+    return draft
+
+
+def validate_draft(business, raw, created_by=None):
     """Черновик из ответа модели или None, если он неверен (счёт чужой, сумма не целая и т.п.)."""
     if not isinstance(raw, dict):
         return None
@@ -67,11 +74,12 @@ def validate_draft(business, raw):
     if not category:
         return None
     purpose = raw.get("purpose") if raw.get("purpose") in PURPOSES else "unclear"
-    return {
+    draft = {
         "amount": amount, "direction": raw["direction"], "category": category, "purpose": purpose,
         "account_id": account_id, "date": today().isoformat(),
         "counterparty": _text(raw.get("counterparty"), 120), "note": _text(raw.get("note"), 300),
     }
+    return _with_author(draft, created_by)
 
 
 def _multiplier(word):
@@ -111,7 +119,7 @@ def parse_amount(text):
     return digits if digits is not None else amount
 
 
-def parse_text_draft(business, text):
+def parse_text_draft(business, text, created_by=None):
     """Простой разбор фразы по-русски без модели; None, если суммы или направления не видно."""
     amount = parse_amount(text)
     if amount is None:
@@ -129,7 +137,8 @@ def parse_text_draft(business, text):
             break
     category = next((name for p, name in CATEGORIES if p.search(text)), "Продажи" if direction == "in" else "Прочее")
     purpose = "personal" if direction == "out" and PERSONAL.search(text) else "business" if direction == "out" else "business"
-    return {
+    draft = {
         "amount": amount, "direction": direction, "category": category, "purpose": purpose,
         "account_id": account.id, "date": today().isoformat(), "counterparty": "", "note": text.strip()[:300],
     }
+    return _with_author(draft, created_by)

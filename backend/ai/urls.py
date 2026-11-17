@@ -6,4 +6,5 @@ urlpatterns = [
     path("ai/chat/", views.chat_view),
     path("ai/voice/", views.voice_view),
     path("ai/feedback/", views.feedback_view),
+    path("ai/tools/generate/", views.tools_generate_view),
 ]
