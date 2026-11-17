@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { PageHeader, PlainCard, StatusBanner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { loadAccounts, saveAccounts } from "@/lib/offline/reference";
+import { currentScope } from "@/lib/offline/scope";
 import { removeEntry, useOfflineQueue } from "@/lib/offline/sync";
 import type { Account } from "@/lib/types";
 import { PendingList } from "./pending-list";
@@ -17,7 +18,8 @@ export function QuickView() {
   const t = useOfflineT();
   const q = useOfflineQueue();
   const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
-  const cached = useMemo(() => (mounted ? loadAccounts() : []), [mounted]);
+  const businessId = mounted ? (currentScope()?.business_id ?? null) : null;
+  const cached = useMemo(() => (businessId === null ? [] : loadAccounts(businessId)), [businessId]);
   const [fetched, setFetched] = useState<Account[] | null>(null);
   const accounts = fetched ?? cached;
 
@@ -25,11 +27,11 @@ export function QuickView() {
     if (!navigator.onLine) return;
     api<{ items: Account[] }>("/accounts/")
       .then((r) => {
-        saveAccounts(r.items);
+        if (businessId !== null) saveAccounts(businessId, r.items);
         setFetched(r.items);
       })
       .catch(() => undefined);
-  }, [q.online]);
+  }, [q.online, businessId]);
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-5 pb-24">

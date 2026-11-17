@@ -7,7 +7,7 @@ import type { Me } from "@/lib/types";
 import { useAT } from "./use-at";
 
 /** Почта → код → сессия. Согласие с документами записывается после успешного входа. */
-export function EmailOtpForm({ consent, onSignedIn }: { consent: ConsentChoice; onSignedIn: (me: Me) => void }) {
+export function EmailOtpForm({ consent, onSignedIn, onNeedTerms }: { consent: ConsentChoice; onSignedIn: (me: Me) => void; onNeedTerms?: () => void }) {
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
   const [code, setCode] = useState("");
@@ -36,6 +36,7 @@ export function EmailOtpForm({ consent, onSignedIn }: { consent: ConsentChoice; 
     e?.preventDefault();
     if (!consent.terms) {
       setError(t("auth.email.needConsent"));
+      onNeedTerms?.();
       return;
     }
     setBusy(true);

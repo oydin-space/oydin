@@ -7,7 +7,9 @@ import { flushStashedConsent } from "@/lib/auth-api";
 import type { User } from "@/lib/types";
 import { useTelegram } from "./telegram-provider";
 
-export const ME_SNAPSHOT_KEY = "oydin_me_v1";
+import { ME_SNAPSHOT_KEY } from "@/lib/offline/scope";
+
+export { ME_SNAPSHOT_KEY };
 
 type SnapshotStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileX2, Link2Off } from "lucide-react";
+import { Download } from "lucide-react";
 import Link from "next/link";
 import { AmountText, Badge, Button, Card, EmptyState, ErrorState, ListGroup, ListRow, Section, StatusBanner, Text } from "@/components/ui";
 import { useI18n } from "@/i18n";

@@ -60,7 +60,7 @@ export function ToolDetail({ id }: { id: number }) {
   const status = !Number.isFinite(id) || res.error === "not_found" ? "empty" : res.error ? "error" : !tool ? "loading" : "ready";
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-6">
       <Button asChild variant="ghost" size="sm" icon={ArrowLeft} className="self-start">
         <Link href="/app/tools">{t("chat.tools.back")}</Link>
       </Button>

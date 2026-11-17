@@ -1,5 +1,8 @@
 // Вызовы входа, бизнесов и команды (docs/openapi.yaml v0.3). Всё идёт через единый api()/post().
 import { api, ApiError, post } from "@/lib/api";
+import { clearAccounts } from "@/lib/offline/reference";
+import { ME_SNAPSHOT_KEY } from "@/lib/offline/scope";
+import { resetOfflineState } from "@/lib/offline/sync";
 import type { AuthProviders, BusinessItem, Currency, Me, Role } from "@/lib/types";
 
 export type Segment = "textile_print" | "retail" | "horeca" | "marketplace_seller" | "services";
@@ -20,13 +23,31 @@ export interface TeamMember {
 export const fetchProviders = () => api<AuthProviders>("/auth/providers/");
 export const requestEmailCode = (email: string, lang = "ru") => post<{ ok: true; resend_in: number }>("/auth/email/request/", { email, lang });
 export const verifyEmailCode = (email: string, code: string) => post<Me>("/auth/email/verify/", { email, code });
-export const demoLogin = () => post<Me>("/auth/demo/");
+export const demoLogin = () => post<Me>("/auth/demo/", {});
 export const fetchMe = () => api<Me>("/auth/me/");
-/** Снимок сессии для офлайна (ключ из session-provider) стираем вместе с выходом. */
+/** Выход чистит локальное в finally: офлайн-выход тоже стирает снимок, кэш счетов и закэшированные страницы /app/*. Несинхронизированные записи остаются, но чужим пользователям не видны (скоуп). */
 export const logout = async () => {
-  await post<void>("/auth/logout/");
-  if (typeof localStorage !== "undefined") localStorage.removeItem("oydin_me_v1");
+  try {
+    await post<void>("/auth/logout/");
+  } finally {
+    try {
+      localStorage.removeItem(ME_SNAPSHOT_KEY);
+    } catch {}
+    clearAccounts();
+    await clearCachedPages();
+    await resetOfflineState().catch(() => undefined);
+  }
 };
+
+async function clearCachedPages() {
+  if (typeof caches === "undefined") return;
+  try {
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      for (const req of await cache.keys()) if (new URL(req.url).pathname.startsWith("/app")) await cache.delete(req);
+    }
+  } catch {}
+}
 
 export const TERMS_VERSION = "2026-11-18";
 export interface ConsentChoice {
@@ -54,7 +75,15 @@ export interface BusinessInput {
 }
 export const createBusiness = (body: BusinessInput) => post<BusinessItem>("/businesses/", body);
 export const setSegment = (id: number, segment: Segment) => api<unknown>(`/businesses/${id}/`, { method: "PATCH", body: JSON.stringify({ segment }) });
-export const switchBusiness = (id: number) => post<Me>(`/businesses/${id}/switch/`);
+/** Снимок сессии обновляется сразу: очередь и кэш счетов привязаны к активному бизнесу. */
+export async function switchBusiness(id: number) {
+  const me = await post<Me>(`/businesses/${id}/switch/`);
+  try {
+    localStorage.setItem(ME_SNAPSHOT_KEY, JSON.stringify(me));
+  } catch {}
+  await resetOfflineState().catch(() => undefined);
+  return me;
+}
 export const createAccount = (body: { name: string; kind: AccountKind; currency: Currency; opening_balance: number }) => post<unknown>("/accounts/", body);
 
 export const listMembers = (businessId: number) => api<{ items: TeamMember[] }>(`/businesses/${businessId}/members/`).then((r) => r.items);

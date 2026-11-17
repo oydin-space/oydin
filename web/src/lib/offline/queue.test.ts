@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { createQueue, memoryStore, type SyncResult, type SyncSender } from "./queue";
+import type { Scope } from "./scope";
+import { createQueue, memoryStore, type QueueDeps, type SyncResult, type SyncSender } from "./queue";
 
 const payload = { amount: 5000, direction: "out" as const, category: "Аренда", account_id: 1 };
 function make() {
   let n = 0;
   let t = 0;
+  let scope: Scope | null = { user_id: 1, business_id: 10 };
   const store = memoryStore();
-  const q = createQueue(store, { uuid: () => `id-${++n}`, now: () => new Date(Date.UTC(2026, 0, 1, 0, 0, ++t)) });
-  return { q, store };
+  const deps: QueueDeps = { uuid: () => `id-${++n}`, now: () => new Date(Date.UTC(2026, 0, 1, 0, 0, ++t)), scope: () => scope };
+  const q = createQueue(store, deps);
+  return { q, store, as: (s: Scope | null) => void (scope = s) };
 }
 const ok = (ids: string[]): SyncResult[] => ids.map((client_id) => ({ client_id, status: "created", id: 1, error: null }));
 
@@ -106,5 +109,40 @@ describe("offline queue", () => {
     const e = await q.enqueue("operation", payload);
     await q.remove(e.client_id);
     expect(await q.count()).toBe(0);
+  });
+
+  test("entries of another user or business are neither listed nor flushed", async () => {
+    const { q, as } = make();
+    await q.enqueue("operation", payload);
+    as({ user_id: 2, business_id: 10 });
+    expect(await q.list()).toHaveLength(0);
+    expect(await q.flush(async () => { throw new Error("must not send"); })).toMatchObject({ status: "idle", sent: 0 });
+    as({ user_id: 1, business_id: 11 });
+    expect(await q.count()).toBe(0);
+    as({ user_id: 1, business_id: 10 });
+    expect(await q.count()).toBe(1);
+  });
+
+  test("legacy unstamped entries are dropped", async () => {
+    const { q, store } = make();
+    await store.put({ client_id: "old", kind: "operation", payload, created_at: "2025-01-01T00:00:00Z" } as never);
+    expect(await q.list()).toHaveLength(0);
+    expect(await store.all()).toHaveLength(0);
+  });
+
+  test("sender receives the business id", async () => {
+    const { q } = make();
+    await q.enqueue("operation", payload);
+    let biz = 0;
+    await q.flush(async (items, b) => ((biz = b), ok(items.map((i) => i.client_id))));
+    expect(biz).toBe(10);
+  });
+
+  test("409 business_mismatch is a failed flush and keeps entries", async () => {
+    const { q } = make();
+    await q.enqueue("operation", payload);
+    const out = await q.flush(async () => { throw { status: 409 }; });
+    expect(out.status).toBe("failed");
+    expect(await q.count()).toBe(1);
   });
 });

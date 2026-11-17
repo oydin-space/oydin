@@ -25,17 +25,19 @@ export interface ListRowProps {
   onClick?: () => void;
   href?: string;
   chevron?: boolean;
+  /** Заголовок переносится до 2 строк вместо усечения в одну. */
+  wrapTitle?: boolean;
   className?: string;
 }
 
 const rowClass = "focus-ring flex min-h-row w-full items-center gap-3 px-4 py-2 text-left";
 
-export function ListRow({ title, subtitle, leading, trailing, status, onClick, href, chevron, className }: ListRowProps) {
+export function ListRow({ title, subtitle, leading, trailing, status, onClick, href, chevron, wrapTitle, className }: ListRowProps) {
   const body = (
     <>
       {leading ? <span className="shrink-0">{leading}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-body text-foreground">{title}</span>
+        <span className={cn("text-body text-foreground", wrapTitle ? "line-clamp-2 break-words" : "truncate")}>{title}</span>
         {subtitle ? <span className="truncate text-small text-muted-foreground">{subtitle}</span> : null}
       </span>
       {status ? <span className="shrink-0">{status}</span> : null}

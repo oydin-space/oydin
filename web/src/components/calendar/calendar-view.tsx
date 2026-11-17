@@ -64,9 +64,10 @@ export function CalendarView() {
                 <ListRow
                   key={o.id}
                   title={o.title}
+                  wrapTitle
                   subtitle={`${t(`core.cal.kind.${o.kind}` as CoreKey)} · ${t("core.cal.due", { date: formatDate(o.due_date) })}`}
                   status={<ObligationBadge o={o} />}
-                  trailing={<AmountText value={o.amount} />}
+                  trailing={<AmountText value={o.amount} mode="compact" />}
                 />
               ))}
             </ListGroup>

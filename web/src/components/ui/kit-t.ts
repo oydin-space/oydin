@@ -9,7 +9,7 @@ export type KitKey = keyof (typeof kit)["ru"];
 /** Текущий язык интерфейса; вне I18nProvider — RU. */
 export function useKitLocale(): Locale {
   try {
-    return useI18n().locale; // eslint-disable-line react-hooks/rules-of-hooks
+    return useI18n().locale;
   } catch {
     return "ru";
   }

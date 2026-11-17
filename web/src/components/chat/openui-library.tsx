@@ -152,7 +152,9 @@ const Table = defineComponent({
   name: "Table",
   description: "Small table: column headers and rows of string or number cells.",
   props: z.object({ columns: z.array(z.string()), rows: z.array(z.array(z.union([z.string(), z.number()]))) }),
-  component: ({ props }) => (
+  component: function OpenUiTable({ props }) {
+    const locale = useMoneyLocale();
+    return (
     // В ките нет Table: семантическая таблица с ячейками Text, прокрутка по ширине на 375px.
     <Card className="overflow-x-auto p-0">
       <table className="w-full border-collapse">
@@ -173,7 +175,7 @@ const Table = defineComponent({
               {row.map((cell, c) => (
                 <td key={c} className={typeof cell === "number" ? "px-3 py-2 text-right tabular-nums" : "px-3 py-2"}>
                   <Text as="span" variant="secondary">
-                    {typeof cell === "number" ? cell.toLocaleString("ru-RU") : cell}
+                    {typeof cell === "number" ? cell.toLocaleString(locale) : cell}
                   </Text>
                 </td>
               ))}
@@ -182,7 +184,8 @@ const Table = defineComponent({
         </tbody>
       </table>
     </Card>
-  ),
+    );
+  },
 });
 
 const CashChart = defineComponent({

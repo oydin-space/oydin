@@ -30,7 +30,7 @@ export function ChatView() {
 
   if (user?.role === "seller" || chat.block === "forbidden") {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-6">
+      <div className="mx-auto w-full max-w-3xl pb-6">
         <EmptyState title={t("chat.ui.sellerTitle")} hint={t("chat.ui.sellerHint")} />
       </div>
     );
@@ -52,7 +52,7 @@ export function ChatView() {
     : undefined;
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-8rem)] w-full max-w-3xl flex-col px-4 pt-4">
+    <div className="mx-auto flex h-[calc(100dvh-8rem)] w-full max-w-3xl flex-col">
       <PageHeader title={t("chat.title" as never)} hint={t("chat.ui.hint")} />
       {chat.block === "consent" ? (
         <StatusBanner

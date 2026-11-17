@@ -3,6 +3,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { post } from "@/lib/api";
 import { idbStore } from "./idb-store";
+import { currentScope } from "./scope";
 import { createQueue, type FlushOutcome, type QueueEntry, type SyncResult, type SyncSender } from "./queue";
 
 export interface OfflineState {
@@ -14,8 +15,8 @@ export interface OfflineState {
   unauthorized: boolean;
 }
 
-const queue = createQueue(idbStore);
-const send: SyncSender = async (items) => (await post<{ results: SyncResult[] }>("/sync/", { items })).results;
+const queue = createQueue(idbStore, { uuid: () => crypto.randomUUID(), now: () => new Date(), scope: currentScope });
+const send: SyncSender = async (items, business_id) => (await post<{ results: SyncResult[] }>("/sync/", { business_id, items })).results;
 
 const EMPTY: OfflineState = { ready: false, entries: [], lastSync: null, syncing: false, online: true, unauthorized: false };
 let state: OfflineState = EMPTY;
@@ -33,6 +34,7 @@ async function refresh() {
 let inflight: Promise<FlushOutcome> | null = null;
 /** Один flush за раз; несколько подписчиков (бейдж, экран) не дублируют отправку. */
 export function flush(opts: { retryFailed?: boolean } = {}): Promise<FlushOutcome> {
+  if (inflight && opts.retryFailed) return inflight.then(() => flush(opts));
   inflight ??= (async () => {
     set({ syncing: true });
     try {
@@ -98,4 +100,10 @@ export function useOfflineQueue() {
   const s = useSyncExternalStore(subscribe, () => state, () => EMPTY);
   const syncNow = useCallback(() => flush({ retryFailed: true }), []);
   return { ...s, pending: s.entries.length, syncNow };
+}
+
+/** Выход или смена бизнеса: сбросить видимое состояние и перечитать очередь для новой области. */
+export async function resetOfflineState(): Promise<void> {
+  set({ entries: [], lastSync: null, unauthorized: false });
+  await refresh().catch(() => undefined);
 }

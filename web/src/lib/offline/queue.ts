@@ -1,3 +1,5 @@
+import type { Scope } from "./scope";
+
 // Офлайн-очередь записей. Чистая логика: хранилище и транспорт подставляются снаружи (IndexedDB / fetch / память в тестах).
 
 export type QueueKind = "operation";
@@ -13,6 +15,9 @@ export interface OperationPayload {
 
 export interface QueueEntry {
   client_id: string;
+  /** Владелец и бизнес на момент записи; запись без штампа (legacy) удаляется при первой загрузке. */
+  user_id: number;
+  business_id: number;
   kind: QueueKind;
   payload: OperationPayload;
   created_at: string;
@@ -35,8 +40,8 @@ export interface SyncResult {
   error: string | null;
 }
 
-/** Транспорт: POST /api/sync/ с {items}. Бросает {status} при HTTP-ошибке, любое другое исключение = нет сети. */
-export type SyncSender = (items: Pick<QueueEntry, "client_id" | "kind" | "payload">[]) => Promise<SyncResult[]>;
+/** Транспорт: POST /api/sync/ с {business_id, items}. Бросает {status} при HTTP-ошибке, любое другое исключение = нет сети. */
+export type SyncSender = (items: Pick<QueueEntry, "client_id" | "kind" | "payload">[], businessId: number) => Promise<SyncResult[]>;
 
 export type FlushStatus = "idle" | "ok" | "partial" | "offline" | "unauthorized" | "failed";
 
@@ -53,17 +58,35 @@ export const LAST_SYNC_KEY = "last_sync";
 const httpStatus = (e: unknown): number | null =>
   typeof e === "object" && e !== null && typeof (e as { status?: unknown }).status === "number" ? (e as { status: number }).status : null;
 
-export function createQueue(store: QueueStore, deps: { uuid: () => string; now: () => Date } = { uuid: () => crypto.randomUUID(), now: () => new Date() }) {
-  const sorted = async () => (await store.all()).sort((a, b) => a.created_at.localeCompare(b.created_at));
+export interface QueueDeps {
+  uuid: () => string;
+  now: () => Date;
+  scope: () => Scope | null;
+}
+
+export function createQueue(store: QueueStore, deps: QueueDeps) {
+  const isStamped = (e: Partial<QueueEntry>) => typeof e.user_id === "number" && typeof e.business_id === "number";
+  /** Только записи текущего пользователя и бизнеса; legacy без штампа удаляются. */
+  const sorted = async () => {
+    const all = await store.all();
+    for (const e of all) if (!isStamped(e)) await store.remove(e.client_id);
+    const scope = deps.scope();
+    if (!scope) return [];
+    return all.filter((e) => isStamped(e) && e.user_id === scope.user_id && e.business_id === scope.business_id).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  };
 
   async function enqueue(kind: QueueKind, payload: OperationPayload): Promise<QueueEntry> {
-    const entry: QueueEntry = { client_id: deps.uuid(), kind, payload, created_at: deps.now().toISOString(), error: null };
+    const scope = deps.scope();
+    if (!scope) throw new Error("no_session");
+    const entry: QueueEntry = { client_id: deps.uuid(), ...scope, kind, payload, created_at: deps.now().toISOString(), error: null };
     await store.put(entry);
     return entry;
   }
 
   async function flush(send: SyncSender, opts: { retryFailed?: boolean } = {}): Promise<FlushOutcome> {
+    const scope = deps.scope();
     const all = await sorted();
+    if (!scope) return { status: "idle", sent: 0, synced: 0, failed: 0 };
     const due = all.filter((e) => opts.retryFailed || !e.error);
     if (!due.length) return { status: "idle", sent: 0, synced: 0, failed: 0 };
     let synced = 0;
@@ -73,7 +96,7 @@ export function createQueue(store: QueueStore, deps: { uuid: () => string; now: 
       const batch = due.slice(i, i + MAX_BATCH);
       let results: SyncResult[];
       try {
-        results = await send(batch.map(({ client_id, kind, payload }) => ({ client_id, kind, payload })));
+        results = await send(batch.map(({ client_id, kind, payload }) => ({ client_id, kind, payload })), scope.business_id);
       } catch (e) {
         const code = httpStatus(e);
         const status: FlushStatus = code === 401 || code === 403 ? "unauthorized" : code === null ? "offline" : "failed";
@@ -102,7 +125,7 @@ export function createQueue(store: QueueStore, deps: { uuid: () => string; now: 
     list: sorted,
     remove: (clientId: string) => store.remove(clientId),
     async count() {
-      return (await store.all()).length;
+      return (await sorted()).length;
     },
     async lastSync() {
       return store.getMeta(LAST_SYNC_KEY);

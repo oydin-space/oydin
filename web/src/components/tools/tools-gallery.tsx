@@ -56,7 +56,7 @@ export function ToolsGallery() {
 
   if (forbidden) {
     return (
-      <div className="mx-auto w-full max-w-4xl px-4 py-6">
+      <div className="mx-auto w-full max-w-4xl pb-6">
         <StateView status="empty" empty={{ title: t("chat.tools.forbidden") }}>
           {null}
         </StateView>
@@ -67,7 +67,7 @@ export function ToolsGallery() {
   const items = [...(saved.data ?? [])].sort((a, b) => Number(b.pinned) - Number(a.pinned));
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 pb-6">
       <PageHeader title={t("chat.tools.title")} hint={t("chat.tools.hint")} />
 
       <Card>

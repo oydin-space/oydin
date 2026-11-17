@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Logo } from "@/components/brand/logo";
 import { Button, Card, ErrorState, LanguageSwitcher, SkeletonList, Text } from "@/components/ui";
 import { ConsentNotice } from "@/components/legal/consent-notice";
@@ -28,6 +28,8 @@ export function LoginView({ next }: { next: string | null }) {
   const [consent, setConsent] = useState<ConsentChoice>(noConsent);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [termsInvalid, setTermsInvalid] = useState(false);
+  const termsRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let off = false;
@@ -54,6 +56,12 @@ export function LoginView({ next }: { next: string | null }) {
   const inMiniApp = useSyncExternalStore(noopSubscribe, inTelegram, () => true);
   const showTelegram = !!providers?.telegram && !inMiniApp;
   const any = providers && (providers.email || providers.google || providers.demo || showTelegram);
+  const needTerms = () => {
+    setError(t("auth.needConsentLogin"));
+    setTermsInvalid(true);
+    termsRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    termsRef.current?.focus({ preventScroll: true });
+  };
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-8">
       <LanguageSwitcher className="absolute right-4 top-4 w-auto" />
@@ -68,8 +76,7 @@ export function LoginView({ next }: { next: string | null }) {
         <SkeletonList rows={3} />
       ) : (
         <Card className="flex flex-col gap-4">
-          <ConsentNotice locale={locale} value={consent} onChange={setConsent} disabled={busy} />
-          {providers.email ? <EmailOtpForm consent={consent} onSignedIn={done} /> : null}
+          {providers.email ? <EmailOtpForm consent={consent} onSignedIn={done} onNeedTerms={needTerms} /> : null}
           {providers.email && (providers.google || providers.demo) ? <p className="text-center text-small text-muted-foreground">{t("auth.or")}</p> : null}
           {providers.google ? (
             <Button
@@ -80,7 +87,7 @@ export function LoginView({ next }: { next: string | null }) {
               onClick={(e) => {
                 if (!consent.terms) {
                   e.preventDefault();
-                  setError(t("auth.needConsentLogin"));
+                  needTerms();
                 } else stashConsent(consent);
               }}
             >
@@ -95,10 +102,13 @@ export function LoginView({ next }: { next: string | null }) {
                 onError={(e) => setError(errorText(e, errors, t("auth.generic")))}
               />
             ) : (
-              <Button variant="secondary" block disabled onClick={() => setError(t("auth.needConsentLogin"))}>{t("auth.telegram")}</Button>
+              <Button variant="secondary" block aria-disabled onClick={needTerms}>{t("auth.telegram")}</Button>
             )
           ) : null}
           {providers.demo ? <Button variant="ghost" block loading={busy} onClick={demo}>{t("auth.demo")}</Button> : null}
+          {providers.email || providers.google || showTelegram ? (
+            <ConsentNotice compact locale={locale} value={consent} onChange={(c) => { setConsent(c); if (c.terms) setTermsInvalid(false); }} disabled={busy} invalid={termsInvalid && !consent.terms} termsRef={termsRef} />
+          ) : null}
           {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
           {!any ? <p className="text-small text-muted-foreground">{t("auth.none")}</p> : null}
         </Card>

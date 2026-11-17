@@ -1,7 +1,7 @@
 "use client"
 
 import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
-import { AmountText, Badge, Card, ProgressRing, StatTile, Text } from "@/components/ui"
+import { AmountText, Badge, Card, ProgressRing, StatTile, Text, type StatTileProps } from "@/components/ui"
 import type { PulseData } from "@/lib/core-api"
 
 const TONE = { calm: "positive", watch: "caution", risk: "negative" } as const
@@ -11,6 +11,13 @@ export function PulseHero({ pulse }: { pulse: PulseData }) {
   const metric = (key: string) => pulse.metrics.find((m) => m.key === key)?.value
   const ownerTake = metric("owner_take")
   const profit = metric("profit")
+  const optional: StatTileProps[] = [
+    { tint: "lavender", label: t("core.dash.ownerTake"), value: ownerTake ?? null },
+    { tint: "peach", label: t("core.dash.profit"), value: profit ?? null },
+    { tint: "rose", label: t("core.dash.taxReserved"), value: pulse.tax_reserved ?? null },
+    { tint: "butter", label: t("core.dash.cashDifference"), value: pulse.cash_difference ?? null },
+  ]
+  const tiles: StatTileProps[] = [{ tint: "sky", label: t("core.dash.balance"), value: pulse.balance }, ...optional.filter((tile) => tile.value != null)]
   return (
     <div className="flex flex-col gap-3">
       <Card tint="mint">
@@ -27,11 +34,9 @@ export function PulseHero({ pulse }: { pulse: PulseData }) {
         <Text variant="caption" tone="muted" className="mt-3">{t("core.dash.safeHint")}</Text>
       </Card>
       <div className="grid grid-cols-2 gap-3">
-        <StatTile tint="sky" label={t("core.dash.balance")} value={pulse.balance} />
-        {ownerTake != null ? <StatTile tint="lavender" label={t("core.dash.ownerTake")} value={ownerTake} /> : null}
-        {profit != null ? <StatTile tint="peach" label={t("core.dash.profit")} value={profit} /> : null}
-        {pulse.tax_reserved != null ? <StatTile tint="rose" label={t("core.dash.taxReserved")} value={pulse.tax_reserved} /> : null}
-        {pulse.cash_difference != null ? <StatTile tint="butter" label={t("core.dash.cashDifference")} value={pulse.cash_difference} /> : null}
+        {tiles.map((tile, i) => (
+          <StatTile key={tile.label} {...tile} className={i === 0 || (i === tiles.length - 1 && i % 2 === 1) ? "col-span-2" : undefined} />
+        ))}
       </div>
       <Text variant="secondary" tone="muted" className="px-1">
         {t("core.dash.runway", { count: pulse.runway_days })} · {t("core.dash.promises", { kept: String(pulse.promises.kept), total: String(pulse.promises.total) })}

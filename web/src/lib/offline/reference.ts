@@ -2,18 +2,30 @@ import type { Account } from "@/lib/types";
 
 // Счета кэшируются локально, чтобы экран быстрой записи работал без сети.
 const KEY = "oydin.quick.accounts";
+const keyFor = (businessId: number) => `${KEY}.${businessId}`;
 
-export function saveAccounts(accounts: Account[]) {
+/** Удаляет кэш счетов всех бизнесов (и старый общий ключ). */
+export function clearAccounts() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(accounts.map(({ id, name, kind, currency }) => ({ id, name, kind, currency }))));
+    Object.keys(localStorage)
+      .filter((k) => k === KEY || k.startsWith(`${KEY}.`))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* нет localStorage */
+  }
+}
+
+export function saveAccounts(businessId: number, accounts: Account[]) {
+  try {
+    localStorage.setItem(keyFor(businessId), JSON.stringify(accounts.map(({ id, name, kind, currency }) => ({ id, name, kind, currency }))));
   } catch {
     /* приватный режим / переполнение: работаем без кэша */
   }
 }
 
-export function loadAccounts(): Account[] {
+export function loadAccounts(businessId: number): Account[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(keyFor(businessId));
     return raw ? (JSON.parse(raw) as Account[]) : [];
   } catch {
     return [];

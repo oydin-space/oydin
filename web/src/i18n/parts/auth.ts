@@ -12,6 +12,9 @@ export const auth = {
     "auth.loadError": "Не удалось получить способы входа",
     "auth.demoUnavailable": "Демо сейчас недоступно.",
     "auth.needConsentLogin": "Отметьте согласие с условиями, чтобы войти.",
+    "auth.consent.accept": "Я принимаю",
+    "auth.consent.and": "и",
+    "auth.consent.optional": "Дополнительные настройки",
     "auth.generic": "Не получилось войти. Попробуйте ещё раз.",
 
     "auth.email.label": "Электронная почта",
@@ -69,6 +72,9 @@ export const auth = {
     "auth.loadError": "Kirish usullarini olib bo‘lmadi",
     "auth.demoUnavailable": "Demo hozircha mavjud emas.",
     "auth.needConsentLogin": "Kirish uchun shartlarga rozilik bering.",
+    "auth.consent.accept": "Men quyidagilarni qabul qilaman:",
+    "auth.consent.and": "va",
+    "auth.consent.optional": "Qo‘shimcha sozlamalar",
     "auth.generic": "Kirib bo‘lmadi. Qayta urinib ko‘ring.",
 
     "auth.email.label": "Elektron pochta",
@@ -126,6 +132,9 @@ export const auth = {
     "auth.loadError": "Could not load sign-in methods",
     "auth.demoUnavailable": "The demo is unavailable right now.",
     "auth.needConsentLogin": "Accept the terms to sign in.",
+    "auth.consent.accept": "I accept the",
+    "auth.consent.and": "and",
+    "auth.consent.optional": "Optional settings",
     "auth.generic": "Could not sign in. Please try again.",
 
     "auth.email.label": "Email",
