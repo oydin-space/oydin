@@ -58,6 +58,14 @@ def _call(action, payload):
 def _flag(name, default):
     value = _setting(name)
     return default if value in ("", None) else str(value).strip().lower() in ("1", "true", "yes", "on")
+    if value in ("", None):
+        return default
+    text = str(value).strip().lower()
+    if text in ("1", "true", "yes", "on"):
+        return True
+    if text in ("0", "false", "no", "off"):
+        return False
+    raise ImproperlyConfigured(f"{name}: неизвестное значение (ожидается 1/0, true/false, yes/no, on/off)")
 
 
 def required():
