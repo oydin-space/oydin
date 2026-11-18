@@ -65,6 +65,36 @@ components:
     To: { name: to, in: query, schema: { type: string, format: date } }
     Lang: { name: lang, in: query, schema: { $ref: '#/components/schemas/Locale' } }
   schemas:
+    Connector:
+      type: object
+      properties:
+        id: { type: integer }
+        kind: { type: string, enum: [mcp, rest] }
+        name: { type: string }
+        description: { type: string }
+        url: { type: string, description: 'MCP: адрес сервера; REST: шаблон с {param}' }
+        method: { type: string, enum: ['', GET, POST, PUT, PATCH, DELETE] }
+        params_schema: { type: object, additionalProperties: true }
+        auth_header: { type: string }
+        has_secret: { type: boolean }
+        tools: { type: array, items: { type: object, properties: { name: { type: string }, description: { type: string } } } }
+        enabled: { type: boolean }
+        last_test_ok: { type: [boolean, 'null'] }
+        last_test_error: { type: string }
+        last_test_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+    ConnectorInput:
+      type: object
+      properties:
+        kind: { type: string, enum: [mcp, rest], description: только при создании }
+        name: { type: string, maxLength: 60 }
+        description: { type: string, maxLength: 500, description: 'обязательно для REST' }
+        url: { type: string, maxLength: 500 }
+        method: { type: string, enum: [GET, POST, PUT, PATCH, DELETE] }
+        params_schema: { type: object, additionalProperties: true, description: 'JSON Schema type=object; каждый {плейсхолдер} URL — в properties' }
+        auth_header: { type: string, maxLength: 60 }
+        auth_secret: { type: string, writeOnly: true, description: Значение заголовка; шифруется, обратно не отдаётся }
+        enabled: { type: boolean }
     Error:
       type: object
       required: [error]
@@ -129,6 +159,18 @@ components:
         needs_onboarding: { type: boolean, description: true — нет ни одного членства }
         business: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Business' }] }
         businesses: { type: array, items: { $ref: '#/components/schemas/BusinessRef' } }
+    Invite:
+      type: object
+      required: [id, code, role, expires_at, max_uses, uses, status, created_at]
+      properties:
+        id: { type: integer }
+        code: { type: string, description: 'Секрет ссылки /join/{code}' }
+        role: { type: string, enum: [accountant, seller] }
+        expires_at: { type: string, format: date-time }
+        max_uses: { type: integer }
+        uses: { type: integer }
+        status: { type: string, enum: [active, expired, revoked, used_up] }
+        created_at: { type: string, format: date-time }
     Member:
       type: object
       required: [id, user_id, name, email, role, pending, created_at]
@@ -352,6 +394,16 @@ components:
         data:
           type: array
           items: { type: object, required: [label, value], properties: { label: { type: string }, value: { type: number } } }
+    MemoryFact:
+      type: object
+      required: [id, scope, text, source, created_at, updated_at]
+      properties:
+        id: { type: integer }
+        scope: { type: string, enum: [business, user] }
+        text: { type: string, maxLength: 300 }
+        source: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     AiReply:
       type: object
       required: [reply, suggestions, chart, draft, trace_id, fallback]
@@ -1055,6 +1107,68 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+  /businesses/{business_id}/invites/:
+    get:
+      summary: Ссылки-приглашения бизнеса
+      x-roles: [owner]
+      parameters: [{ $ref: '#/components/parameters/BusinessId' }]
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Invite' } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Создать ссылку-приглашение (400 invalid_role, invalid_max_uses, invalid_expires_in_hours; 429 rate_limited — 20 в час)
+      x-roles: [owner]
+      parameters: [{ $ref: '#/components/parameters/BusinessId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [accountant, seller] }
+                expires_in_hours: { type: integer, minimum: 1, maximum: 720, default: 168 }
+                max_uses: { type: integer, minimum: 1, maximum: 100, default: 1 }
+      responses:
+        '201': { description: Создано, content: { application/json: { schema: { $ref: '#/components/schemas/Invite' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /businesses/{business_id}/invites/{invite_id}/:
+    delete:
+      summary: Отозвать ссылку (идемпотентно)
+      x-roles: [owner]
+      parameters:
+        - { $ref: '#/components/parameters/BusinessId' }
+        - { name: invite_id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { $ref: '#/components/responses/NoContent' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /invites/{code}/:
+    get:
+      summary: Предпросмотр приглашения без входа (название бизнеса и роль; 404 not_found; 410 invite_expired|invite_revoked|invite_used_up)
+      security: []
+      parameters: [{ name: code, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { type: object, required: [business_name, role, expires_at], properties: { business_name: { type: string }, role: { type: string, enum: [accountant, seller] }, expires_at: { type: string, format: date-time } } } } }
+        '404': { $ref: '#/components/responses/Error' }
+        '410': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /invites/{code}/accept/:
+    post:
+      summary: Принять приглашение — членство создаётся, бизнес становится активным (уже участник: роль не меняется, использование не считается)
+      parameters: [{ name: code, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Me' } } } }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '410': { $ref: '#/components/responses/Error' }
   # ---------- Finance ----------
   /dashboard/pulse/:
     get:
@@ -1303,6 +1417,25 @@ paths:
         '403': { $ref: '#/components/responses/Error' }
         '502': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  /ai/memory/:
+    get:
+      summary: Память ИИ (факты о бизнесе и о пользователе)
+      description: Нужно согласие `ai` (403 ai_consent_required); seller → 403. Личные факты видит только их автор.
+      x-roles: [owner, accountant]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/MemoryFact' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+  /ai/memory/{id}/:
+    delete:
+      summary: Забыть факт памяти
+      description: Нужно согласие `ai`; чужой личный факт или факт другого бизнеса → 404
+      x-roles: [owner, accountant]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '204': { description: Удалено }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
   # ---------- Tools ----------
   /tools/:
     get:
@@ -2107,3 +2240,251 @@ paths:
         '400': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '503': { $ref: '#/components/responses/Error' }
+  # ---------- Connectors (Oydin для разработчиков) ----------
+  /connectors/:
+    get:
+      summary: Коннекторы бизнеса (MCP/REST); секрет не отдаётся, только has_secret
+      x-roles: [owner]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Connector' } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Создать коннектор. https-URL проходит SSRF-защиту (400 only_https, private_address, unresolvable_host, invalid_url, invalid_method, invalid_params_schema, invalid_kind; 409 connectors_limit)
+      x-roles: [owner]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ConnectorInput' } } }
+      responses:
+        '201': { description: Создан, content: { application/json: { schema: { $ref: '#/components/schemas/Connector' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /connectors/{id}/:
+    get:
+      summary: Коннектор
+      x-roles: [owner]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Connector' } } } }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      summary: Изменить (auth_secret "" снимает секрет; kind не меняется)
+      x-roles: [owner]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ConnectorInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Connector' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Удалить коннектор
+      x-roles: [owner]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  /connectors/{id}/test/:
+    post:
+      summary: Проверить. MCP — подключиться и обновить список инструментов; REST — вызвать обработчик с args. Сбой сети отдаётся как ok=false, не как 5xx
+      x-roles: [owner]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { args: { type: object, additionalProperties: true } } } } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  error: { type: string }
+                  result: { type: [object, 'null'], description: 'REST: {status, body}', additionalProperties: true }
+                  connector: { $ref: '#/components/schemas/Connector' }
+        '400': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /billing/plans/:
+    get:
+      summary: Тарифы (публично, без входа). Только активные, по order; кэш 5 минут
+      security: []
+      parameters:
+        - { name: lang, in: query, schema: { type: string, enum: [ru, uz, en] } }
+      responses:
+        '200':
+          description: OK
+          headers:
+            Cache-Control: { schema: { type: string }, description: 'public, max-age=300' }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plans:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code: { type: string }
+                        name: { type: string }
+                        tagline: { type: string }
+                        cta_note: { type: string }
+                        icon: { type: string, description: имя иконки lucide }
+                        price_uzs: { type: integer, description: '0 = бесплатно' }
+                        period: { type: string, example: month }
+                        popular: { type: boolean }
+                        image: { type: string, example: /pricing/pro.webp }
+                        features: { type: array, items: { type: string } }
+                        new_features: { type: array, items: { type: string } }
+                        missing: { type: array, items: { type: string } }
+                        limits: { type: array, items: { type: string } }
+  /billing/subscription/:
+    get:
+      summary: Подписка текущего бизнеса
+      x-roles: [owner, accountant, seller]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan: { type: string }
+                  status: { type: string, enum: [free, pending, active] }
+                  renews_at: { type: [string, 'null'], format: date-time }
+        '401': { $ref: '#/components/responses/Error' }
+  /billing/checkout/:
+    post:
+      summary: Начать оплату тарифа через Click. Без PAYMENTS_ENABLED/ключей Click — {available:false}
+      x-roles: [owner]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [plan], properties: { plan: { type: string } } } } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available: { type: boolean }
+                  url: { type: string, description: 'https://my.click.uz/services/pay?… (только при available=true)' }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /billing/click/prepare/:
+    post:
+      summary: Click SHOP API, шаг Prepare (action=0). Form-encoded, подпись md5 sign_string. Ответ — всегда 200 с кодом Click (0, -1 подпись, -2 сумма, -4 оплачен, -5 заказ не найден, -9 отменён)
+      security: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema: { type: object, properties: { click_trans_id: { type: string }, service_id: { type: string }, click_paydoc_id: { type: string }, merchant_trans_id: { type: string }, amount: { type: string }, action: { type: string }, error: { type: string }, error_note: { type: string }, sign_time: { type: string }, sign_string: { type: string } } }
+      responses:
+        '200':
+          description: '{click_trans_id, merchant_trans_id, merchant_prepare_id, error, error_note}'
+          content: { application/json: { schema: { type: object, additionalProperties: true } } }
+  /billing/click/complete/:
+    post:
+      summary: Click SHOP API, шаг Complete (action=1), идемпотентно (повтор → -4)
+      security: []
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema: { type: object, properties: { click_trans_id: { type: string }, service_id: { type: string }, merchant_trans_id: { type: string }, merchant_prepare_id: { type: string }, amount: { type: string }, action: { type: string }, error: { type: string }, sign_time: { type: string }, sign_string: { type: string } } }
+      responses:
+        '200':
+          description: '{click_trans_id, merchant_trans_id, merchant_confirm_id, error, error_note}'
+          content: { application/json: { schema: { type: object, additionalProperties: true } } }
+  /onboarding/state/:
+    get:
+      summary: Состояние обязательного онбординга (один раз для каждого пользователя). done=false → клиент ведёт на /onboarding
+      responses:
+        '200':
+          description: OnboardingState
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [done, step]
+                properties:
+                  done: { type: boolean }
+                  step: { type: string, nullable: true, enum: [consent, name, contact, business, activity, pains, goals, upload, invite, install, tour, summary] }
+                  steps: { type: object, additionalProperties: { type: string, enum: [pending, done, skipped, n/a] } }
+                  progress: { type: object, properties: { done: { type: integer }, total: { type: integer } } }
+                  role: { type: string, nullable: true, enum: [owner, accountant, seller] }
+                  ai_consent: { type: boolean }
+                  prefill: { type: object, additionalProperties: true, description: '{first_name,last_name,email,phone,telegram,channel,language,brief_time,business{id,name,segment}|null}' }
+                  answers: { type: object, additionalProperties: true }
+        '401': { $ref: '#/components/responses/Error' }
+  /onboarding/answer/:
+    post:
+      summary: Ответ на шаг. value по шагам — consent{ai,language?}, name{first_name,last_name?}, contact{phone?,telegram?,email?,channel?}, business{keep}|{lookup_id,index}|{name,inn?,legal_form?,city?,stage?}, activity{segment?,description?,channels?,team_size?,plan?}, pains/goals{tags,other?}, upload{source:import|zero,import_id?}, invite{invite_ids?}, install{installed}, tour{brief_time?}, summary{}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [step]
+              properties:
+                step: { type: string }
+                action: { type: string, enum: [submit, skip], default: submit }
+                value: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: OnboardingState (как /onboarding/state/), content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        '400': { description: 'invalid_step|invalid_action|invalid_value|step_required|step_not_applicable|business_required|steps_pending|demo_business|invalid_<поле>', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /onboarding/lookup/:
+    post:
+      summary: Поиск бизнеса по ИНН (9), ПИНФЛ (14) или названию. Сначала официальный источник (Didox, если настроен), затем открытый реестр orginfo.uz (скрейпинг). Кэш 90 дней, лимит 20/час
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [query], properties: { query: { type: string } } } } }
+      responses:
+        '200':
+          description: LookupResult
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lookup_id: { type: integer }
+                  kind: { type: string, enum: [inn, pinfl, name] }
+                  status: { type: string, enum: [found, multiple, not_found, unavailable] }
+                  source: { type: string, nullable: true }
+                  official: { type: boolean }
+                  fetched_at: { type: string, format: date-time }
+                  candidates:
+                    type: array
+                    items: { type: object, properties: { name: { type: string }, inn: { type: string }, legal_form: { type: string }, status: { type: string }, registered_at: { type: string }, address: { type: string }, director: { type: string }, oked: { type: string }, activity: { type: string } } }
+        '400': { description: invalid_query, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '429': { description: rate_limited, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /onboarding/message/:
+    post:
+      summary: Свободный ответ агенту онбординга. С ИИ (согласие + LLM) — инструменты get_context/lookup_company/save_profile/advance_onboarding/remember; без ИИ — эвристика и say_key
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [text], properties: { text: { type: string, maxLength: 1000 }, step: { type: string }, lang: { type: string, enum: [ru, uz, en] } } } } }
+      responses:
+        '200':
+          description: AgentReply
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  say: { type: string, nullable: true }
+                  say_key: { type: string, nullable: true, description: i18n-ключ onboarding.* для ответа без ИИ }
+                  lookup: { type: object, nullable: true, additionalProperties: true, description: LookupResult }
+                  state: { type: object, additionalProperties: true, description: OnboardingState }
+        '400': { description: 'invalid_text|invalid_step|demo_business', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /onboarding/context/:
+    get:
+      summary: Что Oydin запомнил (ai.memory.get_context) — для итога онбординга
+      responses:
+        '200':
+          description: '{user, memory[{id,scope,text}], business{name,inn,activity,plans,problems}|null}'
+          content: { application/json: { schema: { type: object, additionalProperties: true } } }
