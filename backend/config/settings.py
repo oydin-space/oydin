@@ -1,4 +1,6 @@
+import re
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode
 
 import environ
 
@@ -164,6 +166,12 @@ SENTRY_DSN = env("SENTRY_DSN", default="")
 SENTRY_SCRUB_KEYS = {"auth_secret", "init_data", "password", "code", "token", "secret"}
 
 
+def _scrub_qs(text, sep="&"):
+    pairs = parse_qsl(text, keep_blank_values=True, separator=sep)
+    out = [(k, "[Filtered]" if k.strip().lower() in SENTRY_SCRUB_KEYS else v) for k, v in pairs]
+    return urlencode(out) if sep == "&" else "; ".join(f"{k.strip()}={v}" for k, v in out)
+
+
 def _scrub(value):
     if isinstance(value, dict):
         return {k: "[Filtered]" if str(k).lower() in SENTRY_SCRUB_KEYS else _scrub(v) for k, v in value.items()}
@@ -172,12 +180,56 @@ def _scrub(value):
     return value
 
 
+_LONG_ID = re.compile(r"(?<=/)\d{9,14}(?=/|\?|#|$)")
+
+
+def _mask_ids(url):
+    return _LONG_ID.sub("[id]", url) if isinstance(url, str) else url
+
+
+def sentry_before_breadcrumb(crumb, hint):
+    data = crumb.get("data")
+    if isinstance(data, dict):
+        for k in ("url", "http.url", "from", "to"):
+            if k in data:
+                data[k] = _mask_ids(data[k])
+    if "message" in crumb:
+        crumb["message"] = _MASK_TEXT(crumb["message"])
+    return crumb
+
+
+def _MASK_TEXT(text):
+    return re.sub(r"(?<=/)\d{9,14}(?=[/?#\s\"']|$)", "[id]", text) if isinstance(text, str) else text
+
+
+def sentry_before_send_transaction(event, hint):
+    if "transaction" in event:
+        event["transaction"] = _mask_ids(event["transaction"])
+    request = event.get("request")
+    if isinstance(request, dict) and "url" in request:
+        request["url"] = _mask_ids(request["url"])
+    for span in event.get("spans") or []:
+        for k in ("description",):
+            if k in span:
+                span[k] = _MASK_TEXT(span[k])
+        data = span.get("data")
+        if isinstance(data, dict):
+            for k in ("url", "http.url"):
+                if k in data:
+                    data[k] = _mask_ids(data[k])
+    return sentry_before_send(event, hint)
+
+
 def sentry_before_send(event, hint):
     request = event.get("request")
     if isinstance(request, dict):
         for key in ("data", "query_string", "cookies"):
             if key in request:
-                request[key] = _scrub(request[key])
+                val = request[key]
+                if isinstance(val, str):
+                    request[key] = _scrub_qs(val, ";" if key == "cookies" else "&")
+                else:
+                    request[key] = _scrub(val)
     return event
 
 
@@ -194,6 +246,8 @@ if SENTRY_DSN:
             denylist=DEFAULT_DENYLIST + ["plain", "plaintext", "payload", "data", "headers", "kwargs", "user_key", "password_enc", "auth_secret_enc"],
         ),
         before_send=sentry_before_send,
+        before_send_transaction=sentry_before_send_transaction,
+        before_breadcrumb=sentry_before_breadcrumb,
         traces_sample_rate=0.1,
         environment="development" if DEBUG else "production",
     )

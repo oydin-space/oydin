@@ -11,6 +11,7 @@ import os
 
 import httpx
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
 from . import crypto
 
@@ -57,7 +58,6 @@ def _call(action, payload):
 
 def _flag(name, default):
     value = _setting(name)
-    return default if value in ("", None) else str(value).strip().lower() in ("1", "true", "yes", "on")
     if value in ("", None):
         return default
     text = str(value).strip().lower()

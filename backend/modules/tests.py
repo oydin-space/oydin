@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from django.core.management import call_command
 from django.test import TestCase
 
@@ -39,6 +42,17 @@ class ModulesApiTests(TestCase):
         r = jpost(self.client, "/api/modules/preset/", {"preset": "shop"})
         self.assertEqual((r.status_code, r.json()["error"]), (403, "demo_tenant"))
         self.assertEqual(self.client.get("/api/modules/").status_code, 200)
+
+    def test_usage_demo_write_forbidden(self):
+        Business.objects.filter(pk=self.biz.pk).update(is_demo=True)
+        r = jpost(self.client, "/api/widgets/usage/", {"key": "money_summary", "action": "open"})
+        self.assertEqual((r.status_code, r.json()["error"]), (403, "demo_tenant"))
+
+    def test_counts_aggregate(self):
+        for a in ("open", "open", "dismiss"):
+            UsageEvent.objects.create(business=self.biz, key="money_summary", action=a)
+        c = services._counts(self.biz, timezone.now() - timedelta(days=1))
+        self.assertEqual(c, {"money_summary": {"open": 2, "dismiss": 1}})
 
     def test_widgets_follow_modules(self):
         keys = {w["key"] for w in self.client.get("/api/widgets/").json()["widgets"]}

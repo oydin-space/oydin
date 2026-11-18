@@ -2,9 +2,11 @@ import json
 from datetime import timedelta
 
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 
 from accounts.http import ApiError
+from accounts.models import Business
 
 from . import catalog
 from .models import ModuleState, UsageEvent, WidgetConfig, WidgetProposal
@@ -52,6 +54,11 @@ def _current(business, key):
     return WidgetConfig.objects.filter(business=business, key=key, active=True).first()
 
 
+def _lock(business):
+    """Сериализует правки виджетов одного бизнеса; вызывать внутри transaction.atomic()."""
+    Business.objects.select_for_update().only("id").get(pk=business.pk)
+
+
 def _publish(business, key, spec, version):
     WidgetConfig.objects.filter(business=business, key=key, active=True).update(active=False)
     return WidgetConfig.objects.create(business=business, key=key, spec=spec, version=version, active=True)
@@ -60,9 +67,11 @@ def _publish(business, key, spec, version):
 def ensure_defaults(business):
     """Системные виджеты включённых модулей создаются при первом обращении (версия 1)."""
     state = module_map(business)
-    for key, (module, spec) in catalog.WIDGETS.items():
-        if state[module] and not WidgetConfig.objects.filter(business=business, key=key).exists():
-            _publish(business, key, dict(spec), 1)
+    with transaction.atomic():
+        _lock(business)
+        for key, (module, spec) in catalog.WIDGETS.items():
+            if state[module] and not WidgetConfig.objects.filter(business=business, key=key).exists():
+                _publish(business, key, dict(spec), 1)
 
 
 def serialize_widget(w):
@@ -103,6 +112,7 @@ def _latest_version(business, key):
 
 def decide(business, proposal_id, approve):
     with transaction.atomic():
+        _lock(business)
         p = WidgetProposal.objects.select_for_update().filter(pk=proposal_id, business=business).first()
         if p is None:
             raise ApiError(404, "Предложение не найдено")
@@ -122,6 +132,7 @@ def rollback(business, key, version):
     if isinstance(version, bool) or not isinstance(version, int):
         raise ApiError(400, "Нужен номер версии")
     with transaction.atomic():
+        _lock(business)
         old = WidgetConfig.objects.filter(business=business, key=key, version=version).first()
         if old is None:
             raise ApiError(404, "Версия не найдена")
@@ -131,9 +142,9 @@ def rollback(business, key, version):
 
 def _counts(business, since):
     out = {}
-    for key, action in UsageEvent.objects.filter(business=business, ts__gte=since).values_list("key", "action"):
-        out.setdefault(key, {}).setdefault(action, 0)
-        out[key][action] += 1
+    rows = UsageEvent.objects.filter(business=business, ts__gte=since).values("key", "action").annotate(n=Count("id"))
+    for r in rows:
+        out.setdefault(r["key"], {})[r["action"]] = r["n"]
     return out
 
 

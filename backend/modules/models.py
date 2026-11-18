@@ -22,7 +22,10 @@ class WidgetConfig(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        constraints = [models.UniqueConstraint(fields=["business", "key", "version"], name="uniq_widget_version")]
+        constraints = [
+            models.UniqueConstraint(fields=["business", "key", "version"], name="uniq_widget_version"),
+            models.UniqueConstraint(fields=["business", "key"], condition=models.Q(active=True), name="uniq_widget_active"),
+        ]
         ordering = ["key", "-version"]
 
 

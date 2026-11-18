@@ -1,5 +1,6 @@
 from accounts.access import OWNER, require_role
 from accounts.http import ApiError, api_view, json_response, parse_json
+from ai.views import throttle
 
 from . import services as svc
 from .models import WidgetProposal
@@ -36,6 +37,8 @@ def widgets(request):
 @api_view("POST")
 @require_role(OWNER)
 def usage(request):
+    _write_guard(request)
+    throttle(request.user, "module_usage", 120)
     body = parse_json(request)
     svc.record_usage(request.business, body.get("key"), body.get("action"))
     return json_response({"ok": True}, status=201)

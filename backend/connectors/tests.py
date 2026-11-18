@@ -349,6 +349,15 @@ def fake_vault(url, json=None, headers=None, **kwargs):
 
 @override_settings(DIDOX_PARTNER_TOKEN="partner")
 class VaultTests(TestCase):
+    def test_flag_rejects_unknown_value(self):
+        from django.core.exceptions import ImproperlyConfigured
+
+        with mock.patch.dict("os.environ", {"VAULT_REQUIRED": "treu"}), override_settings(VAULT_REQUIRED=""):
+            with self.assertRaises(ImproperlyConfigured):
+                vault.required()
+        with mock.patch.dict("os.environ", {"VAULT_REQUIRED": "0"}), override_settings(VAULT_REQUIRED=""):
+            self.assertFalse(vault.required())
+
     def test_falls_back_to_fernet_without_vault_addr(self):
         with override_settings(VAULT_ADDR=""), mock.patch.dict("os.environ", {"VAULT_ADDR": ""}), mock.patch("connectors.vault.httpx.post") as post:
             token = vault.encrypt("s3cret")
