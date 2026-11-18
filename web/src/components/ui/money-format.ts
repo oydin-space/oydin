@@ -9,10 +9,10 @@ export type MoneyMode = "exact" | "compact";
 const MINUS = "\u2212";
 const NBSP = "\u00a0";
 
-const WORDS: Record<MoneyLocale, { k: string; m: string; b: string; uzs: string; usd: string }> = {
-  ru: { k: "тыс.", m: "млн", b: "млрд", uzs: "сум", usd: "$" },
-  uz: { k: "ming", m: "mln", b: "mlrd", uzs: "soʻm", usd: "$" },
-  en: { k: "K", m: "M", b: "B", uzs: "UZS", usd: "$" },
+const WORDS: Record<MoneyLocale, { k: string; m: string; b: string; t: string; uzs: string; usd: string }> = {
+  ru: { k: "тыс.", m: "млн", b: "млрд", t: "трлн", uzs: "сум", usd: "$" },
+  uz: { k: "ming", m: "mln", b: "mlrd", t: "trln", uzs: "soʻm", usd: "$" },
+  en: { k: "K", m: "M", b: "B", t: "T", uzs: "UZS", usd: "$" },
 };
 
 const groupFmt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
@@ -36,11 +36,12 @@ function compactParts(major: number, loc: MoneyLocale): string {
     [1e3, w.k],
     [1e6, w.m],
     [1e9, w.b],
+    [1e12, w.t],
   ];
-  let idx = a >= 1e9 ? 2 : a >= 1e6 ? 1 : 0;
+  let idx = a >= 1e12 ? 3 : a >= 1e9 ? 2 : a >= 1e6 ? 1 : 0;
   let scaled = Math.round((a / units[idx][0]) * 10) / 10;
   // 999 950 → «1000 тыс.» → «1 млн»
-  while (scaled >= 1000 && idx < 2) {
+  while (scaled >= 1000 && idx < 3) {
     idx += 1;
     scaled = Math.round((a / units[idx][0]) * 10) / 10;
   }

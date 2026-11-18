@@ -8,7 +8,8 @@ export const ACT_TWO: readonly Step[] = ["install", "tour", "summary"];
 
 export const PAINS = ["cash_gaps", "debts", "taxes", "chaos", "stock", "pricing", "team", "growth"] as const;
 export const GOALS = ["see_profit", "collect_debts", "taxes_on_time", "save", "grow", "credit", "start"] as const;
-export const SEGMENTS = ["textile_print", "retail", "horeca", "marketplace_seller", "services", "other"] as const;
+export const ACTIVITIES = ["retail", "food", "clothing", "printing", "services", "beauty", "construction", "wholesale", "marketplace", "manufacturing", "education", "other"] as const;
+export const ACTIVITY_OTHER_MAX = 120;
 export const TEAM = ["solo", "2_5", "6_20", "20plus"] as const;
 export const LEGAL_FORMS = ["yatt", "llc", "self_employed", "family", "other"] as const;
 export const CHANNELS = ["app", "telegram", "email"] as const;

@@ -7,7 +7,7 @@ import type { ChatTurn, Transaction, TransactionInput, VoiceReply } from "@/lib/
 import type { ChatMessage } from "@/lib/use-chat";
 
 /** Сообщение экрана /app/chat: как в доке, плюс OpenUI-разметка ответа. */
-export type UiMessage = ChatMessage & { ui?: string | null; pending?: boolean };
+export type UiMessage = ChatMessage & { ui?: string | null; pending?: boolean; images?: string[] };
 
 /** Блокирующее состояние: нет согласия на ИИ или роль без доступа. */
 export type ChatBlock = "consent" | "forbidden" | null;
@@ -16,7 +16,7 @@ export interface UiChat {
   messages: UiMessage[];
   busy: boolean;
   block: ChatBlock;
-  send: (text: string) => Promise<void>;
+  send: (text: string, images?: string[]) => Promise<void>;
   sendVoice: (audio: Blob, listening: string) => Promise<void>;
   saveDraft: (id: string, input: TransactionInput) => Promise<boolean>;
   dismissDraft: (id: string) => void;
@@ -39,12 +39,12 @@ export function useUiChat(): UiChat {
   }, []);
 
   /** Общая обёртка запроса: занятость, блокировки 403, сообщение об ошибке. */
-  const run = useCallback(async (userText: string, request: (userId: string) => Promise<void>) => {
+  const run = useCallback(async (userText: string, request: (userId: string) => Promise<void>, images?: string[]) => {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
     const userId = `m${Date.now().toString(36)}${seq++}`;
-    setMessages((all) => [...all.map((m) => ({ ...m, suggestions: undefined })), { id: userId, role: "user", content: userText }]);
+    setMessages((all) => [...all.map((m) => ({ ...m, suggestions: undefined })), { id: userId, role: "user", content: userText, images }]);
     try {
       await request(userId);
     } catch (e) {
@@ -62,10 +62,10 @@ export function useUiChat(): UiChat {
   }, []);
 
   const ask = useCallback(
-    async (text: string) => {
+    async (text: string, images?: string[]) => {
       history.current = [...history.current, { role: "user" as const, content: text }].slice(-HISTORY);
       try {
-        const r = await post<AiReplyWithUi>("/ai/chat/", { messages: history.current });
+        const r = await post<AiReplyWithUi>("/ai/chat/", { messages: history.current, ...(images?.length ? { images } : {}) });
         history.current = [...history.current, { role: "assistant" as const, content: r.reply }].slice(-HISTORY);
         setMessages((all) => [
           ...all,
@@ -91,10 +91,10 @@ export function useUiChat(): UiChat {
   );
 
   const send = useCallback(
-    (text: string) => {
+    (text: string, images?: string[]) => {
       const content = text.trim();
       if (!content) return Promise.resolve();
-      return run(content, () => ask(content));
+      return run(content, () => ask(content, images), images?.length ? images : undefined);
     },
     [ask, run],
   );

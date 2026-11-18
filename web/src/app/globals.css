@@ -451,3 +451,30 @@ aside nav a[aria-current="page"] {
   .animate-shimmer, .animate-flower, .animate-kit-pulse { animation: none !important; }
   .press:active { transform: none !important; }
 }
+
+/* Horizontal scroller: no scrollbar, edges fade out. */
+@utility scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Vertical scroller: top/bottom edge fade. */
+@utility edge-fade-y {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+}
+
+/* No visible horizontal scrollbars app-wide. */
+.overflow-x-auto,
+.overflow-x-scroll {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

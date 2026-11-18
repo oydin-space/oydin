@@ -1,8 +1,6 @@
 import type { Metadata } from "next"
 import type { ReactNode } from "react"
-
-const BUILD = process.env.NEXT_PUBLIC_BUILD ?? process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GIT_SHA ?? ""
-const V = BUILD ? `?v=${BUILD.slice(0, 12)}` : ""
+import { V } from "@/components/landing/build-version"
 const STYLES = ["style", "v2", "review", "hero", "integration-grid", "lenis"]
 
 // SEO-тексты лендинга — на основном языке рынка; сам лендинг переключает язык на клиенте.
@@ -17,7 +15,7 @@ export default function LandingLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: "document.documentElement.dataset.theme='light'" }} />
-      <link rel="preload" as="image" href="/landing/assets/hero-phone-brief-2026-960.webp" />
+      <link rel="preload" as="image" href="/landing/assets/mockups/home-960.webp" />
       {STYLES.map((n) => (
         <link key={n} rel="stylesheet" href={`/landing/css/${n}.css${V}`} precedence="default" />
       ))}

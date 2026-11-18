@@ -9,6 +9,9 @@ import { cashPoints, isEmptyBusiness, todayIso, type ForecastResponse, type Puls
 import type { SavedTool } from "@/lib/tools-api"
 import type { Account, Insight, Transaction } from "@/lib/types"
 import { useApi } from "@/lib/use-api"
+import { ListenBrief } from "@/components/brief/listen-brief"
+import { UpcomingCard } from "@/components/brief/upcoming-card"
+import { useBriefData } from "@/components/brief/use-brief-data"
 import { BriefCards, BriefCardsSkeleton } from "./brief-cards"
 import { FirstSteps } from "./first-steps"
 import { InsightsSection } from "./insights-section"
@@ -24,6 +27,7 @@ export function Dashboard() {
   const forecast = useApi<ForecastResponse>("/forecast/?days=30")
   const recent = useApi<{ items: Transaction[] }>("/transactions/?limit=1")
   const tools = useApi<SavedTool[]>("/tools/")
+  const brief = useBriefData()
   const [sheet, setSheet] = useState<{ n: number; seed: EntrySeed } | null>(null)
   const open = (seed: EntrySeed = {}) => setSheet((s) => ({ n: (s?.n ?? 0) + 1, seed }))
 
@@ -60,9 +64,11 @@ export function Dashboard() {
     body = (
       <div className="flex flex-col gap-4">
         <PulseHero pulse={pulse.data!} />
+        <ListenBrief pulse={pulse.data!} payments={brief.payments} debtors={brief.debtors} />
         <QuickAdd onEntry={(direction) => open({ values: { direction } })} />
         <BriefCards pulse={pulse.data!} tools={pinned} />
         <div className="mt-2 flex flex-col gap-6">
+          <UpcomingCard payments={brief.payments} debtors={brief.debtors} />
           <PulseDetails pulse={pulse.data!} />
           {points.length ? (
             <Section icon="wallet" title={t("core.dash.cashTitle")}>

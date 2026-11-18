@@ -5,6 +5,10 @@ export const PRICING_MARKER = "<!--pricing-->"
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
 
+const priceHtml = (label: string) => {
+  const i = label.lastIndexOf(" / ")
+  return i < 0 ? esc(label) : `${esc(label.slice(0, i))}<small> / ${esc(label.slice(i + 3))}</small>`
+}
 // lucide paths (24x24, stroke).
 const PATHS = {
   check: '<path d="M20 6 9 17l-5-5"/>',
@@ -37,7 +41,7 @@ function card(plan: Plan, locale: PlanLocale): string {
   const ribbon = plan.popular ? `<span class="pr-ribbon">${svg("crown", 16)}${esc(t("billing.popular"))}</span>` : ""
   const note = plan.cta_note ? `<p class="pr-note">${esc(plan.cta_note)}</p>` : ""
   return `<article class="pr-card${plan.popular ? " is-popular" : ""}">${ribbon}
-<header><div><h3>${esc(plan.name)}</h3><p class="pr-price">${esc(priceLabel(locale, plan))}</p><p class="pr-tagline">${esc(plan.tagline)}</p></div>${svg(plan.icon, 28)}</header>
+<header><div><h3>${esc(plan.name)}</h3><p class="pr-price">${priceHtml(priceLabel(locale, plan))}</p><p class="pr-tagline">${esc(plan.tagline)}</p></div>${svg(plan.icon, 28)}</header>
 <img class="pr-art" src="${esc(plan.image)}" alt="" width="1200" height="900" loading="lazy" draggable="false">
 ${list(t("billing.section.new"), plan.new_features, "sparkles", "pr-new")}${list(t("billing.section.missing"), plan.missing, "x", "pr-missing")}${list(t("billing.section.limits"), plan.limits, "lock", "pr-limits")}${list(t("billing.section.included"), plan.features, "check", "pr-included")}
 <div class="pr-cta"><a class="button" href="${esc(buyHref(plan))}">${esc(free ? t("billing.ctaFree") : t("billing.ctaBuy"))}</a>${note}</div></article>`

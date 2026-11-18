@@ -1,6 +1,7 @@
 import { fetchPlans, type Plan } from "../billing/plans-api"
 import { type Locale } from "./copy"
 import { LandingScripts } from "./landing-scripts"
+import { Testimonials } from "./testimonials"
 import { LanguageSwitcher } from "./language-switcher"
 import { localize } from "./localize"
 import { manifesto, shell } from "./sections"
@@ -22,6 +23,7 @@ export async function LandingPage({ locale }: { locale: Locale }) {
     <>
       <div className="page-shell" dangerouslySetInnerHTML={{ __html: html }} />
       <div dangerouslySetInnerHTML={{ __html: localize(manifesto, locale) }} />
+      <Testimonials locale={locale} />
       <LanguageSwitcher locale={locale} />
       <LandingScripts locale={locale} />
     </>

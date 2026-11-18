@@ -1,19 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StickToBottom } from "use-stick-to-bottom";
-import { Bookmark, Settings, ThumbsDown, ThumbsUp, Wand2 } from "lucide-react";
+import { motion } from "motion/react";
+import { Bookmark, Camera, ImagePlus, Settings, ThumbsDown, ThumbsUp, Wand2 } from "lucide-react";
 import { PromptBar } from "@/components/ai-chat/prompt-bar";
 import { useSession } from "@/components/providers/session-provider";
-import { Button, Card, Chip, EmptyState, IconButton, Spinner, StatusBanner, Text, toast } from "@/components/ui";
+import { Button, Chip, EmptyState, IconButton, StatusBanner, Text, toast } from "@/components/ui";
 import { useApi } from "@/lib/use-api";
 import type { Account } from "@/lib/types";
 import { createTool } from "@/lib/tools-api";
+import { takePendingAttachment } from "@/lib/pending-attachment";
 import { recordVoice, voiceSupported } from "@/lib/voice";
 import { AnswerChart } from "./answer-chart";
 import { BuildUiSheet } from "./build-ui-sheet";
+import { TypingBubble } from "./chat-message";
+import { fileToDataUrl, pickImage } from "./image-attach";
 import { Logo } from "@/components/brand/logo";
 import { useChatT } from "./chat-t";
 import { DraftCard } from "./draft-card";
@@ -21,6 +25,12 @@ import { GenerativeUI } from "./generative-ui";
 import { RichText } from "./rich-text";
 import { useUiChat, type UiChat, type UiMessage } from "./use-ui-chat";
 
+const pop = { initial: { opacity: 0, scale: 0.9, y: 10 }, animate: { opacity: 1, scale: 1, y: 0 }, transition: { type: "spring", stiffness: 420, damping: 30, mass: 0.8 } } as const;
+const SOURCES = [
+  { key: "build", icon: Wand2, action: true },
+  { key: "photo", icon: Camera, attach: true },
+  { key: "image", icon: ImagePlus, attach: true },
+] as const;
 const STARTERS = ["chat.ui.p1", "chat.ui.p2", "chat.ui.p3", "chat.ui.p4"] as const;
 
 /** /app/chat: помощник с генеративным UI, голосом, оценкой ответов и сохранением калькуляторов. */
@@ -30,6 +40,26 @@ export function ChatView() {
   const chat = useUiChat();
   const accounts = useApi<{ items: Account[] }>(user?.role === "seller" ? null : "/accounts/");
   const [buildOpen, setBuildOpen] = useState(false);
+  const [inject, setInject] = useState<{ items: string[] }>();
+
+  const attachFile = useCallback(
+    async (file: File) => {
+      try {
+        return await fileToDataUrl(file);
+      } catch {
+        toast.error(t("chat.ui.imageFailed"));
+        return undefined;
+      }
+    },
+    [t],
+  );
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("attach") !== "1") return;
+    const pending = takePendingAttachment();
+    if (!pending) return;
+    void attachFile(pending.file).then((url) => url && setInject({ items: [url] }));
+  }, [attachFile]);
 
   if (user?.role === "seller" || chat.block === "forbidden") {
     return (
@@ -86,9 +116,9 @@ export function ChatView() {
           {chat.messages.map((m) => (
             <Message key={m.id} message={m} accounts={accounts.data?.items ?? []} chat={chat} />
           ))}
-          {chat.busy ? <Spinner variant="flower" size={36} className="self-start" /> : null}
+          {chat.busy ? <TypingBubble /> : null}
           {chips.length && !chat.busy ? (
-            <div className={chat.messages.length ? "flex flex-wrap gap-2" : "-mx-4 mt-auto flex gap-2 overflow-x-auto px-4 pb-1 [&>*]:shrink-0"}>
+            <div className={chat.messages.length ? "flex flex-wrap gap-2 pl-2" : "scroll-x -mx-4 mt-auto flex gap-2 px-4 pb-1 [&>*]:shrink-0"}>
               {chips.map((s) => (
                 <Chip key={s} disabled={consentOff} onSelect={() => void chat.send(s)}>
                   {s}
@@ -100,7 +130,6 @@ export function ChatView() {
       </StickToBottom>
       <div className="pb-0.5 pt-1">
         <div className="flex items-center gap-2">
-          <IconButton icon={Wand2} label={t("chat.build.open")} variant="ghost" disabled={consentOff} onClick={() => setBuildOpen(true)} />
           <PromptBar
             disabled={consentOff}
             background="var(--card)"
@@ -114,11 +143,23 @@ export function ChatView() {
               send: t("chat.send" as never),
               stop: t("chat.ui.stop"),
               dictate: t("chat.ui.dictate"),
+              add: t("chat.ui.add"),
+              remove: t("chat.ui.removeImage"),
               dictateStop: t("chat.ui.dictateStop"),
               listening: t("chat.ui.recording"),
             }}
             onDictate={onDictate}
-            onSend={(text) => void chat.send(text)}
+            sources={SOURCES.map((s) => ({ ...s, name: t(s.key === "build" ? "chat.build.open" : s.key === "photo" ? "chat.ui.photo" : "chat.ui.attachImage") }))}
+            inject={inject}
+            onAction={(key) => key === "build" && setBuildOpen(true)}
+            onAttach={async (key) => {
+              const file = await pickImage(key === "photo" ? "photo" : "screenshot");
+              return file ? attachFile(file) : undefined;
+            }}
+            onSend={(text, d) => {
+              const images = d.attachments.filter((a) => a.startsWith("data:image"));
+              void chat.send(text || (images.length ? t("chat.ui.photoDefault") : ""), images);
+            }}
           />
         </div>
         <Text variant="caption" tone="muted" className="mt-1 text-center">
@@ -136,11 +177,19 @@ function Message({ message: m, accounts, chat }: { message: UiMessage; accounts:
   const [saving, setSaving] = useState(false);
   if (m.role === "user") {
     return (
-      <div className="flex justify-end">
-        <Card tint="lavender" className="max-w-[85%] px-3.5 py-2">
-          <Text className="whitespace-pre-wrap">{m.content}</Text>
-        </Card>
-      </div>
+      <motion.div className="flex origin-bottom-right justify-end pr-2" {...pop}>
+        <div className="tail-r flex max-w-[82%] flex-col gap-2 rounded-[1.25rem] bg-lavender px-3.5 py-2">
+          {m.images?.length ? (
+            <div className="flex flex-wrap gap-2">
+              {m.images.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={src} alt="" className="max-h-40 rounded-xl object-cover" />
+              ))}
+            </div>
+          ) : null}
+          <p className="whitespace-pre-wrap text-[1rem] leading-snug">{m.content}</p>
+        </div>
+      </motion.div>
     );
   }
   if (m.error) {
@@ -160,12 +209,12 @@ function Message({ message: m, accounts, chat }: { message: UiMessage; accounts:
     }
   };
   return (
-    <div className="flex flex-col gap-2 sm:max-w-[92%]">
-      <Card className="px-3.5 py-2.5">
+    <motion.div className="flex origin-bottom-left flex-col gap-2 pl-2 sm:max-w-[92%]" {...pop}>
+      <div className="tail-l rounded-[1.25rem] bg-secondary px-3.5 py-2.5">
         <RichText>{m.content}</RichText>
         {m.chart && !m.ui ? <AnswerChart chart={m.chart} /> : null}
         {m.draft ? <DraftCard message={m} accounts={accounts} onSave={(i) => chat.saveDraft(m.id, i).catch(() => false)} onDismiss={() => chat.dismissDraft(m.id)} /> : null}
-      </Card>
+      </div>
       {m.ui ? <GenerativeUI key={m.ui} spec={m.ui} onAsk={(p) => void chat.send(p)} /> : null}
       <div className="flex items-center gap-1">
         {m.traceId ? (
@@ -192,6 +241,6 @@ function Message({ message: m, accounts, chat }: { message: UiMessage; accounts:
           </Button>
         ) : null}
       </div>
-    </div>
+    </motion.div>
   );
 }

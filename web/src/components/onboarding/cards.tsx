@@ -5,7 +5,7 @@ import { Building2, Check, Copy, Download, Home, ListOrdered, MessageCircle, Mic
 import { useLocale, useT, type Key, type TFunction } from "@/i18n";
 import { ApiError } from "@/lib/api";
 import { commitImport, MAX_UPLOAD_BYTES, uploadImport, type ImportJob } from "@/lib/settings-api";
-import { Badge, Button, Card, Chip, Input, LanguageSwitcher, PastelCard, SkeletonText, StatusBanner, Text, Textarea } from "@/components/ui";
+import { Badge, Button, Card, Chip, Input, LanguageSwitcher, PastelCard, SkeletonText, StatusBanner, Text } from "@/components/ui";
 import {
   CHANNELS,
   createInvite,
@@ -14,7 +14,8 @@ import {
   LEGAL_FORMS,
   lookupCompany,
   PAINS,
-  SEGMENTS,
+  ACTIVITIES,
+  ACTIVITY_OTHER_MAX,
   TEAM,
   type CompanyCandidate,
   type Invite,
@@ -380,11 +381,9 @@ const PLAN_FIELDS = [
 export function ActivityCard({ state, onSubmit, onSkip }: { state: OnboardingState; onSubmit: Submit; onSkip: () => Promise<void> }) {
   const t = useT();
   const idea = state.answers?.business?.stage === "idea";
-  const [segment, setSegment] = useState<(typeof SEGMENTS)[number][]>(
-    SEGMENTS.filter((s) => s === state.prefill?.business?.segment),
-  );
+  const [activities, setActivities] = useState<(typeof ACTIVITIES)[number][]>([]);
+  const [other, setOther] = useState("");
   const [team, setTeam] = useState<(typeof TEAM)[number][]>([]);
-  const [description, setDescription] = useState("");
   const [plan, setPlan] = useState<Record<string, string>>({});
   const { busy, error, run } = useAction();
   return (
@@ -395,23 +394,19 @@ export function ActivityCard({ state, onSubmit, onSkip }: { state: OnboardingSta
           e.preventDefault();
           void run(() =>
             onSubmit({
-              segment: segment[0] ?? "",
+              activities,
+              other: activities.includes("other") ? other.trim() : "",
               team_size: team[0] ?? "",
-              description,
               ...(idea && plan.price ? { plan: Object.fromEntries(Object.entries(plan).map(([k, v]) => [k, Number(v.replace(/\s/g, "")) || 0])) } : {}),
             }),
           );
         }}
       >
-        <ChipGroup label={t("onboarding.activity.segment")} options={SEGMENTS} value={segment} onChange={setSegment} labelOf={(s) => t(`onboarding.segment.${s}` as Key)} />
+        <ChipGroup label={t("onboarding.activity.segment")} options={ACTIVITIES} value={activities} onChange={setActivities} max={ACTIVITIES.length} labelOf={(s) => t(`onboarding.segment.${s}` as Key)} />
+        {activities.includes("other") ? (
+          <Input label={t("onboarding.activity.other")} value={other} maxLength={ACTIVITY_OTHER_MAX} onChange={(e) => setOther(e.target.value)} />
+        ) : null}
         <ChipGroup label={t("onboarding.activity.team")} options={TEAM} value={team} onChange={setTeam} labelOf={(s) => t(`onboarding.team.${s}` as Key)} />
-        <Textarea
-          label={t("onboarding.activity.description")}
-          hint={t("onboarding.activity.descriptionHint")}
-          value={description}
-          maxLength={300}
-          onChange={(e) => setDescription(e.target.value)}
-        />
         {idea ? (
           <PastelCard tone="lavender" title={t("onboarding.plan.title")} className="flex flex-col gap-3">
             {PLAN_FIELDS.map(([field, key]) => (
@@ -420,7 +415,7 @@ export function ActivityCard({ state, onSubmit, onSkip }: { state: OnboardingSta
           </PastelCard>
         ) : null}
         <Actions error={error}>
-          <Button type="submit" loading={busy}>
+          <Button type="submit" loading={busy} disabled={!activities.length || (activities.length === 1 && activities[0] === "other" && !other.trim())}>
             {t("onboarding.next")}
           </Button>
           <SkipButton onSkip={onSkip} busy={busy} />

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { words, type Locale } from "./copy"
+import { V } from "./build-version"
 
 const SCRIPTS = [
   "hero-mode", "smooth-scroll", "dialog", "navigation", "mobile-panel-motion", "app", "faq", "motion",
@@ -29,7 +30,7 @@ export function LandingScripts({ locale }: { locale: Locale }) {
       w.__oydinLoaded = true
       for (const name of SCRIPTS) {
         const s = document.createElement("script")
-        s.src = `/landing/js/${name}.js`
+        s.src = `/landing/js/${name}.js${V}`
         s.async = false
         document.body.appendChild(s)
         added.push(s)

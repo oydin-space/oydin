@@ -6,7 +6,7 @@ import { Send } from "lucide-react";
 import { useLocale, useT, type Key } from "@/i18n";
 import { Logo } from "@/components/brand/logo";
 import { useSession } from "@/components/providers/session-provider";
-import { Card, IconButton, Input, LanguageSwitcher, ProgressBar, SkeletonCard, SkeletonText, Text } from "@/components/ui";
+import { Card, IconButton, Input, ProgressBar, SkeletonCard, SkeletonText, Text } from "@/components/ui";
 import { ACT_TWO, getState, sendMessage, skipStep, STEPS, submitStep, type LookupResult, type OnboardingState, type Step } from "./api";
 import {
   ActivityCard,
@@ -143,7 +143,6 @@ export function OnboardingChat({ onUnavailable }: { onUnavailable: () => void })
         <div className="mx-auto flex w-full max-w-lg flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
             <Logo size={32} />
-            {step === "consent" ? null : <LanguageSwitcher />}
           </div>
           <Text variant="caption" tone="muted">
             {t(ACT_TWO.includes(step) ? "onboarding.act2" : "onboarding.act1")}

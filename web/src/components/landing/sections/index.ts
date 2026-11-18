@@ -4,7 +4,7 @@ import { intro } from './intro'
 import { features } from './features'
 import { integrations } from './integrations'
 import { split } from './split'
-import { stories } from './stories'
+import { testimonials } from './testimonials'
 import { setup } from './setup'
 import { faq } from './faq'
 import { cta } from './cta'
@@ -41,7 +41,7 @@ export const shell = [
   featuresIcons,
   withIcons(integrations, '>', 'plug'),
   split,
-  withIcons(stories, '>', 'messageCircle'),
+  withIcons(testimonials, '>', 'messageCircle'),
   withIcons(setup, '>', 'listChecks'),
   faqIcons,
   PRICING_MARKER,

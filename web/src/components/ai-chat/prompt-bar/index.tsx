@@ -9,6 +9,8 @@ export type PromptBarSource = {
   description?: string;
   icon?: ReactNode | object;
   attach?: boolean;
+  /** Не вложение: вызывает onAction(key). */
+  action?: boolean;
 };
 export type PromptBarCommand = { key: string; name: string; description?: string };
 export type PromptBarModel = { key: string; name: string; tag?: string };
@@ -37,11 +39,14 @@ export type PromptBarProps = {
     details: { attachments: string[]; model?: PromptBarModel; effort: string },
   ) => void;
   onStop?: () => void;
-  onAttach?: () => string | string[] | undefined | Promise<string | string[] | undefined>;
+  onAttach?: (key: string) => string | string[] | undefined | Promise<string | string[] | undefined>;
+  onAction?: (key: string) => void;
+  /** Добавляет вложения снаружи: новый объект = новая порция. */
+  inject?: { items: string[] };
   /** Enables the microphone button. Resolve with the dictated text. */
   /** Oydin: получает AbortSignal — он срабатывает, когда пользователь снова тапнул микрофон (стоп записи). */
   onDictate?: (stop: AbortSignal) => string | undefined | Promise<string | undefined>;
-  labels?: Partial<Record<"prompt" | "send" | "stop" | "effort" | "faster" | "smarter" | "dictate" | "dictateStop" | "listening", string>>;
+  labels?: Partial<Record<"prompt" | "send" | "stop" | "effort" | "faster" | "smarter" | "dictate" | "dictateStop" | "listening" | "add" | "remove", string>>;
   background?: string;
   color?: string;
   menuBackground?: string;

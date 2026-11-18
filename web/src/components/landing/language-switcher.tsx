@@ -1,38 +1,42 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import { SegmentedControl } from "@/components/ui/segmented-control"
+import { LanguagePicker } from "@/components/ui/language-picker"
 import { persistLocale } from "@/i18n/provider"
-import { LOCALES, LOCALE_LABELS } from "@/i18n/core"
 import type { Locale } from "./copy"
+import { applyLocaleInPlace } from "./localize-dom"
 
 /**
- * RU / UZ / EN inside both landing navs (`[data-lang-slot]` in the static markup).
- * The value comes from the server-resolved landing locale, not the app i18n provider,
- * so the control always matches the rendered copy (default RU without a cookie).
+ * Flag picker inside both landing navs (`[data-lang-slot]` in the static markup).
+ * Landing pages swap their text in place (no navigation, scroll untouched); pages without
+ * landing markup (legal) fall back to a server refresh.
  */
 export function LanguageSwitcher({ locale }: { locale: Locale }) {
   const router = useRouter()
   const [slots, setSlots] = useState<Element[]>([])
+  const [current, setCurrent] = useState<Locale>(locale)
+  const busy = useRef(false)
 
   useEffect(() => {
     const id = setTimeout(() => setSlots([...document.querySelectorAll("[data-lang-slot]")]), 0)
     return () => clearTimeout(id)
   }, [])
 
-  const control = (
-    <SegmentedControl<Locale>
-      label="Language"
-      className="w-auto shrink-0 p-0.5 [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:px-2 [&_button]:text-[13px]"
-      options={LOCALES.map((l) => ({ value: l, label: LOCALE_LABELS[l] }))}
-      value={locale}
-      onValueChange={(next) => {
-        persistLocale(next)
-        router.refresh() // re-renders the server copy; LandingScripts reloads to rebind the scripts
-      }}
-    />
-  )
+  const change = async (next: Locale) => {
+    if (next === current || busy.current) return
+    busy.current = true
+    persistLocale(next)
+    setCurrent(next)
+    try {
+      const swapped = document.querySelector(".page-shell") ? await applyLocaleInPlace(next) : false
+      if (!swapped) router.refresh()
+    } finally {
+      busy.current = false
+    }
+  }
+
+  const control = <LanguagePicker variant="pill" value={current} onChange={(l) => void change(l)} />
   return <>{slots.map((slot, i) => createPortal(control, slot, `lang-${i}`))}</>
 }

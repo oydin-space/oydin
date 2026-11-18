@@ -4,7 +4,8 @@ import { LogOut, Palette, Save, ScrollText, ShieldCheck, Store } from "lucide-re
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { Button, FeedbackNotice, Icon, Input, LanguageSwitcher, ListGroup, ListRow, PlainCard, SegmentedControl, Select, StatusBanner } from "@/components/ui";
+import { Button, FeedbackNotice, Icon, Input, LanguagePicker, ListGroup, ListRow, PlainCard, SegmentedControl, Select, StatusBanner } from "@/components/ui";
+import { useLocale } from "@/i18n";
 import { logout, type Segment } from "@/lib/auth-api";
 import { applyTheme, readTheme, type ThemeChoice, updateBusiness } from "@/lib/settings-api";
 import { useST } from "./use-st";
@@ -74,6 +75,7 @@ function BusinessForm({ id, initialName, demo }: { id: number; initialName: stri
 
 export function ProfileSection() {
   const { t } = useST();
+  const [locale, setLocale] = useLocale();
   const { user } = useSession();
   const router = useRouter();
   const [theme, setTheme] = useState<ThemeChoice>(readTheme);
@@ -100,7 +102,7 @@ export function ProfileSection() {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <span className="text-small font-medium">{t("settings.profile.language")}</span>
-            <LanguageSwitcher />
+            <LanguagePicker variant="menu" value={locale} onChange={setLocale} label={t("settings.profile.language")} />
           </div>
           <div className="flex flex-col gap-1.5">
             <span className="text-small font-medium">{t("settings.profile.theme")}</span>

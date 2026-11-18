@@ -23,7 +23,9 @@ const DEFAULT_LABELS = {
   smarter: 'Smarter',
   dictate: 'Voice input',
   dictateStop: 'Finish recording',
-  listening: 'Listening…'
+  listening: 'Listening…',
+  add: 'Add',
+  remove: 'Remove'
 };
 
 const mix = (a, b, t) => a + (b - a) * t;
@@ -108,6 +110,8 @@ export default function PromptBar({
   onSend,
   onStop,
   onAttach,
+  onAction,
+  inject,
   onDictate,
   labels = DEFAULT_LABELS,
   background = '#27272a',
@@ -137,11 +141,15 @@ export default function PromptBar({
   const dictation = useRef(0);
   const dictateAbort = useRef(null);
   const latest = useRef({});
-  latest.current = { onSend, onStop, onAttach, onDictate, onEffortChange };
+  latest.current = { onSend, onStop, onAttach, onAction, onDictate, onEffortChange };
   const text = { ...DEFAULT_LABELS, ...labels };
 
   const [draft, setDraft] = useState('');
   const [attachments, setAttachments] = useState([]);
+  // Oydin: внешний код (вложение из меню «+» дока) добавляет картинки; inject = { id, items }.
+  useEffect(() => {
+    if (inject?.items?.length) setAttachments(a => [...a, ...inject.items]);
+  }, [inject]);
   const [modelKey, setModelKey] = useState(defaultModel);
   const [plusOpen, setPlusOpen] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
@@ -170,7 +178,7 @@ export default function PromptBar({
   const model = models.find(m => m.key === modelKey) ?? models[0];
   const parsed = dismissed ? null : parseToken(draft);
   const token =
-    parsed && ((parsed.kind === 'at' && sources.length) || (parsed.kind === 'slash' && commands.length))
+    parsed && (parsed.kind === 'slash' && commands.length)
       ? parsed
       : null;
   const open = plusOpen ? 'at' : (token?.kind ?? (modelOpen ? 'model' : effortOpen ? 'effort' : null));
@@ -376,9 +384,11 @@ export default function PromptBar({
       return;
     }
     const head = token ? draft.slice(0, token.start) : draft;
-    if (row.attach) {
+    if (row.action) {
+      latest.current.onAction?.(row.key);
+    } else if (row.attach) {
       setDraft(head);
-      Promise.resolve(latest.current.onAttach?.()).then(files => {
+      Promise.resolve(latest.current.onAttach?.(row.key)).then(files => {
         if (!files) return;
         setAttachments(a => [...a, ...(Array.isArray(files) ? files : [files])]);
       });
@@ -578,13 +588,20 @@ export default function PromptBar({
         {attachments.length > 0 ? (
           <div className="prompt-bar__chips">
             {attachments.map((file, i) => (
-              <span key={`${file}-${i}`} className="prompt-bar__chip">
-                <File size={12} strokeWidth={2} />
-                <span className="prompt-bar__chip-name">{file}</span>
+              <span key={`${i}-${file.length}`} className={file.startsWith('data:image') ? 'prompt-bar__thumb' : 'prompt-bar__chip'}>
+                {file.startsWith('data:image') ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={file} alt="" className="prompt-bar__thumb-img" />
+                ) : (
+                  <>
+                    <File size={12} strokeWidth={2} />
+                    <span className="prompt-bar__chip-name">{file}</span>
+                  </>
+                )}
                 <button
                   type="button"
                   className="prompt-bar__chip-x"
-                  aria-label={`Remove ${file}`}
+                  aria-label={text.remove}
                   onClick={() => setAttachments(a => a.filter((_, j) => j !== i))}
                 >
                   <X size={10} strokeWidth={2.5} />
@@ -648,7 +665,7 @@ export default function PromptBar({
             <button
               type="button"
               className="prompt-bar__tool"
-              aria-label="Add files and sources"
+              aria-label={text.add}
               aria-expanded={plusOpen}
               data-on={plusOpen ? '' : undefined}
               onMouseDown={e => e.preventDefault()}
