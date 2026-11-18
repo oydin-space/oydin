@@ -6,6 +6,7 @@ urlpatterns = [
     path("decisions/afford/", views.afford),
     path("planning/afford/", views.afford),
     path("planning/split/", views.owner_split),
+    path("planning/today/", views.today_answer),
     path("cash-close/", views.cash_close),
     path("cash-close/expected/", views.cash_close_expected),
     path("cash-close/<int:id>/", views.cash_close_detail),

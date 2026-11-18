@@ -11,7 +11,7 @@ from finance import services as fin
 from finance.models import Account
 from finance.validation import MAX_AMOUNT, parse_amount, parse_date
 
-from . import owner_money, services as svc
+from . import owner_money, services as svc, today as today_plan
 from .texts import resolve_lang
 from .models import CashClose, Commitment, DebtorReminder, Goal, TaxReminder, TaxReserve
 
@@ -90,6 +90,26 @@ def owner_split(request):
             raise ApiError(400, "Доли «развитию» и «себе» в сумме дают 100")
         owner_money.save_split(request.business, *pcts)
     return json_response(owner_money.split(request.business))
+
+
+# ------------------------------------------------------------------ today
+
+@api_view("GET")
+@require_role(*FINANCE_READERS)
+def today_answer(request):
+    now = fin.today()
+    raw = request.GET.get("until")
+    if raw is None:
+        until, reason = today_plan.default_until(request.business, now)
+    else:
+        try:
+            until, reason = parse_date(raw), "param"
+        except ApiError:
+            raise ApiError(400, "invalid_until") from None
+        if not now < until <= now + timedelta(days=today_plan.MAX_DAYS):
+            raise ApiError(400, "invalid_until")
+    return json_response(today_plan.today_answer(request.business, until, reason, resolve_lang(request), now))
+
 
 
 # ------------------------------------------------------------------ cash close

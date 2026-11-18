@@ -72,6 +72,16 @@ T = {
         "uz": "Assalomu alaykum, {name}! {a} miqdoridagi qarz haqida eslatamiz (eng yaqin toʻlov muddati — {due}). Iltimos, toʻlovni qachon kutish mumkinligini ayting. Rahmat!",
         "en": "Hello, {name}! A friendly reminder about the outstanding {a} (nearest due date — {due}). Could you let us know when to expect the payment? Thank you!",
     },
+    "avg_sales": {
+        "ru": "Средние продажи (30 дней) × {n} дн.",
+        "uz": "Oʻrtacha savdo (30 kun) × {n} kun",
+        "en": "Average sales (30 days) × {n} d.",
+    },
+    "avg_spend": {
+        "ru": "Средние ежедневные расходы (30 дней) × {n} дн.",
+        "uz": "Oʻrtacha kundalik xarajatlar (30 kun) × {n} kun",
+        "en": "Average daily spending (30 days) × {n} d.",
+    },
 }
 
 

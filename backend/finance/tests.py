@@ -7,7 +7,7 @@ from accounts.models import Business, Profile
 from finance import services as svc
 from finance.domain.forecast import Flow, build_forecast, find_gap
 from finance.models import Account, Transaction
-from finance.seed import seed_demo
+from finance.seed import next_friday, seed_demo
 
 D = date(2026, 1, 1)
 
@@ -31,6 +31,7 @@ class DemoSeedTests(TestCase):
         pulse = svc.pulse(user.profile.business)
         self.assertIsNotNone(pulse["gap"])
         self.assertEqual(pulse["gap"]["amount"], 3_000_000)
+        self.assertEqual(pulse["gap"]["date"], next_friday(svc.today()).isoformat())
         self.assertGreater(pulse["balance"], 0)
 
 

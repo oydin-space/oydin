@@ -1,4 +1,4 @@
-"""Демо-данные «Print Lab Tashkent»: 90 дней истории и кассовый разрыв примерно на 3 млн в ближайшие недели."""
+"""Демо-данные «Print Lab Tashkent»: 90 дней истории и кассовый разрыв в ближайшую пятницу (зарплата + аванс + аренда)."""
 
 import random
 from datetime import timedelta
@@ -18,32 +18,24 @@ TARGET_GAP = 3_000_000
 SUPPLIER_STEP = 15
 
 
-def next_day_of_month(today, day):
-    """Ближайшая дата с этим числом месяца строго после today."""
-    year, month = today.year, today.month
-    for _ in range(3):
-        try:
-            candidate = today.replace(year=year, month=month, day=day)
-        except ValueError:
-            candidate = None
-        if candidate and candidate > today:
-            return candidate
-        month += 1
-        if month > 12:
-            year, month = year + 1, 1
-    raise ValueError(day)
+def next_friday(today):
+    """Ближайшая пятница строго после today (если сегодня пятница — следующая)."""
+    return today + timedelta(days=(4 - today.weekday()) % 7 or 7)
 
 
 def monthly_dates(upcoming, back_days, today):
-    """Даты ежемесячного платежа: ближайшая будущая и прошедшие в пределах back_days."""
+    """Даты ежемесячного платежа: ближайшая будущая и прошедшие в пределах back_days (число месяца ужато до 28)."""
     dates = [upcoming]
-    current = upcoming
+    day = min(upcoming.day, 28)
+    year, month = upcoming.year, upcoming.month
     while True:
-        previous = (current.replace(day=1) - timedelta(days=1)).replace(day=current.day) if current.day <= 28 else None
-        if previous is None or (today - previous).days > back_days:
+        month -= 1
+        if month == 0:
+            year, month = year - 1, 12
+        previous = upcoming.replace(year=year, month=month, day=day)
+        if (today - previous).days > back_days:
             break
         dates.append(previous)
-        current = previous
     return dates
 
 
@@ -54,6 +46,7 @@ def seed_demo():
     User.objects.filter(username=DEMO_USERNAME).delete()
     rng = random.Random(42)
     today = svc.today()
+    friday = next_friday(today)
 
     user = User.objects.create(username=DEMO_USERNAME, first_name="Алишер")
     user.set_unusable_password()
@@ -101,12 +94,13 @@ def seed_demo():
         if day.day == 25:
             tx(day, card, 900_000, "out", "Одежда", purpose="personal", note="Личная покупка")
 
-    # Регулярные платежи: прошедшие — оплаченные операции, ближайший — запланированный.
+    # Пятница: зарплата, аванс и аренда падают в один день. Прошедшие месяцы — оплаченные операции.
     schedule = [
-        ("Аренда помещения", "rent", "Аренда", 6_000_000, next_day_of_month(today, 5), "ООО «Тошкент Бизнес Центр»"),
-        ("Зарплата сотрудникам", "salary", "Зарплата", 15_000_000, next_day_of_month(today, 10), None),
-        ("Платёж по кредиту", "loan", "Кредит", 3_000_000, next_day_of_month(today, 15), "Банк"),
-        ("Налог (оборотный)", "tax", "Налоги", 1_100_000, next_day_of_month(today, 20), "Налоговая"),
+        ("Аренда помещения", "rent", "Аренда", 6_000_000, friday, "ООО «Тошкент Бизнес Центр»"),
+        ("Зарплата сотрудникам", "salary", "Зарплата", 15_000_000, friday, None),
+        ("Аванс", "salary", "Зарплата", 3_000_000, friday, None),
+        ("Платёж по кредиту", "loan", "Кредит", 3_000_000, friday + timedelta(days=10), "Банк"),
+        ("Налог (оборотный)", "tax", "Налоги", 1_100_000, friday + timedelta(days=14), "Налоговая"),
     ]
     obligations = []
     for title, kind, category, amount, upcoming, who in schedule:
@@ -116,16 +110,13 @@ def seed_demo():
             elif due >= start:
                 obligations.append(Obligation(business=business, title=title, kind=kind, amount=amount, due_date=due, status="paid"))
                 tx(due, bank, amount, "out", category, counterparty=who, note=title)
-    supplier_next = today + timedelta(days=8)
+    # Закупка заготовок под B2B-заказ уже оплачена: последняя — 5 дней назад, дальше раз в 15 дней.
     for k in range(0, 7):
-        due = supplier_next - timedelta(days=SUPPLIER_STEP * k)
+        due = today - timedelta(days=5 + SUPPLIER_STEP * k)
         if due < start:
             break
-        if due > today:
-            obligations.append(Obligation(business=business, title="Закупка заготовок", kind="supplier", amount=5_500_000, due_date=due))
-        else:
-            obligations.append(Obligation(business=business, title="Закупка заготовок", kind="supplier", amount=5_500_000, due_date=due, status="paid"))
-            tx(due, bank, 5_500_000, "out", "Поставщик", counterparty="Текстиль Опт", note="Футболки, кепки, шопперы")
+        obligations.append(Obligation(business=business, title="Закупка заготовок", kind="supplier", amount=5_500_000, due_date=due, status="paid"))
+        tx(due, bank, 5_500_000, "out", "Поставщик", counterparty="Текстиль Опт", note="Футболки, кепки, шопперы")
     Obligation.objects.bulk_create(obligations)
 
     # Заказы и товары.
@@ -139,7 +130,8 @@ def seed_demo():
         OrderItem.objects.bulk_create([OrderItem(order=o, product=pr, qty=q, price=p) for pr, q, p in lines])
         return o
 
-    order("ООО «Грин Тревел»", "b2b", "production", today + timedelta(days=24), 4_500_000, [(tee, 100, 150_000)])
+    # B2B-заказ: предоплата 50% получена, остаток 8 млн придёт уже после пятницы.
+    order("ООО «Грин Тревел»", "b2b", "production", friday + timedelta(days=5), 8_000_000, [(tee, 100, 160_000)])
     order("Школа №110", "b2b", "brief", today + timedelta(days=40), 0, [(shopper, 200, 40_000)])
     past = [
         ("Кафе «Чайхона №1»", "b2b", 38, [(shopper, 60, 45_000)]),
@@ -150,8 +142,8 @@ def seed_demo():
         due = today - timedelta(days=ago)
         o = order(client, channel, "paid", due, 0, lines)
         tx(due, bank, o.total, "in", "Оплата заказа", counterparty=client, note=f"Оплата заказа: {client}")
-    tx(today - timedelta(days=10), bank, 4_500_000, "in", "Предоплата заказа", counterparty="ООО «Грин Тревел»",
-       note="Предоплата 30% — 100 футболок")
+    tx(today - timedelta(days=10), bank, 8_000_000, "in", "Предоплата заказа", counterparty="ООО «Грин Тревел»",
+       note="Предоплата 50% — 100 футболок")
 
     # Черновики (голос/чат ещё не подтверждены).
     tx(today, cash, 60_000, "out", "Транспорт", purpose="unclear", note="Такси", status="draft", source="voice")
@@ -160,24 +152,21 @@ def seed_demo():
 
     Transaction.objects.bulk_create(txs)
 
-    # Остатки: счета не уходят в минус, а общий остаток подбирается так, чтобы разрыв был ~3 млн.
+    # Остатки: счета не уходят в минус, а остаток подбирается так, чтобы в пятницу не хватало ровно TARGET_GAP.
     for account, balance in svc.account_balances(business).items():
         if balance < 0:
             Account.objects.filter(pk=account).update(opening_balance=-balance)
     b = svc.bundle(business, 30, today)
-    low = min(p.balance for p in b.points)
+    low = min(p.balance for p in b.points if p.date <= friday)
     bank.refresh_from_db()
     Account.objects.filter(pk=bank.pk).update(opening_balance=bank.opening_balance - TARGET_GAP - low)
 
-    rent = next(o for o in obligations if o.kind == "rent" and o.status == "planned")
-    salary = next(o for o in obligations if o.kind == "salary" and o.status == "planned")
-    tax = next(o for o in obligations if o.kind == "tax" and o.status == "planned")
-    supplier = next(o for o in obligations if o.kind == "supplier" and o.status == "planned")
+    by_title = {o.title: o for o in obligations if o.status == "planned"}
+    rent, salary, tax = by_title["Аренда помещения"], by_title["Зарплата сотрудникам"], by_title["Налог (оборотный)"]
     Envelope.objects.bulk_create([
         Envelope(business=business, title="Аренда", target=rent.amount, saved=2_500_000, due_date=rent.due_date),
         Envelope(business=business, title="Зарплата", target=salary.amount, saved=4_000_000, due_date=salary.due_date),
         Envelope(business=business, title="Налог", target=tax.amount, saved=tax.amount, due_date=tax.due_date),
-        Envelope(business=business, title="Поставщик", target=supplier.amount, saved=0, due_date=supplier.due_date),
     ])
     seed_second_business(user, today)
     return user
