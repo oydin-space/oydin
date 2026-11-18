@@ -1,3 +1,4 @@
+Pitch deck for OYDIN project: [OYDIN.pdf](OYDIN.pdf)
 <p align="center">
   <img src="web/public/og.png" alt="Oydin" width="720">
 </p>
