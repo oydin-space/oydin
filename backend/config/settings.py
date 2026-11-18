@@ -42,6 +42,10 @@ INSTALLED_APPS = [
     "publicapi",
     "bot",
     "tools",
+    "connectors",
+    "onboarding",
+    "billing",
+    "adminx",
 ]
 
 MIDDLEWARE = [
@@ -138,6 +142,7 @@ DEMO_LOGIN = env.bool("DEMO_LOGIN", default=DEBUG)
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 LLM_BASE_URL = env("LLM_BASE_URL", default="https://openrouter.ai/api/v1")
 LLM_API_KEY = env("LLM_API_KEY", default="")
+EXA_API = env("EXA_API", default="")  # веб-поиск и исследование (Exa); пусто — инструменты web_search/research выключены
 LLM_MODEL = env("LLM_MODEL", default="google/gemini-3.1-flash-lite")
 LLM_CLASSIFY_MODEL = env("LLM_CLASSIFY_MODEL", default="google/gemini-3.1-flash-lite")  # черновики и классификация
 LLM_FALLBACK_MODEL = env("LLM_FALLBACK_MODEL", default="google/gemini-3.5-flash")
@@ -149,5 +154,23 @@ STT_MODEL = env("STT_MODEL", default="google/gemini-3.5-flash-lite")
 LANGFUSE_PUBLIC_KEY = env("LANGFUSE_PUBLIC_KEY", default="")
 LANGFUSE_SECRET_KEY = env("LANGFUSE_SECRET_KEY", default="")
 LANGFUSE_BASE_URL = env("LANGFUSE_BASE_URL", default="https://cloud.langfuse.com")
+# Ошибки уходят в self-hosted Bugsink (Sentry-совместимый); без DSN SDK не импортируется.
+SENTRY_DSN = env("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        send_default_pii=False,
+        traces_sample_rate=0.1,
+        environment="development" if DEBUG else "production",
+    )
 AI_CHAT_PER_MINUTE = env.int("AI_CHAT_PER_MINUTE", default=12)
 AI_VOICE_PER_MINUTE = env.int("AI_VOICE_PER_MINUTE", default=6)
+
+# Оплата тарифов через Click (SHOP API); без PAYMENTS_ENABLED и ключей checkout отвечает {"available": false}.
+PAYMENTS_ENABLED = env.bool("PAYMENTS_ENABLED", default=False)
+CLICK_SERVICE_ID = env("CLICK_SERVICE_ID", default="")
+CLICK_MERCHANT_ID = env("CLICK_MERCHANT_ID", default="")
+CLICK_MERCHANT_USER_ID = env("CLICK_MERCHANT_USER_ID", default="")
+CLICK_SECRET_KEY = env("CLICK_SECRET_KEY", default="")

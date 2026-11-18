@@ -4,6 +4,8 @@ from datetime import timedelta
 
 from finance import services as fin
 
+from . import exa, memory
+
 MAX_TOOL_ROUNDS = 3
 
 
@@ -74,3 +76,30 @@ def run_tool(business, name, args):
 
 
 TOOLS_HELP = "\n".join(f"- {name}: {desc}" for name, (_, desc) in TOOLS.items())
+
+
+# Инструменты с контекстом запроса (пользователь, роль, язык): память и веб-поиск.
+CONTEXT_TOOLS = {
+    "remember": (memory.tool_remember, 'scope: "business"|"user", text: короткий факт, который стоит помнить (только по просьбе или явно полезный)'),
+    "forget": (memory.tool_forget, "id: факт из памяти, который нужно забыть"),
+    "get_context": (memory.tool_get_context, "профиль пользователя и бизнеса и вся память"),
+    "web_search": (exa.tool_web_search, "query: поиск в интернете, вернёт ссылки; называй url источников"),
+    "research": (exa.tool_research, "query: исследование с готовым ответом и источниками; называй url"),
+}
+WEB_TOOLS = {"web_search", "research"}
+
+
+def available_context_tools():
+    return {n: e for n, e in CONTEXT_TOOLS.items() if n not in WEB_TOOLS or exa.is_enabled()}
+
+
+def tools_help():
+    lines = [TOOLS_HELP] + [f"- {name}: {desc}" for name, (_, desc) in available_context_tools().items()]
+    return "\n".join(lines)
+
+
+def run_context_tool(business, name, args, user, role, lang=None):
+    entry = available_context_tools().get(name)
+    if entry is None:
+        return {"error": f"нет инструмента {name}"}
+    return entry[0](business, args if isinstance(args, dict) else {}, user, role, lang)

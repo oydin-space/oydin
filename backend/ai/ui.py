@@ -433,3 +433,20 @@ def validate_tool(source):
 def input_names(source):
     root = parse(source)
     return {n["props"]["name"] for n in _walk(root) if n["type"] in INPUTS}
+
+
+def check(source, evidence=None, tool=False):
+    """(чистая строка, None) или (None, причина) — для обратной связи модели и ответа invalid_ui."""
+    if not isinstance(source, str) or not source.strip():
+        return None, "пустой OpenUI"
+    try:
+        root = parse(source)
+    except Invalid as exc:
+        return None, str(exc) or "ошибка синтаксиса"
+    except RecursionError:
+        return None, "слишком глубокая вложенность"
+    if tool and not any(n["type"] == "Calculator" for n in _walk(root)):
+        return None, "нужен хотя бы один Calculator"
+    if evidence is not None and not _grounded(root, evidence):
+        return None, "числа должны быть из данных"
+    return source.strip(), None

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import consent, views
+from . import consent, invites, views
 
 urlpatterns = [
     path("auth/csrf/", views.csrf),
@@ -22,4 +22,8 @@ urlpatterns = [
     path("businesses/<int:business_id>/switch/", views.business_switch),
     path("businesses/<int:business_id>/members/", views.members),
     path("businesses/<int:business_id>/members/<int:member_id>/", views.member_detail),
+    path("businesses/<int:business_id>/invites/", invites.invites),
+    path("businesses/<int:business_id>/invites/<int:invite_id>/", invites.invite_detail),
+    path("invites/<str:code>/", invites.invite_preview),
+    path("invites/<str:code>/accept/", invites.invite_accept),
 ]

@@ -1,0 +1,48 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+.ox-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.ox-card{background:#FFF8D6;border-radius:12px;padding:12px 16px}
+.ox-card b{display:block;font-size:26px}
+.ox-note{color:#666;font-size:12px}
+.ox-bar{background:#E8E1FF;border-radius:6px;height:18px}
+.ox-bar i{display:block;background:#FFD62C;height:18px;border-radius:6px}
+</style>
+<div class="ox-grid">
+  <div class="ox-card"><b>{{ users_total }}</b>пользователей</div>
+  <div class="ox-card"><b>{{ businesses_total }}</b>бизнесов</div>
+  <div class="ox-card"><b>{{ dau }}</b>DAU</div>
+  <div class="ox-card"><b>{{ wau }}</b>WAU</div>
+  <div class="ox-card"><b>{{ mau }}</b>MAU</div>
+</div>
+<p class="ox-note">DAU/WAU/MAU: уникальные пользователи с входом (last_login) или созданной операцией за 1/7/30 дней.</p>
+
+<h2>Регистрации за 30 дней ({{ signups_30d }})</h2>
+<svg viewBox="0 0 {{ signups_chart.width }} {{ signups_chart.height }}" width="100%" role="img" aria-label="Регистрации по дням">
+  {% for b in signups_chart.bars %}
+  <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" fill="#FFD62C"><title>{{ b.label }}: {{ b.value }}</title></rect>
+  {% if forloop.counter0|divisibleby:5 %}<text x="{{ b.x }}" y="{{ signups_chart.height }}" font-size="9" fill="#666">{{ b.label }}</text>{% endif %}
+  {% endfor %}
+</svg>
+
+<h2>Воронка онбординга</h2>
+<table>{% for label, n in funnel %}
+<tr><td style="width:220px">{{ label }}</td><td style="width:60px"><b>{{ n }}</b></td>
+<td><div class="ox-bar"><i style="width:{% widthratio n funnel_peak 100 %}%"></i></div></td></tr>{% endfor %}</table>
+
+<h2>ИИ: операции по источнику</h2>
+<table>
+<tr><th></th><th>Всего</th><th>30 дней</th></tr>
+<tr><td>Голос</td><td>{{ ai_voice_total }}</td><td>{{ ai_voice_30d }}</td></tr>
+<tr><td>Чат</td><td>{{ ai_chat_total }}</td><td>{{ ai_chat_30d }}</td></tr>
+</table>
+<p class="ox-note">Это операции, созданные голосом/чатом. Журнала вызовов LLM и токенов в базе нет, поэтому стоимость LLM по тенантам недоступна (трассы — в Langfuse, если настроен).</p>
+
+<h2>Прочее</h2>
+<ul>
+<li>Коннекторов: <b>{{ connectors_total }}</b></li>
+<li>Приглашений: <b>{{ invites_total }}</b> (активных {{ invites_active }}, использований {{ invites_used }}, отозвано {{ invites_revoked }})</li>
+<li><a href="{{ bugsink_url }}" target="_blank" rel="noopener">Bugsink (ошибки)</a></li>
+<li><a href="{{ docs_url }}" target="_blank" rel="noopener">Документация</a></li>
+</ul>
+{% endblock %}

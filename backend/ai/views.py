@@ -11,7 +11,7 @@ from accounts.models import Membership
 
 from tools import builtins
 
-from . import chat, lang, llm, observability, ui, voice
+from . import chat, lang, llm, memory, observability, ui, voice
 
 ROLES = {"user", "assistant"}
 MAX_MESSAGES = 20
@@ -61,7 +61,7 @@ def chat_view(request):
     require_ai(request)
     messages = check_messages(parse_json(request))
     throttle(request.user, "chat", settings.AI_CHAT_PER_MINUTE)
-    reply = chat.answer(request.business, request.user, messages)
+    reply = chat.answer(request.business, request.user, messages, request.role)
     observability.flush()
     return json_response(reply)
 
@@ -109,19 +109,26 @@ GENERATE_SYSTEM = """Ты собираешь калькулятор для вл�
 
 
 def _customise(prompt, base, business):
-    """Калькулятор от модели (title, spec) или None."""
+    """Калькулятор от модели: (title, spec) или (None, причина); None, если модель недоступна."""
     month = builtins._month(business)
     context = {"revenue_30d": month["revenue"], "expenses_30d": month["expenses"]}
     content = f"ДАННЫЕ: {json.dumps(context)}\nПРОСЬБА: {prompt}" + (f"\nОБРАЗЕЦ:\n{base['spec']}" if base else "")
-    try:
-        out = llm.complete(GENERATE_SYSTEM, [{"role": "user", "content": content}], temperature=0, name="tool")
-    except llm.AiUnavailable:
-        return None
-    spec = ui.validate_tool(out.get("ui")) if isinstance(out.get("ui"), str) else None
-    title = out.get("title")
-    if not spec:
-        return None
-    return {"title": title.strip()[:120] if isinstance(title, str) and title.strip() else (base or {}).get("title", "Калькулятор"), "spec": spec}
+    convo = [{"role": "user", "content": content}]
+    detail = "invalid"
+    for attempt in range(2):  # один повтор с причиной отказа
+        try:
+            out = llm.complete(GENERATE_SYSTEM, convo, temperature=0, name="tool")
+        except llm.AiUnavailable:
+            return None
+        spec, detail = ui.check(out.get("ui"), tool=True)
+        if spec:
+            title = out.get("title")
+            return {"title": title.strip()[:120] if isinstance(title, str) and title.strip() else (base or {}).get("title", "Калькулятор"), "spec": spec}
+        convo += [
+            {"role": "assistant", "content": json.dumps(out, ensure_ascii=False)},
+            {"role": "user", "content": "ui невалиден: " + detail + ". Верни исправленный JSON."},
+        ]
+    return {"invalid_ui": detail}
 
 
 @api_view("POST")
@@ -152,8 +159,27 @@ def tools_generate_view(request):
     if not llm.is_configured():
         raise ApiError(503, "ai_unavailable")
     made = _customise(prompt, base, request.business)
+    if made and "invalid_ui" in made:
+        if base:
+            return json_response(base)
+        return json_response({"error": "invalid_ui", "detail": made["invalid_ui"]}, status=400)
     if made:
         return json_response({"title": made["title"], "kind": kind, "spec": made["spec"]})
     if base:
         return json_response(base)
     raise ApiError(502, "ai_unavailable")
+
+
+@api_view("GET")
+def memory_list_view(request):
+    require_ai(request)
+    return json_response({"items": [memory.serialize(f) for f in memory.visible(request.business, request.user, request.role)]})
+
+
+@api_view("DELETE")
+def memory_delete_view(request, fact_id):
+    require_ai(request)
+    if not memory.visible(request.business, request.user, request.role).filter(id=fact_id).exists():
+        raise ApiError(404, "not_found")
+    memory.forget(request.business, request.user, request.role, fact_id)
+    return HttpResponse(status=204)

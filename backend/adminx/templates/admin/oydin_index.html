@@ -1,0 +1,5 @@
+{% extends "admin/index.html" %}
+{% block content %}
+<p><a class="button" href="{% url 'adminx_metrics' %}" style="padding:10px 16px;border-radius:10px;background:#FFD62C;color:#000">Метрики и дашборд оператора →</a></p>
+{{ block.super }}
+{% endblock %}

@@ -259,4 +259,4 @@ class ToolGenerateTests(TestCase):
             body = self.gen(prompt="маржа по кофе", kind="custom").json()
         self.assertEqual((body["kind"], body["spec"]), ("custom", spec))
         with patch("ai.views.llm.complete", return_value={"title": "Кофе", "ui": "root = Stack([x])\nx = Bad()"}):
-            self.assertEqual(self.gen(prompt="маржа по кофе", kind="custom").status_code, 502)
+            self.assertEqual(self.gen(prompt="маржа по кофе", kind="custom").status_code, 400)

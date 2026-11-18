@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p><a href="{% url 'admin:accounts_business_change' business.pk %}">← К бизнесу</a></p>
+<h2>Участники</h2>
+<ul>{% for m in members %}<li>{{ m.user.email|default:m.user.username }} — {{ m.role }}</li>{% empty %}<li>—</li>{% endfor %}</ul>
+<h2>Последние операции (100)</h2>
+<table>
+<tr><th>Дата</th><th>Счёт</th><th>Сумма</th><th>Тип</th><th>Категория</th><th>Контрагент</th><th>Источник</th><th>Кто</th></tr>
+{% for o in ops %}<tr><td>{{ o.date }}</td><td>{{ o.account.name }}</td><td>{{ o.amount }}</td><td>{{ o.direction }}</td><td>{{ o.category }}</td><td>{{ o.counterparty|default:"" }}</td><td>{{ o.source }}</td><td>{{ o.created_by.email|default:"" }}</td></tr>
+{% empty %}<tr><td colspan="8">Операций нет</td></tr>{% endfor %}
+</table>
+{% endblock %}

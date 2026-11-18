@@ -36,3 +36,22 @@ def download_file(file_id, *, timeout=30):
     path = info["file_path"].lower()
     mime = "image/png" if path.endswith(".png") else "image/webp" if path.endswith(".webp") else "image/jpeg"
     return response.content, mime
+
+
+def upload_profile_photo(png_bytes, *, timeout=30):
+    """setMyProfilePhoto: InputProfilePhotoStatic через multipart (attach://)."""
+    if not settings.TELEGRAM_BOT_TOKEN:
+        raise BotError(0, "token not configured")
+    try:
+        response = httpx.post(
+            f"{API}/bot{settings.TELEGRAM_BOT_TOKEN}/setMyProfilePhoto",
+            data={"photo": '{"type":"static","photo":"attach://avatar"}'},
+            files={"avatar": ("profile.png", png_bytes, "image/png")},
+            timeout=timeout,
+        )
+        data = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise BotError(0, type(exc).__name__) from None
+    if not data.get("ok"):
+        raise BotError(data.get("error_code", response.status_code), data.get("description", ""))
+    return data["result"]

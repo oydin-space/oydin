@@ -129,3 +129,20 @@ class ConsentEvent(models.Model):
 
     class Meta:
         ordering = ["id"]
+
+
+class Invite(models.Model):
+    """Ссылка-приглашение в бизнес: роль, срок, лимит использований; отзывается владельцем."""
+
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name="invites")
+    code = models.CharField(max_length=64, unique=True)
+    role = models.CharField(max_length=12, choices=Membership.Role)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    expires_at = models.DateTimeField()
+    max_uses = models.PositiveIntegerField(default=1)
+    uses = models.PositiveIntegerField(default=0)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-id"]

@@ -8,6 +8,13 @@ from finance.models import Account
 from .access import active_membership, get_profile
 from .models import Business, Membership, Profile
 
+
+def onboarding_done(user):
+    from onboarding.flow import is_done  # onboarding зависит от accounts: импорт внутри
+
+    return is_done(user)
+
+
 User = get_user_model()
 DEMO_USERNAME = "demo"
 DEFAULT_ACCOUNTS = (("Наличные", Account.Kind.CASH), ("Карта", Account.Kind.CARD), ("Расчётный счёт", Account.Kind.BANK))
@@ -42,6 +49,7 @@ def serialize_user(user):
         "role": membership.role if membership else None,
         "active_business_id": membership.business_id if membership else None,
         "needs_onboarding": membership is None,
+        "onboarding_done": onboarding_done(user),
         "business": serialize_business(membership.business) if membership else None,
         "businesses": [
             {"id": m.business_id, "name": m.business.name, "role": m.role, "is_demo": m.business.is_demo,
