@@ -98,8 +98,9 @@ jobs:
 
       - name: Ship compose files
         run: |
-          ssh deploy 'mkdir -p ~/oydin/docs-site'
+          ssh deploy 'mkdir -p ~/oydin/docs-site ~/oydin/vault'
           scp -q deploy/compose.yaml deploy/Caddyfile deploy/ensure-env.sh deploy:oydin/
+          scp -q deploy/vault/vault.hcl deploy/vault/oydin-app.hcl deploy:oydin/vault/
           scp -q -r docs-site/. deploy:oydin/docs-site/
 
       - name: Pull images, switch, migrate
