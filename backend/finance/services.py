@@ -9,6 +9,8 @@ from django.db.models import Q, Sum
 from django.db.models.functions import Greatest
 from django.utils import timezone
 
+from accounts.http import ApiError
+
 from .domain import forecast as fc
 from .domain import pulse as pl
 from .domain.categories import OBLIGATION_CATEGORIES, ORDER_INCOME_CATEGORIES
@@ -290,6 +292,8 @@ def analytics(business, period, now=None):
 
 def search_transactions(qs, q):
     """Поиск по заметке/контрагенту/категории: подстрока или триграммное сходство слов (терпит опечатки)."""
+    if "\x00" in q:
+        raise ApiError(400, "Нулевой символ в запросе недопустим")
     q = q.strip()
     if not q:
         return qs

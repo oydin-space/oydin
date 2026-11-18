@@ -21,6 +21,16 @@ def json_response(data, status=200):
     return JsonResponse(data, status=status, safe=False, json_dumps_params={"ensure_ascii": False})
 
 
+def _has_nul(value):
+    if isinstance(value, str):
+        return "\x00" in value
+    if isinstance(value, dict):
+        return any(_has_nul(k) or _has_nul(v) for k, v in value.items())
+    if isinstance(value, list):
+        return any(_has_nul(v) for v in value)
+    return False
+
+
 def parse_json(request, *, required=True):
     if request.method in ("POST", "PUT", "PATCH") and request.body and request.content_type != "application/json":
         raise ApiError(415, "unsupported_media_type")
@@ -34,6 +44,8 @@ def parse_json(request, *, required=True):
         raise ApiError(400, "Некорректный JSON") from None
     if not isinstance(body, dict):
         raise ApiError(400, "Тело запроса должно быть объектом JSON")
+    if _has_nul(body):
+        raise ApiError(400, "Нулевой символ в тексте недопустим")
     return body
 
 

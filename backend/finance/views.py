@@ -1,3 +1,4 @@
+from django.db import transaction as db_transaction
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
@@ -122,12 +123,13 @@ def transactions(request):
         fields = transaction_fields(body, business, partial=False)
         _owner_purpose_only(request, fields)
         fields.setdefault("date", timezone.localdate())
-        tx = Transaction.objects.create(
-            business=business, status=Transaction.Status.CONFIRMED, source=Transaction.Source.MANUAL,
-            created_by=request.user, **fields
-        )
-        if request.role != SELLER:
-            tx = svc.merge_transfer(tx)
+        with db_transaction.atomic():
+            tx = Transaction.objects.create(
+                business=business, status=Transaction.Status.CONFIRMED, source=Transaction.Source.MANUAL,
+                created_by=request.user, **fields
+            )
+            if request.role != SELLER:
+                tx = svc.merge_transfer(tx)
         emit("transaction.created", tx)
         return json_response(svc.serialize_transaction(tx, resolve_lang(request)), status=201)
     qs = own_transactions(request)
@@ -168,7 +170,8 @@ def transaction_detail(request, id):
     if "status" in body and not confirming:
         tx.status = body["status"]
     if confirming:
-        tx = svc.confirm_draft(tx, merge=request.role != SELLER)
+        with db_transaction.atomic():
+            tx = svc.confirm_draft(tx, merge=request.role != SELLER)
     else:
         tx.save()
     return json_response(svc.serialize_transaction(tx, resolve_lang(request)))
@@ -184,7 +187,7 @@ def obligations(request):
         if not isinstance(title, str) or not title.strip():
             raise ApiError(400, "Нужно название")
         kind = body.get("kind")
-        if kind not in OBLIGATION_KINDS:
+        if not isinstance(kind, str) or kind not in OBLIGATION_KINDS:
             raise ApiError(400, "Неизвестный вид обязательства")
         obligation = Obligation.objects.create(
             business=business, title=title.strip()[:200], kind=kind,

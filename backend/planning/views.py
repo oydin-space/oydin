@@ -18,10 +18,18 @@ from .models import CashClose, Commitment, DebtorReminder, Goal, TaxReminder, Ta
 PERCENT_RE = re.compile(r"^[0-9]{1,2}(\.[0-9]{1,2})?$")
 
 
+ENTITY_NOT_FOUND = {
+    "Сверка": "Сверка не найдена",
+    "Напоминание": "Напоминание не найдено",
+    "Цель": "Цель не найдена",
+    "Платёж": "Платёж не найден",
+}
+
+
 def get_or_404(model, request, id, label):
     obj = model.objects.filter(pk=id, business=request.business).first()
     if obj is None:
-        raise ApiError(404, f"{label} не найден")
+        raise ApiError(404, ENTITY_NOT_FOUND.get(label, f"{label} не найден"))
     return obj
 
 
@@ -38,7 +46,7 @@ def text_field(value, label, limit, required=True):
 
 
 def choice(value, options, label):
-    if value not in options:
+    if not isinstance(value, str) or value not in options:
         raise ApiError(400, f"{label}: {', '.join(options)}")
     return value
 

@@ -358,11 +358,14 @@ def serialize_commitment(c, now=None):
 
 def confirm_commitment(c, user):
     """Подтверждение человеком: черновик операции на next_date, дальше срок сдвигается. Баланс не меняется до подтверждения черновика."""
-    tx = Transaction.objects.create(
-        business=c.business, account=c.account, date=c.next_date, amount=c.amount, direction=c.direction,
-        category=c.category, note=c.title, status=Transaction.Status.DRAFT, source=Transaction.Source.MANUAL,
-        created_by=user,
-    )
-    c.next_date = next_occurrence(c.next_date, c.frequency)
-    c.save(update_fields=["next_date"])
+    from django.db import transaction as db_tx
+
+    with db_tx.atomic():
+        tx = Transaction.objects.create(
+            business=c.business, account=c.account, date=c.next_date, amount=c.amount, direction=c.direction,
+            category=c.category, note=c.title, status=Transaction.Status.DRAFT, source=Transaction.Source.MANUAL,
+            created_by=user,
+        )
+        c.next_date = next_occurrence(c.next_date, c.frequency)
+        c.save(update_fields=["next_date"])
     return tx

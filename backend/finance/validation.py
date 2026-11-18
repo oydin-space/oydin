@@ -10,11 +10,19 @@ PURPOSES = {c for c, _ in Transaction.Purpose.choices}
 MAX_AMOUNT = 10**13
 
 
+MIN_DATE = date(2000, 1, 1)
+MAX_DATE = date(2100, 12, 31)
+MAX_NOTE = 1000
+
+
 def parse_date(value):
     try:
-        return date.fromisoformat(value)
+        parsed = date.fromisoformat(value)
     except (TypeError, ValueError):
-        raise ApiError(400, "Дата должна быть в формате ГГГГ-ММ-ДД") from None
+        raise ApiError(400, "invalid_date") from None
+    if not MIN_DATE <= parsed <= MAX_DATE:
+        raise ApiError(400, "invalid_date")
+    return parsed
 
 
 def parse_amount(value, label="Сумма"):
@@ -62,8 +70,8 @@ def transaction_fields(body, business, *, partial, instance=None):
             raise ApiError(400, "Некорректный контрагент")
         fields["counterparty"] = value or None
     if "note" in body:
-        if not isinstance(body["note"], str):
-            raise ApiError(400, "Заметка должна быть строкой")
+        if not isinstance(body["note"], str) or len(body["note"]) > MAX_NOTE:
+            raise ApiError(400, "Заметка должна быть строкой до 1000 символов")
         fields["note"] = body["note"]
     if "to_account_id" in body:
         target = body["to_account_id"]
