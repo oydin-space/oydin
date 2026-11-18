@@ -60,8 +60,8 @@ export function Dashboard() {
     body = (
       <div className="flex flex-col gap-4">
         <PulseHero pulse={pulse.data!} />
+        <QuickAdd onEntry={(direction) => open({ values: { direction } })} />
         <BriefCards pulse={pulse.data!} tools={pinned} />
-        <QuickAdd onDraft={(draft) => open({ values: draft })} onManual={() => open()} />
         <div className="mt-2 flex flex-col gap-6">
           <PulseDetails pulse={pulse.data!} />
           {points.length ? (

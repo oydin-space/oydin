@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { AnswerChart } from "./answer-chart";
 import { DraftCard } from "./draft-card";
 import { RichText } from "./rich-text";
+import { ToolResults } from "./tool-results";
 import { useT } from "@/i18n";
 
 const pop = { initial: { opacity: 0, scale: 0.9, y: 10 }, animate: { opacity: 1, scale: 1, y: 0 }, transition: { type: "spring", stiffness: 420, damping: 30, mass: 0.8 } } as const;
@@ -39,6 +40,7 @@ export function ChatBubble({
       <div className={cn("tail-l max-w-[92%] rounded-[1.25rem] bg-secondary px-3.5 py-2.5 sm:max-w-[85%]", message.error && "bg-peach")}>
         {message.error ? <Icon icon={AlertTriangle} size={16} className="mb-1" /> : null}
         <RichText>{message.content}</RichText>
+        {message.tools?.length ? <ToolResults tools={message.tools} /> : null}
         {message.chart ? <AnswerChart chart={message.chart} /> : null}
         {message.draft ? (
           <DraftCard message={message} accounts={accounts} onSave={(i) => onSave(message.id, i)} onDismiss={() => onDismiss(message.id)} />

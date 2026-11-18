@@ -79,6 +79,7 @@ export function useUiChat(): UiChat {
             draftState: r.draft ? "pending" : undefined,
             suggestions: r.suggestions,
             traceId: r.trace_id,
+            tools: r.tools_used,
           },
         ]);
       } catch (e) {

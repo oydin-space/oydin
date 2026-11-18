@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { PageHeader, PlainCard, StatusBanner } from "@/components/ui";
+import { PAGE_WIDTH, PageHeader, PlainCard, StatusBanner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { loadAccounts, saveAccounts } from "@/lib/offline/reference";
 import { currentScope } from "@/lib/offline/scope";
@@ -34,7 +34,7 @@ export function QuickView() {
   }, [q.online, businessId]);
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-5 pb-24">
+    <div className={`${PAGE_WIDTH} flex flex-col gap-5 pb-24`}>
       <PageHeader title={t("offline.title")} hint={t("offline.hint")} />
       {!q.online ? <StatusBanner kind="warning" title={t("offline.banner.offline")}>{t("offline.banner.offlineHint")}</StatusBanner> : null}
       {q.unauthorized ? <StatusBanner kind="info" title={t("offline.unauthorized")} /> : null}

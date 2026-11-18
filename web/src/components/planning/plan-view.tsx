@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Calculator, CalendarRange, ClipboardCheck, HandCoins, Landmark, Repeat, Target, type LucideIcon } from "lucide-react";
-import { EmptyState, Icon, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
+import { EmptyState, Icon, PAGE_WIDTH, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { useSession } from "@/components/providers/session-provider";
 import { AffordPanel } from "./afford-panel";
 import { ClosePanel } from "./close-panel";
@@ -40,16 +40,16 @@ export function PlanView() {
   const role = user?.role;
   if (role === "seller") {
     return (
-      <>
+      <div className={`${PAGE_WIDTH} flex flex-col gap-4 pb-6`}>
         <PageHeader title={t("page.title")} />
         <EmptyState title={t("forbidden.title")} hint={t("forbidden.hint")} />
-      </>
+      </div>
     );
   }
   const owner = role === "owner";
 
   return (
-    <>
+    <div className={`${PAGE_WIDTH} flex flex-col gap-4 pb-6`}>
       <PageHeader title={t("page.title")} hint={t("page.hint")} />
       <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-4">
         <TabsList>
@@ -70,6 +70,6 @@ export function PlanView() {
         <TabsContent value="commitments">{tab === "commitments" ? <CommitmentsPanel /> : null}</TabsContent>
         <TabsContent value="season">{tab === "season" ? <SeasonPanel /> : null}</TabsContent>
       </Tabs>
-    </>
+    </div>
   );
 }

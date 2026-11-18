@@ -14,6 +14,7 @@ export interface ChatMessage {
   draftState?: "pending" | "saving" | "saved" | "dismissed";
   suggestions?: string[];
   traceId?: string | null;
+  tools?: string[];
   feedback?: 0 | 1;
   error?: boolean;
 }

@@ -171,6 +171,7 @@ export interface AiReply {
   chart?: Chart | null;
   draft?: TransactionInput | null;
   trace_id: string | null;
+  tools_used?: string[];
   fallback?: boolean;
 }
 export interface VoiceReply {
