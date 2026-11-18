@@ -19,5 +19,5 @@ done
 
 ssh "$REMOTE" 'mkdir -p ~/oydin'
 scp -q deploy/compose.yaml deploy/Caddyfile "$REMOTE:oydin/"
-ssh "$REMOTE" 'cd ~/oydin && docker compose up -d --remove-orphans --wait && docker image prune -f >/dev/null'
+ssh "$REMOTE" 'cd ~/oydin && docker compose up -d --remove-orphans --wait && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile && docker image prune -f >/dev/null'
 curl -fsS --retry 10 --retry-delay 3 --retry-connrefused "$URL/api/health/" && echo

@@ -116,6 +116,8 @@ jobs:
           done
           cd ~/oydin
           docker compose up -d --remove-orphans --wait
+          # Caddyfile смонтирован файлом: compose up его не перечитывает.
+          docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
           docker compose exec -T api python manage.py migrate --noinput
           docker image prune -f >/dev/null
           REMOTE
