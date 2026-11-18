@@ -1,5 +1,5 @@
 // All landing copy (RU default, UZ latin, EN). Keys are {{section.n}} tokens in ./sections/*.ts.
-// Raster art inside phone mockups (public/landing/assets) is Russian-only.
+// Phone mockups in public/landing/assets are real demo-app captures, one per locale ({{hero.shot}}).
 
 export type Locale = "ru" | "uz" | "en"
 export const locales: Locale[] = ["ru", "uz", "en"]
@@ -18,7 +18,8 @@ const ru: Record<string, string> = {
   "nav.3": "Тарифы",
   "hero.3": "Манифест",
   "footer.143": "Манифест",
-  "hero.5": "Касса малого бизнеса Узбекистана",
+  "hero.shot": "ru",
+  "hero.5": "Прогноз кассы для малого бизнеса",
   "hero.6": "Сколько можно забрать",
   "hero.8": "сегодня, чтобы в пятницу хватило",
   "hero.9": "на зарплату и аренду?",
@@ -207,7 +208,8 @@ const uz: Record<string, string> = {
   "nav.3": "Narxlar",
   "hero.3": "Manifest",
   "footer.143": "Manifest",
-  "hero.5": "Kichik biznes kassasi, O'zbekiston",
+  "hero.shot": "uz",
+  "hero.5": "Kichik biznes uchun pul oqimi prognozi",
   "hero.6": "Bugun qancha olish mumkin",
   "hero.8": "juma kuni ish haqi va ijaraga",
   "hero.9": "yetishi uchun?",
@@ -396,7 +398,8 @@ const en: Record<string, string> = {
   "nav.3": "Pricing",
   "hero.3": "Manifesto",
   "footer.143": "Manifesto",
-  "hero.5": "Cash for small businesses in Uzbekistan",
+  "hero.shot": "en",
+  "hero.5": "Cash-flow forecast for small businesses",
   "hero.6": "How much can you take",
   "hero.8": "today and still cover Friday's",
   "hero.9": "salaries and rent?",

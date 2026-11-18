@@ -10,7 +10,7 @@ export function parseLocale(value: string | undefined): Locale {
 /** Fills {{section.n}} tokens and the CTA/speech placeholders of a landing template. */
 export function localize(template: string, locale: Locale): string {
   const dict = dictionaries[locale]
-  const tg = process.env.NEXT_PUBLIC_TG_BOT_URL || "/app"
+  const tg = process.env.NEXT_PUBLIC_TG_BOT_URL || "https://t.me/oydin_agent"
   return template
     .replace(/\{\{([\w.]+)\}\}/g, (_, key: string) => escapeHtml(dict[key] ?? dictionaries[defaultLocale][key] ?? ""))
     .replaceAll("__TG__", escapeHtml(tg))

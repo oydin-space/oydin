@@ -65,7 +65,7 @@ html,html[data-hero-mode="day"],html[data-hero-mode="night"]{--hero-sky:linear-g
 .home-page .hero h1,.v2 .hero h1{color:var(--ink)}
 .v2 .hero .intro{color:#3a3325}
 .hero .eyebrow{color:var(--ink)}
-.hero-laurel{opacity:.85}.hero-laurel img{filter:brightness(0)!important}
+
 .hero-block .nav .wordmark{filter:brightness(0)}
 .v2 :is(.hero-block,.booking-hero-block) .nav .text-link,.text-link{color:#3a3325}
 .v2 :is(.hero-block,.booking-hero-block) .nav .text-link:hover,.v2 .hero-block .nav .text-link:hover,.v2 .hero-block .nav .text-link:focus-visible{color:var(--ink)}
@@ -186,7 +186,6 @@ html,html[data-hero-mode="day"],html[data-hero-mode="night"]{--hero-sky:linear-g
 .tool-keys img[src$=".png"]{object-fit:cover;padding:0}
 .source-art.art-fleet,.source-art.art-insurance,.source-art.art-safety,.source-art.art-money{width:44px;border-radius:12px;background:#fff}
 .source-art img{position:static;width:44px;height:44px;object-fit:contain}
-.art-fleet img{content:url(/logos/google-sheets.svg)}.art-insurance img{content:url(/logos/telegram.svg)}.art-safety img{content:url(/logos/google-calendar.svg)}.art-money img{content:url(/logos/excel.svg)}
 .visual-logos{position:absolute;top:16px;left:16px;display:flex;flex-direction:column;gap:10px;z-index:2}
 .control-visual .visual-logos{left:auto;right:16px}
 .visual-logos img{width:44px;height:44px;object-fit:contain;background:#fff;border-radius:12px;box-shadow:0 3px 0 #e6d9a8}
@@ -196,5 +195,6 @@ html,html[data-hero-mode="day"],html[data-hero-mode="night"]{--hero-sky:linear-g
 @media(max-width:480px){.tool-keys{grid-template-columns:repeat(3,56px);gap:10px}.tool-keys img{width:56px;height:56px;padding:9px}.pr-price{font-size:clamp(26px,8vw,32px)}}
 html,body{overflow-x:clip}
 @media(max-width:800px){.logo-tile .soon-badge{--s:var(--grid-scale,.14);right:calc(4px/var(--s));top:calc(4px/var(--s));padding:calc(2px/var(--s)) calc(6px/var(--s));max-width:calc(100% - 8px/var(--s));font-size:calc(11px/var(--s));line-height:1.15;white-space:normal;text-align:center;box-shadow:0 calc(1.5px/var(--s)) 0 #b8940a}}
-/* The brief reader image bakes in its own 9:41 status bar and island; the device frame already supplies the real one. */
-.brief-reader .reader-status-art{display:none}
+/* Tap targets: every link and button is at least 44px tall. */
+.footer-column a,.footer-column button,.nav .text-link,a[aria-label="Oydin home"]{display:inline-flex;align-items:center;min-height:44px}
+.footer-column .social-item{min-width:44px}

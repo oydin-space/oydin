@@ -66,6 +66,22 @@ function syncCategoryPills(live: ParentNode, next: ParentNode): number {
   return changed
 }
 
+/** The hero phone is a per-locale capture: swap its sources so the screen matches the page language. */
+function syncHeroShot(live: ParentNode, next: ParentNode): number {
+  const from = next.querySelector(".hero-story .phone-image")
+  const to = live.querySelector(".hero-story .phone-image")
+  if (!from || !to) return 0
+  let changed = 0
+  for (const name of ["srcset", "src"]) {
+    const value = from.getAttribute(name)
+    if (value !== null && to.getAttribute(name) !== value) {
+      to.setAttribute(name, value)
+      changed++
+    }
+  }
+  return changed
+}
+
 /** `hero-chat.js` owns the read-aloud button's label at runtime; re-derive it from the freshly swapped hero labels. */
 function refreshReadAloud(root: ParentNode) {
   const hero = root.querySelector<HTMLElement>(".hero")
@@ -113,7 +129,7 @@ export async function applyLocaleInPlace(locale: Locale): Promise<boolean> {
   const nextShell = doc.querySelector(".page-shell")
   if (!liveShell || !nextShell) return false
   const anchor = scrollAnchor()
-  let changed = sync(liveShell, nextShell) + syncImages(liveShell, nextShell) + syncCategoryPills(liveShell, nextShell)
+  let changed = sync(liveShell, nextShell) + syncImages(liveShell, nextShell) + syncCategoryPills(liveShell, nextShell) + syncHeroShot(liveShell, nextShell)
   let live = liveShell.nextElementSibling
   let next = nextShell.nextElementSibling
   while (live && next && !live.matches("script, link, next-route-announcer")) {
