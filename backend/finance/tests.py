@@ -64,6 +64,18 @@ class TransactionApiTests(TestCase):
         body = {"amount": 1.5, "direction": "in", "category": "x", "account_id": self.account.id}
         self.assertEqual(self.client.post("/api/transactions/", body, content_type="application/json").status_code, 400)
 
+    def test_category_reuses_existing_case_insensitively(self):
+        def post(category, account=self.account):
+            body = {"amount": 1000, "direction": "out", "category": category, "account_id": account.id}
+            return self.client.post("/api/transactions/", body, content_type="application/json")
+
+        self.assertEqual(post("Аренда").json()["category"], "Аренда")
+        self.assertEqual(post("  аРЕНДА ").json()["category"], "Аренда")
+        self.assertEqual(post("Аренда зала").json()["category"], "Аренда зала")
+        self.assertEqual(Transaction.objects.filter(business=self.business).values("category").distinct().count(), 2)
+        # Чужие категории не подмешиваются.
+        self.assertEqual(post("АРЕНДА", self.other_account).status_code, 400)
+
     def test_other_business_transaction_is_404(self):
         tx = Transaction.objects.create(
             business=self.other_business, account=self.other_account, date=D, amount=1000, direction="in", category="x"

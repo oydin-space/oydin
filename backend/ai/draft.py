@@ -6,6 +6,8 @@ from finance.models import Account, Transaction
 from finance.services import today
 from finance.validation import MAX_AMOUNT
 
+from .categories import canonical as canonical_category
+
 DIRECTIONS = {c for c, _ in Transaction.Direction.choices}
 PURPOSES = {c for c, _ in Transaction.Purpose.choices}
 
@@ -70,7 +72,7 @@ def validate_draft(business, raw, created_by=None):
         return None
     if not Account.objects.filter(pk=account_id, business=business).exists():
         return None
-    category = _text(raw.get("category"), 80)
+    category = canonical_category(_text(raw.get("category"), 80) or "")
     if not category:
         return None
     purpose = raw.get("purpose") if raw.get("purpose") in PURPOSES else "unclear"

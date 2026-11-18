@@ -902,15 +902,19 @@ paths:
               schema:
                 type: object
                 required: [email, google, telegram, demo]
-                properties: { email: { type: boolean }, google: { type: boolean }, telegram: { type: boolean }, demo: { type: boolean } }
+                properties: { email: { type: boolean }, google: { type: boolean }, telegram: { type: boolean }, demo: { type: boolean }, telegram_bot_id: { type: [string, 'null'], description: Числовой id бота для Telegram.Login.auth } }
   /auth/demo/:
     post:
       summary: Демо-вход
-      description: 'Нужен Content-Type: application/json (иначе 415 `unsupported_media_type`); уже вошедший → 409 `already_authenticated`; 403 если демо выключено'
+      description: 'Нужен Content-Type: application/json (иначе 415 `unsupported_media_type`); тело `{terms_version}` обязательно (иначе 400 `consent_required`); уже вошедший → 409 `already_authenticated`; 403 если демо выключено'
       security: []
       x-roles: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [terms_version], properties: { terms_version: { type: string } } } } }
       responses:
         '200': { description: Сессия создана, content: { application/json: { schema: { $ref: '#/components/schemas/Me' } } } }
+        '400': { $ref: '#/components/responses/Error' }
         '403': { $ref: '#/components/responses/Error' }
         '409': { $ref: '#/components/responses/Error' }
         '415': { $ref: '#/components/responses/Error' }
@@ -1172,8 +1176,11 @@ paths:
   # ---------- Finance ----------
   /dashboard/pulse/:
     get:
-      summary: Пульс бизнеса
+      summary: Пульс бизнеса (поля revenue_week, safe_reason, reserved_upcoming; период from/to влияет только на итоги периода)
       x-roles: [owner, accountant]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Pulse' } } } }
         '403': { $ref: '#/components/responses/Error' }
@@ -1233,6 +1240,8 @@ paths:
         - { name: purpose, in: query, schema: { $ref: '#/components/schemas/Purpose' } }
         - { name: q, in: query, schema: { type: string }, description: Поиск }
         - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
       responses:
         '200':
           description: OK

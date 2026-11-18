@@ -43,7 +43,16 @@ def int_param(request, name, default, maximum):
 @api_view("GET")
 @require_role(*FINANCE_READERS)
 def pulse(request):
-    return json_response(svc.pulse(request.business, lang=resolve_lang(request)))
+    start, end = date_range(request)
+    return json_response(svc.pulse(request.business, lang=resolve_lang(request), start=start, end=end))
+
+
+def date_range(request):
+    """Необязательные ?from=&to= (ISO-даты, включительно)."""
+    start, end = (parse_date(request.GET[k]) if request.GET.get(k) else None for k in ("from", "to"))
+    if start and end and start > end:
+        raise ApiError(400, "invalid_date")
+    return start, end
 
 
 def _account_name(body, request, exclude=None):
@@ -143,6 +152,11 @@ def transactions(request):
         if purpose not in PURPOSES:
             raise ApiError(400, "purpose: business, personal, unclear, owner_draw или owner_contribution")
         qs = qs.filter(purpose=purpose)
+    start, end = date_range(request)
+    if start:
+        qs = qs.filter(date__gte=start)
+    if end:
+        qs = qs.filter(date__lte=end)
     qs = svc.search_transactions(qs, request.GET.get("q", ""))
     limit = int_param(request, "limit", 50, 200)
     lang = resolve_lang(request)

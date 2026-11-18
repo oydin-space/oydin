@@ -96,7 +96,8 @@ def chat_view(request):
     messages = check_messages(body)
     images = check_images(body)
     throttle(request.user, "chat", settings.AI_CHAT_PER_MINUTE)
-    reply = chat.answer(request.business, request.user, messages, request.role, images)
+    ui_lang = body.get("lang") if body.get("lang") in lang.NAMES else None  # язык интерфейса; нет — по языку вопроса
+    reply = chat.answer(request.business, request.user, messages, request.role, images, ui_lang)
     observability.flush()
     return json_response(reply)
 

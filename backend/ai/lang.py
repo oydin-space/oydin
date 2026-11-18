@@ -22,5 +22,14 @@ def detect(text):
     return "en" if english > uzbek else "uz" if uzbek else "ru"
 
 
-def instruction(text):
-    return f"\nЯЗЫК ОТВЕТА В ЭТОМ ДИАЛОГЕ: {NAMES[detect(text)]}. Пиши reply и suggestions только на нём."
+MONEY = {
+    "ru": "Суммы: «2,5 млн сум», «130 тыс. сум».",
+    "uz": "Summalar: «2,5 mln soʻm», «130 ming soʻm»; kirill harflarini ishlatma.",
+    "en": "Amounts: “2.5M UZS”, “130K UZS” (decimal point, never «млн»/«тыс.»); no Cyrillic.",
+}
+
+
+def instruction(code):
+    """Язык ответа = язык интерфейса (code ru/uz/en), с форматом сумм этой локали."""
+    return (f"\nЯЗЫК ОТВЕТА В ЭТОМ ДИАЛОГЕ: {NAMES[code]}. Пиши reply, suggestions, подписи графика и ui только на нём, "
+            f"даже если вопрос на другом языке. {MONEY[code]} Названия категорий бери ровно как в ФАКТАХ.")

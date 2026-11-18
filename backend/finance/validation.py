@@ -2,6 +2,7 @@ from datetime import date
 
 from accounts.http import ApiError
 
+from .services import resolve_category
 from .models import Account, Transaction
 from .texts import TRANSFER_CATEGORY, T
 
@@ -51,7 +52,8 @@ def transaction_fields(body, business, *, partial, instance=None):
             raise ApiError(400, "Категория не должна быть пустой")
         category = category.strip()
         # Клиент мог вернуть локализованную подпись перевода — храним каноническую.
-        fields["category"] = TRANSFER_CATEGORY if category in T["transfer"].values() else category
+        category = TRANSFER_CATEGORY if category in T["transfer"].values() else resolve_category(business, category)
+        fields["category"] = category
     if "purpose" in body:
         if body["purpose"] not in PURPOSES:
             raise ApiError(400, "purpose: business, personal, unclear, owner_draw или owner_contribution")

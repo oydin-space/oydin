@@ -1,35 +1,72 @@
 """Факты и инструменты для чата: модель видит только данные текущего бизнеса."""
 
-from datetime import timedelta
+from datetime import date, timedelta
+
+from django.db.models import Sum
 
 from finance import services as fin
+from finance.models import Transaction
 
-from . import exa, memory
+from . import categories, exa, memory
 
 MAX_TOOL_ROUNDS = 3
 
 
-def build_facts(business, now=None):
+def _month_start(day, back=0):
+    """Первое число месяца, отстоящего от day на back месяцев назад."""
+    index = day.year * 12 + day.month - 1 - back
+    return date(index // 12, index % 12 + 1, 1)
+
+
+def _expenses_by_category(business, start, end):
+    """Расходы бизнеса по категориям за период (без личных и изъятий), по убыванию."""
+    out = fin.confirmed(business).filter(direction="out", date__gte=start, date__lte=end).exclude(
+        purpose__in=[Transaction.Purpose.PERSONAL, Transaction.Purpose.OWNER_DRAW])
+    cats = {}
+    for row in out.order_by().values("category", "account__currency").annotate(s=Sum("amount")):
+        cats[row["category"]] = cats.get(row["category"], 0) + fin.rows_to_uzs([row])
+    return [{"category": k, "amount": v} for k, v in sorted(cats.items(), key=lambda kv: -kv[1])[:8]]
+
+
+def month_summaries(business, months=2, now=None):
+    """Календарные месяцы от текущего назад: итоги и расходы по категориям; текущий — по сегодня.
+    Для честного сравнения у прошлых месяцев есть итоги за те же дни (1..сегодняшнее число)."""
     now = now or fin.today()
-    pulse = fin.pulse(business, now)
+    result = []
+    for back in range(months):
+        start = _month_start(now, back)
+        end = now if back == 0 else _month_start(now, back - 1) - timedelta(days=1)
+        item = {"month": start.strftime("%Y-%m"), "from": start.isoformat(), "to": end.isoformat(),
+                **fin.period_totals(business, start, end), "expenses_by_category": _expenses_by_category(business, start, end)}
+        if back:
+            same_end = min(end, start + timedelta(days=now.day - 1))
+            item["same_days_as_current"] = {"to": same_end.isoformat(), **fin.period_totals(business, start, same_end)}
+        result.append(item)
+    return result
+
+
+def build_facts(business, now=None, lang="ru"):
+    now = now or fin.today()
+    pulse = fin.pulse(business, now, lang)
     pulse.pop("metrics", None)
     month = fin.period_totals(business, now - timedelta(days=29), now)
     recent = fin.confirmed(business).order_by("-date", "-id")[:10]
     b = fin.bundle(business, 30, now)
-    return {
+    return categories.localize_data({
         "today": now.isoformat(),
         "tax_regime": business.tax_regime,
         "accounts": fin.list_accounts(business),
         "pulse": pulse,
         "last_30_days": month,
+        "this_and_last_month": month_summaries(business, 2, now),
         "top_expenses_30d": fin.analytics(business, "month", now)["by_category"],
         "obligations": [
             {**o, "due_date": o["due_date"].isoformat()}
             for o in fin.obligation_dicts(business, b) if o["status"] != "paid"
         ],
         "envelopes": fin.envelopes(business, now),
-        "recent_transactions": [fin.serialize_transaction(t) for t in recent],
-    }
+        "recent_transactions": [fin.serialize_transaction(t, lang) for t in recent],
+    }, lang)
 
 
 def _int(value, default, low, high):
@@ -60,19 +97,24 @@ def get_orders(business, args):
     return {"orders": fin.orders(business), "products": fin.products(business)}
 
 
+def compare_months(business, args):
+    return {"months": month_summaries(business, _int(args.get("months"), 2, 2, 6))}
+
+
 TOOLS = {
     "get_forecast": (get_forecast, "days (7..90): остаток по дням"),
     "search_transactions": (search_transactions, "q: слово из заметки/контрагента/категории, limit"),
     "get_analytics": (get_analytics, "period: week|month|quarter — выручка, расходы, категории, недели"),
     "get_orders": (get_orders, "заказы и товары с маржой"),
+    "compare_months": (compare_months, "months (2..6): календарные месяцы от текущего назад — выручка, расходы, прибыль, категории; same_days_as_current — те же дни прошлых месяцев для сравнения «этот vs прошлый»"),
 }
 
 
-def run_tool(business, name, args):
+def run_tool(business, name, args, lang="ru"):
     entry = TOOLS.get(name)
     if entry is None:
         return {"error": f"нет инструмента {name}"}
-    return entry[0](business, args if isinstance(args, dict) else {})
+    return categories.localize_data(entry[0](business, args if isinstance(args, dict) else {}), lang)
 
 
 TOOLS_HELP = "\n".join(f"- {name}: {desc}" for name, (_, desc) in TOOLS.items())

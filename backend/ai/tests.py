@@ -260,3 +260,68 @@ class ToolGenerateTests(TestCase):
         self.assertEqual((body["kind"], body["spec"]), ("custom", spec))
         with patch("ai.views.llm.complete", return_value={"title": "Кофе", "ui": "root = Stack([x])\nx = Bad()"}):
             self.assertEqual(self.gen(prompt="маржа по кофе", kind="custom").status_code, 400)
+
+
+from . import categories, tools  # noqa: E402
+
+
+class ChatFixTests(ChatTests):
+    def chat(self, text, lang=None, reply=None):
+        body = {"messages": [{"role": "user", "content": text}]}
+        if lang:
+            body["lang"] = lang
+        if reply is None:
+            return self.client.post("/api/ai/chat/", body, content_type="application/json").json()
+        with override_settings(LLM_API_KEY="k", LLM_BASE_URL="http://x", LLM_MODEL="m"), patch("ai.chat.llm.complete", return_value=reply):
+            return self.client.post("/api/ai/chat/", body, content_type="application/json").json()
+
+    @override_settings(LLM_API_KEY="", ANTHROPIC_API_KEY="")
+    def test_confirmed_draft_becomes_transaction(self):
+        from finance.models import Transaction
+        body = self.chat("потратил 50000 на такси")
+        d = body["draft"]
+        self.assertIn("черновик", body["reply"])
+        self.assertNotIn("Записал", body["reply"])
+        self.assertFalse(Transaction.objects.filter(business=self.business).exists())
+        r = self.client.post("/api/transactions/", d, content_type="application/json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(Transaction.objects.filter(business=self.business, amount=50000, category="Транспорт",
+                                                   direction="out", status="confirmed").exists())
+
+    @override_settings(LLM_API_KEY="", ANTHROPIC_API_KEY="")
+    def test_fallback_follows_ui_language(self):
+        body = self.chat("потратил 50000 на такси", lang="en")
+        self.assertIn("Draft", body["reply"])
+        self.assertIn("Transport", body["reply"])
+        self.assertNotRegex(body["reply"], "[а-яА-Я]")
+        self.assertEqual(body["draft"]["category"], "Транспорт")  # в базе — каноническое имя
+
+    def test_model_claiming_saved_gets_draft_and_notice(self):
+        body = self.chat("потратил 50000 на такси", reply={"reply": "Записал расход на такси.", "suggestions": [
+            "Посчитать оборотный налог", "Что с деньгами на неделе?"], "draft": None})
+        self.assertEqual(body["draft"]["amount"], 50000)
+        self.assertIn("черновик", body["reply"])
+        self.assertEqual(body["suggestions"], ["Что с деньгами на неделе?"])
+
+    def test_english_model_category_is_canonicalized(self):
+        cash = Account.objects.get(business=self.business)
+        body = self.chat("spent 50000 on taxi", lang="en", reply={"reply": "Draft ready.", "draft": {
+            "amount": 50000, "direction": "out", "category": "Transport", "purpose": "business", "account_id": cash.id}})
+        self.assertEqual(body["draft"]["category"], "Транспорт")
+
+    def test_compare_months_and_localization(self):
+        months = tools.run_tool(self.business, "compare_months", {"months": 2}, "en")["months"]
+        self.assertEqual(len(months), 2)
+        self.assertIn("same_days_as_current", months[1])
+        self.assertEqual(categories.canonical("Transport"), "Транспорт")
+        self.assertEqual(categories.localize("Аренда", "uz"), "Ijara")
+        facts = tools.build_facts(self.business, lang="en")
+        self.assertIn("this_and_last_month", facts)
+
+
+class GroundingLocaleTests(SimpleTestCase):
+    def test_english_and_uzbek_multipliers(self):
+        ev = grounding.Evidence({"a": 12_200_000, "b": 130_000}, [])
+        self.assertEqual(grounding.ungrounded_numbers("Revenue 12.2M UZS, rent 130K UZS", ev), [])
+        self.assertEqual(grounding.ungrounded_numbers("Tushum 12,2 mln soʻm, 130 ming", ev), [])
+        self.assertTrue(grounding.ungrounded_numbers("Revenue 99M UZS", ev))

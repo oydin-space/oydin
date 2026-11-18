@@ -6,6 +6,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 
 from . import tests as t
+from .access import get_profile
 from .tests_tg_widget import TOKEN as WTOKEN, widget_payload
 
 User = get_user_model()
@@ -18,11 +19,19 @@ class DemoLoginTests(TestCase):
         self.assertEqual((r.status_code, r.json()), (415, {"error": "unsupported_media_type"}))
 
     def test_json_ok(self):
-        self.assertEqual(self.client.post("/api/auth/demo/", {}, content_type="application/json").status_code, 200)
+        r = self.client.post("/api/auth/demo/", {"terms_version": "2026-11-18"}, content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(get_profile(User.objects.get(username="demo")).terms_version, "2026-11-18")
+
+    def test_requires_consent(self):
+        for body in ({}, {"terms_version": ""}, {"terms_version": 1}):
+            r = self.client.post("/api/auth/demo/", body, content_type="application/json")
+            self.assertEqual((r.status_code, r.json()), (400, {"error": "consent_required"}))
+        self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_non_demo_user_conflict(self):
         self.client.force_login(User.objects.create_user("real"))
-        r = self.client.post("/api/auth/demo/", {}, content_type="application/json")
+        r = self.client.post("/api/auth/demo/", {"terms_version": "x"}, content_type="application/json")
         self.assertEqual((r.status_code, r.json()), (409, {"error": "already_authenticated"}))
 
 

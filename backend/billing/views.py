@@ -60,7 +60,8 @@ def subscription(request):
 @require_role(OWNER)
 def checkout(request):
     if request.business.is_demo:
-        raise ApiError(403, "forbidden")
+        # The owner role is fine here; the shared demo tenant just cannot take real payments.
+        raise ApiError(403, "demo_tenant")
     throttle(request.user, "checkout", CHECKOUT_PER_MINUTE)
     body = parse_json(request)
     plan = Plan.objects.filter(code=str(body.get("plan", "")), is_active=True).first()

@@ -271,7 +271,7 @@ class ProvidersTests(TestCase):
     @override_settings(EMAIL_CONFIGURED=True, GOOGLE_CLIENT_ID="", TELEGRAM_BOT_TOKEN="t", DEMO_LOGIN=False)
     def test_flags(self):
         r = self.client.get("/api/auth/providers/")
-        self.assertEqual(r.json(), {"email": True, "google": False, "telegram": True, "demo": False})
+        self.assertEqual(r.json(), {"email": True, "google": False, "telegram": True, "telegram_bot_id": None, "demo": False})
 
 
 class TenancyTests(TestCase):

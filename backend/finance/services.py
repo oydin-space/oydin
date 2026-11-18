@@ -27,6 +27,15 @@ def today():
     return timezone.localdate()
 
 
+def resolve_category(business, name):
+    """Категория без дублей: регистронезависимое точное совпадение с существующей возвращает её написание."""
+    existing = (
+        Transaction.objects.filter(business=business, category__iexact=name)
+        .order_by("-id").values_list("category", flat=True).first()
+    )
+    return existing or name
+
+
 def confirmed(business):
     return Transaction.objects.filter(business=business, status=Transaction.Status.CONFIRMED)
 
@@ -206,20 +215,47 @@ def envelopes(business, now=None):
     ]
 
 
-def pulse(business, now=None, lang="ru"):
+def revenue_week(business, end):
+    """Выручка за 7 дней по `end` включительно и за 7 дней до них."""
+    amount = period_totals(business, end - timedelta(days=6), end)["revenue"]
+    prev = period_totals(business, end - timedelta(days=13), end - timedelta(days=7))["revenue"]
+    delta = round((amount - prev) / prev * 100) if prev else None
+    return {"amount": amount, "prev_amount": prev, "delta_pct": delta}
+
+
+def pulse(business, now=None, lang="ru", start=None, end=None):
+    """start/end — выбранный период для итогов (прибыль, доля личного, выручка за неделю);
+    остаток, прогноз и разрыв всегда считаются от сегодня."""
     from planning import services as planning
 
     b = bundle(business, 90, now)
     gap = notify_gap(business, b, lang)
     obligations = obligation_dicts(business, b)
-    month = period_totals(business, b.today - timedelta(days=29), b.today)
+    end = min(end or b.today, b.today)
+    start = start or end - timedelta(days=29)
+    month = period_totals(business, start, end)
     result = pl.compute_pulse(pl.PulseInput(
         today=b.today, balance=b.balance, points=b.points, gap=gap, obligations=obligations,
         avg_daily_out=b.avg_daily_out, personal_share=month["personal_share"],
     ), lang)
     tax_reserved = planning.tax_reserve_amount(business, b.today)
     result["tax_reserved"] = tax_reserved
-    result["safe_to_spend"] = max(0, result["safe_to_spend"] - tax_reserved)
+    forecast_safe = result["safe_to_spend"]
+    result["safe_to_spend"] = max(0, forecast_safe - tax_reserved)
+    # Почему «можно потратить» меньше остатка: остальное зарезервировано под платежи до минимума прогноза и налоги.
+    result["reserved_upcoming"] = max(0, b.balance - forecast_safe)
+    if b.balance <= 0:
+        result["safe_reason"] = "empty"
+    elif result["safe_to_spend"] > 0:
+        result["safe_reason"] = None
+    elif gap is not None:
+        result["safe_reason"] = "gap"
+    elif forecast_safe > 0:
+        result["safe_reason"] = "tax"
+    else:
+        result["safe_reason"] = "reserved"
+    result["revenue_week"] = revenue_week(business, end)
+    result["period"] = {"from": start.isoformat(), "to": end.isoformat()}
     result["cash_difference"] = planning.latest_cash_difference(business)
     env = envelopes(business, b.today)
     saved = sum(e["saved"] for e in env)

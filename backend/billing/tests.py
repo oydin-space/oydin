@@ -1,7 +1,7 @@
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 
-from accounts.models import Membership
+from accounts.models import Business, Membership
 from finance.tests import add_member, jpost, make_user
 
 from . import click
@@ -44,6 +44,20 @@ class CheckoutTests(TestCase):
         self.client.force_login(self.seller)
         r = jpost(self.client, "/api/billing/checkout/", {"plan": "pro"})
         self.assertEqual((r.status_code, r.json()["error"]), (403, "forbidden"))
+
+    def test_demo_owner_gets_demo_error_not_owner_error(self):
+        Business.objects.filter(pk=self.business.pk).update(is_demo=True)
+        self.client.force_login(self.owner)
+        r = jpost(self.client, "/api/billing/checkout/", {"plan": "pro"})
+        self.assertEqual((r.status_code, r.json()["error"]), (403, "demo_tenant"))
+        self.assertFalse(Payment.objects.exists())
+
+    @override_settings(**CLICK)
+    def test_owner_checkout_succeeds(self):
+        self.client.force_login(self.owner)
+        r = jpost(self.client, "/api/billing/checkout/", {"plan": "team"})
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["available"])
 
     def test_validation_and_disabled(self):
         self.client.force_login(self.owner)

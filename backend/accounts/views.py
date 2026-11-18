@@ -4,6 +4,7 @@ from django.conf import settings
 from django.db import transaction
 from django.contrib.auth import login, logout
 from django.http import HttpResponse, HttpResponseRedirect
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 
@@ -53,6 +54,8 @@ def providers(request):
         "email": bool(settings.EMAIL_CONFIGURED),
         "google": google.is_configured(),
         "telegram": bool(settings.TELEGRAM_BOT_TOKEN),
+        # Публичная часть токена до «:» — id бота для Telegram.Login.auth на клиенте.
+        "telegram_bot_id": int(settings.TELEGRAM_BOT_TOKEN.split(":", 1)[0]) if settings.TELEGRAM_BOT_TOKEN.split(":", 1)[0].isdigit() else None,
         "demo": bool(settings.DEMO_LOGIN),
     })
 
@@ -66,7 +69,14 @@ def demo(request):
         raise ApiError(415, "unsupported_media_type")
     if request.user.is_authenticated and request.user.username != DEMO_USERNAME:
         raise ApiError(409, "already_authenticated")
-    return _login(request, demo_user())
+    version = parse_json(request).get("terms_version")
+    if not isinstance(version, str) or not 0 < len(version) <= 20:
+        raise ApiError(400, "consent_required")
+    user = demo_user()
+    profile = get_profile(user)
+    profile.terms_version, profile.terms_accepted_at = version, timezone.now()
+    profile.save(update_fields=["terms_version", "terms_accepted_at"])
+    return _login(request, user)
 
 
 @csrf_exempt

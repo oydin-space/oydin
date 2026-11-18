@@ -19,12 +19,17 @@ class PulseInput:
     personal_share: float
 
 
-def runway_days(balance, avg_daily_out):
+def runway_days(today, balance, points, avg_daily_out):
+    """Сколько дней хватит денег — по тому же прогнозу, что и разрыв: дни до первого минуса.
+    Если в прогнозе минуса нет — не меньше горизонта прогноза, дальше по среднему расходу."""
     if balance <= 0:
         return 0
+    for point in points:
+        if point.balance < 0:
+            return max(0, (point.date - today).days)
     if avg_daily_out <= 0:
         return 365
-    return min(365, balance // avg_daily_out)
+    return min(365, max(len(points), balance // avg_daily_out))
 
 
 def safe_to_spend(balance, points):
@@ -75,7 +80,7 @@ def headline(today, gap, obligations, lang="ru"):
 
 
 def compute_pulse(data, lang="ru"):
-    runway = runway_days(data.balance, data.avg_daily_out)
+    runway = runway_days(data.today, data.balance, data.points, data.avg_daily_out)
     kept, total = promises(data.today, data.obligations)
     score, tone = score_and_tone(runway, kept, total, data.gap, data.today, data.personal_share)
     return {
