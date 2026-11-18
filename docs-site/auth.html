@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Authentication · Oydin for developers</title><meta name="description" content="Oydin for developers: public API, webhooks, REST handlers and MCP servers.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"></head><body>
+<header class="top"><div class="in"><a class="brand" href="index.html"><img src="logo.svg" alt="">Oydin <small>for developers</small></a></div></header>
+<div class="layout"><nav class="side"><a href="index.html">Quickstart</a><a href="auth.html" class=on>Authentication</a><a href="public-api.html">Public API</a><a href="webhooks.html">Webhooks</a><a href="rest-handler.html">REST handler spec</a><a href="mcp.html">MCP connection</a></nav><main>
+
+<h1>Authentication</h1><p class="lead">Two ways in: a browser session for the Oydin app, and personal API tokens for your code.</p>
+<h2>Personal tokens</h2>
+<p>Tokens look like <code>oyd_…</code> and belong to one business. Send them as a bearer header on every <code>/api/v1/*</code> request:</p>
+<pre><code>Authorization: Bearer oyd_XXXXXXXX</code></pre>
+<p>Only a SHA-256 hash and an 8-character prefix are stored, so a lost token cannot be recovered. Create a new one and revoke the old one.</p>
+<h2>Scopes</h2>
+<table><tr><th>Scope</th><th>Allows</th></tr>
+<tr><td><code>read</code></td><td>All <code>GET /api/v1/*</code> endpoints.</td></tr>
+<tr><td><code>write</code></td><td><code>POST /api/v1/transactions/</code>. Add it alongside <code>read</code>.</td></tr></table>
+<h2>Rate limit</h2>
+<p>60 requests per minute per token. Beyond that you get <code>429 {"error":"rate_limited"}</code> and a <code>Retry-After</code> header in seconds.</p>
+<h2>Errors</h2>
+<table><tr><th>Status</th><th>error</th><th>Meaning</th></tr>
+<tr><td>401</td><td><code>invalid_token</code></td><td>Missing, malformed or revoked token.</td></tr>
+<tr><td>403</td><td><code>forbidden</code></td><td>Token lacks the needed scope.</td></tr>
+<tr><td>429</td><td><code>rate_limited</code></td><td>Wait <code>Retry-After</code> seconds.</td></tr></table>
+<h2>Auth for your own services</h2>
+<p>REST handlers and MCP servers you connect to Oydin use one custom header (for example <code>Authorization: Bearer …</code> or <code>X-Api-Key: …</code>). Its value is encrypted at rest and is never returned by the API.</p>
+
+</main></div><footer>Oydin · second brain for small business · docs.oydin.sayfi.uz</footer></body></html>

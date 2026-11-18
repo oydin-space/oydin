@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MCP connection · Oydin for developers</title><meta name="description" content="Oydin for developers: public API, webhooks, REST handlers and MCP servers.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"></head><body>
+<header class="top"><div class="in"><a class="brand" href="index.html"><img src="logo.svg" alt="">Oydin <small>for developers</small></a></div></header>
+<div class="layout"><nav class="side"><a href="index.html">Quickstart</a><a href="auth.html">Authentication</a><a href="public-api.html">Public API</a><a href="webhooks.html">Webhooks</a><a href="rest-handler.html">REST handler spec</a><a href="mcp.html" class=on>MCP connection</a></nav><main>
+
+<h1>MCP connection</h1><p class="lead">Already have a Model Context Protocol server? Connect it and the agent gets all of its tools.</p>
+<h2>Requirements</h2>
+<ul><li>MCP <b>streamable HTTP</b> transport (a single POST endpoint, JSON or SSE replies).</li>
+<li>Public <b>https</b> URL. Private and local hosts are blocked.</li>
+<li>Optional single auth header, e.g. <code>Authorization: Bearer …</code>.</li></ul>
+<h2>Connect</h2>
+<pre><code>POST /api/connectors/
+{
+  "kind": "mcp",
+  "name": "CRM",
+  "url": "https://mcp.example.com/mcp",
+  "auth_header": "Authorization",
+  "auth_secret": "Bearer sk_live_…"
+}</code></pre>
+<p>Then press <b>Test</b> (<code>POST /api/connectors/{id}/test/</code>). Oydin runs <code>initialize</code> and <code>tools/list</code>, stores the tool list and reports the result. Run Test again whenever your server's tools change.</p>
+<h2>How tools reach the agent</h2>
+<ul><li>Each server tool becomes <code>c&lt;connector id&gt;_&lt;tool name&gt;</code> with your description and <code>inputSchema</code>.</li>
+<li>When the agent calls one, Oydin opens a session, sends <code>tools/call</code> and returns the text content.</li>
+<li>Tool results are truncated to 20,000 characters; the timeout is 15 seconds per request.</li>
+<li>Disable a connector with <code>{"enabled": false}</code> to hide its tools without deleting it.</li></ul>
+<div class="note">Write good tool descriptions: the agent decides when to call a tool only from the name and description.</div>
+<div class="note warn">Secrets are encrypted at rest and never returned; responses only show <code>has_secret: true</code>. Only the owner can manage connectors.</div>
+
+</main></div><footer>Oydin · second brain for small business · docs.oydin.sayfi.uz</footer></body></html>

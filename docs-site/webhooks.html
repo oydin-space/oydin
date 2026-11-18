@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Webhooks · Oydin for developers</title><meta name="description" content="Oydin for developers: public API, webhooks, REST handlers and MCP servers.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"></head><body>
+<header class="top"><div class="in"><a class="brand" href="index.html"><img src="logo.svg" alt="">Oydin <small>for developers</small></a></div></header>
+<div class="layout"><nav class="side"><a href="index.html">Quickstart</a><a href="auth.html">Authentication</a><a href="public-api.html">Public API</a><a href="webhooks.html" class=on>Webhooks</a><a href="rest-handler.html">REST handler spec</a><a href="mcp.html">MCP connection</a></nav><main>
+
+<h1>Webhooks</h1><p class="lead">Oydin calls your https endpoint when something happens in the business.</p>
+<h2>Events</h2>
+<table><tr><th>Event</th><th>When</th></tr>
+<tr><td><code>transaction.created</code></td><td>A transaction was added.</td></tr>
+<tr><td><code>transaction.confirmed</code></td><td>A draft was confirmed.</td></tr>
+<tr><td><code>gap.detected</code></td><td>A cash gap was found in the forecast.</td></tr></table>
+<h2>Delivery</h2>
+<p><code>POST</code> with a JSON body:</p>
+<pre><code>{"id": "5b1c…", "event": "transaction.created",
+ "created_at": "2026-11-18T09:30:00+00:00", "data": { ... }}</code></pre>
+<table><tr><th>Header</th><th>Value</th></tr>
+<tr><td><code>X-Oydin-Event</code></td><td>Event name.</td></tr>
+<tr><td><code>X-Oydin-Delivery</code></td><td>Unique delivery id; use it to deduplicate.</td></tr>
+<tr><td><code>X-Oydin-Timestamp</code></td><td>Unix seconds.</td></tr>
+<tr><td><code>X-Oydin-Signature</code></td><td><code>sha256=</code> + HMAC-SHA256 hex.</td></tr></table>
+<h2>Verify the signature</h2>
+<p>The signed string is <code>timestamp + "." + raw_body</code>, the key is the endpoint secret shown at creation.</p>
+<pre><code>import hmac, hashlib
+
+def verify(secret, timestamp, raw_body, header):
+    mac = hmac.new(secret.encode(), f"{timestamp}.".encode() + raw_body, hashlib.sha256)
+    return hmac.compare_digest("sha256=" + mac.hexdigest(), header)</code></pre>
+<p>Reject deliveries whose timestamp is older than a few minutes.</p>
+<h2>Retries and limits</h2>
+<ul><li>Answer with any 2xx within 5 seconds.</li>
+<li>Failed deliveries are retried after 1 minute, 10 minutes and 1 hour.</li>
+<li>Redirects are not followed.</li>
+<li>URLs must be <b>https</b> and resolve to public addresses; private and local hosts are rejected.</li></ul>
+<p>Use the <b>Ping</b> button to send a test delivery.</p>
+
+</main></div><footer>Oydin · second brain for small business · docs.oydin.sayfi.uz</footer></body></html>

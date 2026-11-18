@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quickstart · Oydin for developers</title><meta name="description" content="Oydin for developers: public API, webhooks, REST handlers and MCP servers.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"></head><body>
+<header class="top"><div class="in"><a class="brand" href="index.html"><img src="logo.svg" alt="">Oydin <small>for developers</small></a></div></header>
+<div class="layout"><nav class="side"><a href="index.html" class=on>Quickstart</a><a href="auth.html">Authentication</a><a href="public-api.html">Public API</a><a href="webhooks.html">Webhooks</a><a href="rest-handler.html">REST handler spec</a><a href="mcp.html">MCP connection</a></nav><main>
+
+<div class="hero"><img src="logo.svg" alt=""><div><h1>Oydin for developers</h1><p>Read your business data, push transactions, get webhooks, and give the Oydin AI agent your own tools.</p></div></div>
+<div class="grid">
+<a class="card mint" href="public-api.html"><b>Public API</b><span>Bearer-token REST API under <code>/api/v1/</code>.</span></a>
+<a class="card sky" href="webhooks.html"><b>Webhooks</b><span>Signed events when transactions change.</span></a>
+<a class="card lilac" href="rest-handler.html"><b>REST handler</b><span>Describe one HTTP call; the agent can use it.</span></a>
+<a class="card peach" href="mcp.html"><b>MCP server</b><span>Connect a streamable-HTTP MCP server.</span></a>
+</div>
+<h2>Five-minute start</h2>
+<ol class="steps">
+<li><b>Create a token.</b> In Oydin open <i>Settings → For developers → Tokens</i>, pick <code>read</code> (and <code>write</code> if you need to create transactions). The secret is shown once.</li>
+<li><b>Call the API.</b>
+<pre><code>curl https://oydin.sayfi.uz/api/v1/pulse/ \
+  -H "Authorization: Bearer oyd_XXXXXXXX"</code></pre></li>
+<li><b>Subscribe to events.</b> Add an https webhook URL and verify <code>X-Oydin-Signature</code> (<a href="webhooks.html">details</a>).</li>
+<li><b>Extend the agent.</b> Add a REST handler or an MCP server under <i>Settings → For developers → Connectors</i>. Press <b>Test</b>, then ask the AI chat to use it.</li>
+</ol>
+<div class="note">Base URL: <code>https://oydin.sayfi.uz/api</code>. All errors are JSON: <code>{"error": "code"}</code>.</div>
+<div class="note warn">Only the business <b>owner</b> can manage tokens, webhooks and connectors.</div>
+
+</main></div><footer>Oydin · second brain for small business · docs.oydin.sayfi.uz</footer></body></html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>REST handler spec · Oydin for developers</title><meta name="description" content="Oydin for developers: public API, webhooks, REST handlers and MCP servers.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"></head><body>
+<header class="top"><div class="in"><a class="brand" href="index.html"><img src="logo.svg" alt="">Oydin <small>for developers</small></a></div></header>
+<div class="layout"><nav class="side"><a href="index.html">Quickstart</a><a href="auth.html">Authentication</a><a href="public-api.html">Public API</a><a href="webhooks.html">Webhooks</a><a href="rest-handler.html" class=on>REST handler spec</a><a href="mcp.html">MCP connection</a></nav><main>
+
+<h1>REST handler spec</h1><p class="lead">One HTTP call, described once. The Oydin agent fills the parameters from the conversation.</p>
+<h2>Fields</h2>
+<table><tr><th>Field</th><th>Required</th><th>Description</th></tr>
+<tr><td><code>kind</code></td><td>yes</td><td><code>"rest"</code>. Fixed at creation.</td></tr>
+<tr><td><code>name</code></td><td>yes</td><td>Up to 60 characters. Becomes part of the tool name.</td></tr>
+<tr><td><code>description</code></td><td>yes</td><td>What the call does and when to use it (up to 500). The agent reads this.</td></tr>
+<tr><td><code>method</code></td><td>yes</td><td><code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>PATCH</code> or <code>DELETE</code>.</td></tr>
+<tr><td><code>url</code></td><td>yes</td><td>https URL template. <code>{param}</code> placeholders are URL-encoded.</td></tr>
+<tr><td><code>params_schema</code></td><td>no</td><td>JSON Schema, <code>type: object</code>. Every placeholder must appear in <code>properties</code>.</td></tr>
+<tr><td><code>auth_header</code></td><td>no</td><td>Header name, e.g. <code>X-Api-Key</code>.</td></tr>
+<tr><td><code>auth_secret</code></td><td>no</td><td>Header value. Write-only, encrypted. Send <code>""</code> to remove.</td></tr></table>
+<h2>How parameters map to the request</h2>
+<ul><li>Parameters named in the URL fill the placeholders (and are required).</li>
+<li>For <code>GET</code>/<code>DELETE</code> the remaining parameters become the query string.</li>
+<li>For <code>POST</code>/<code>PUT</code>/<code>PATCH</code> the remaining parameters are sent as a JSON body.</li></ul>
+<h2>Example</h2>
+<pre><code>POST /api/connectors/
+{
+  "kind": "rest",
+  "name": "Stock level",
+  "description": "Returns how many units of a product are in stock. Use when the user asks about inventory.",
+  "method": "GET",
+  "url": "https://erp.example.com/items/{sku}/stock",
+  "params_schema": {
+    "type": "object",
+    "properties": {
+      "sku": {"type": "string", "description": "Product SKU"},
+      "warehouse": {"type": "string"}
+    },
+    "required": ["sku"]
+  },
+  "auth_header": "X-Api-Key",
+  "auth_secret": "k_live_…"
+}</code></pre>
+<p>The agent calling it with <code>sku=A-1, warehouse=main</code> sends <code>GET https://erp.example.com/items/A-1/stock?warehouse=main</code>.</p>
+<h2>Response</h2>
+<p>The agent receives <code>{"status": 200, "body": …}</code>. JSON is parsed; other content is passed as text. Bodies are truncated to 20,000 characters. Timeout is 10 seconds, redirects are not followed, network errors come back as <code>{"error": "Timeout"}</code>.</p>
+<h2>Test it</h2>
+<pre><code>POST /api/connectors/{id}/test/
+{"args": {"sku": "A-1"}}
+
+{"ok": true, "error": "", "result": {"status": 200, "body": {"qty": 4}}, ...}</code></pre>
+<div class="note warn">Private, local and non-https addresses are rejected with <code>private_address</code> / <code>only_https</code>. Limit: 20 connectors per business.</div>
+
+</main></div><footer>Oydin · second brain for small business · docs.oydin.sayfi.uz</footer></body></html>
