@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import { Flag, HandCoins, Landmark, Lightbulb, Rocket, Scale, Sprout, TrendingUp, Users, Wallet, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface IconProps extends Omit<React.SVGProps<SVGSVGElement>, "ref"> {
@@ -22,4 +22,24 @@ export function Icon({ icon: Glyph, size = 20, label, className, ...props }: Ico
       {...props}
     />
   );
+}
+
+const NAMED_ICONS = {
+  wallet: Wallet,
+  flag: Flag,
+  lightbulb: Lightbulb,
+  "hand-coins": HandCoins,
+  "trending-up": TrendingUp,
+  landmark: Landmark,
+  scale: Scale,
+  sprout: Sprout,
+  rocket: Rocket,
+  users: Users,
+} as const satisfies Record<string, LucideIcon>;
+
+/** Допустимые имена иконок для `icon` в Section/StatTile/EvidenceCard/EmptyState; новое имя добавляем в NAMED_ICONS. */
+export type IconName = keyof typeof NAMED_ICONS;
+
+export function NamedIcon({ name, size = 16, className }: { name: IconName; size?: 16 | 20; className?: string }) {
+  return <Icon icon={NAMED_ICONS[name]} size={size} className={className} />;
 }

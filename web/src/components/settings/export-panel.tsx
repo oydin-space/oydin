@@ -1,8 +1,8 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, FileSpreadsheet } from "lucide-react";
 import { useState } from "react";
-import { Button, FeedbackNotice, Input, PlainCard, SegmentedControl } from "@/components/ui";
+import { Button, FeedbackNotice, Icon, Input, PlainCard, SegmentedControl } from "@/components/ui";
 import { downloadExport, type ExportFormat } from "@/lib/settings-api";
 import { useST } from "./use-st";
 
@@ -32,7 +32,7 @@ export function ExportPanel() {
   }
 
   return (
-    <PlainCard title={t("settings.export.title")} description={t("settings.export.hint")}>
+    <PlainCard title={<span className="inline-flex items-center gap-2"><Icon icon={FileSpreadsheet} size={20} />{t("settings.export.title")}</span>} description={t("settings.export.hint")}>
       <div className="flex flex-col gap-3">
         <SegmentedControl label={t("settings.export.format")} value={format} onValueChange={setFormat} options={FORMATS.map((f) => ({ value: f, label: t(`settings.export.${f}`) }))} />
         <div className="grid grid-cols-2 gap-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, RefreshCw, Send, Unlink } from "lucide-react";
 import { useState } from "react";
 import { Button, Dialog, FeedbackNotice } from "@/components/ui";
 import { startTelegramLink, type TelegramLink, unlinkTelegram } from "@/lib/settings-api";
@@ -48,6 +48,7 @@ export function TelegramDialog({
               <FeedbackNotice>{state.username ? t("settings.telegram.linked", { username: state.username }) : t("settings.telegram.linkedAnon")}</FeedbackNotice>
               <Button
                 variant="destructive"
+                icon={Unlink}
                 loading={busy}
                 onClick={() =>
                   run(async () => {
@@ -68,12 +69,13 @@ export function TelegramDialog({
                   {t("settings.telegram.open")}
                 </a>
               </Button>
-              <Button variant="secondary" loading={busy} onClick={() => run(async () => reload())}>
+              <Button variant="secondary" icon={RefreshCw} loading={busy} onClick={() => run(async () => reload())}>
                 {t("settings.telegram.check")}
               </Button>
             </>
           ) : (
             <Button
+              icon={Send}
               loading={busy}
               onClick={() =>
                 run(async () => {

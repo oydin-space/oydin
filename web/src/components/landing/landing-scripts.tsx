@@ -18,11 +18,14 @@ export function LandingScripts({ locale }: { locale: Locale }) {
       location.reload() // scripts can't be re-bound after a client-side remount
       return
     }
+    const root = document.documentElement
     document.body.classList.add("home-page", "v2")
-    document.documentElement.lang = locale === "uz" ? "uz" : locale
+    root.dataset.theme = "light" // the landing is light-only; never inherit the app's dark tokens
+    root.lang = locale
     w.__oydinWords = words[locale]
     const added: HTMLScriptElement[] = []
     const timer = setTimeout(() => {
+      root.lang = locale // the app I18nProvider re-detects from navigator after hydration; the landing copy wins
       w.__oydinLoaded = true
       for (const name of SCRIPTS) {
         const s = document.createElement("script")
@@ -35,6 +38,7 @@ export function LandingScripts({ locale }: { locale: Locale }) {
     return () => {
       clearTimeout(timer)
       document.body.classList.remove("home-page", "v2")
+      delete root.dataset.theme
     }
   }, [locale])
   return null

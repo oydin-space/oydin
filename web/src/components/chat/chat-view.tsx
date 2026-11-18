@@ -4,15 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StickToBottom } from "use-stick-to-bottom";
-import { Bookmark, Settings, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Bookmark, Settings, ThumbsDown, ThumbsUp, Wand2 } from "lucide-react";
 import { PromptBar } from "@/components/ai-chat/prompt-bar";
 import { useSession } from "@/components/providers/session-provider";
-import { Button, Card, Chip, EmptyState, IconButton, PageHeader, SkeletonText, StatusBanner, Text, toast } from "@/components/ui";
+import { Button, Card, Chip, EmptyState, IconButton, Spinner, StatusBanner, Text, toast } from "@/components/ui";
 import { useApi } from "@/lib/use-api";
 import type { Account } from "@/lib/types";
 import { createTool } from "@/lib/tools-api";
 import { recordVoice, voiceSupported } from "@/lib/voice";
 import { AnswerChart } from "./answer-chart";
+import { BuildUiSheet } from "./build-ui-sheet";
+import { Logo } from "@/components/brand/logo";
 import { useChatT } from "./chat-t";
 import { DraftCard } from "./draft-card";
 import { GenerativeUI } from "./generative-ui";
@@ -27,6 +29,7 @@ export function ChatView() {
   const { user } = useSession();
   const chat = useUiChat();
   const accounts = useApi<{ items: Account[] }>(user?.role === "seller" ? null : "/accounts/");
+  const [buildOpen, setBuildOpen] = useState(false);
 
   if (user?.role === "seller" || chat.block === "forbidden") {
     return (
@@ -51,16 +54,18 @@ export function ChatView() {
       }
     : undefined;
 
+  const consentOff = chat.block === "consent";
+
   return (
-    <div className="mx-auto flex h-[calc(100dvh-8rem)] w-full max-w-3xl flex-col">
-      <PageHeader title={t("chat.title" as never)} hint={t("chat.ui.hint")} />
-      {chat.block === "consent" ? (
+    <div className="mx-auto box-border flex h-[calc(100dvh-var(--app-dock,5.5rem))] w-full max-w-3xl flex-col pt-[var(--app-top,3.5rem)]">
+      <h1 className="sr-only">{t("chat.title" as never)}</h1>
+      {consentOff ? (
         <StatusBanner
           kind="info"
           title={t("chat.ui.consentTitle")}
           action={
             <Button asChild variant="secondary" size="sm" icon={Settings}>
-              <Link href="/app/settings">{t("chat.ui.openSettings")}</Link>
+              <Link href="/app/settings">{t("chat.ui.enable")}</Link>
             </Button>
           }
         >
@@ -68,20 +73,24 @@ export function ChatView() {
         </StatusBanner>
       ) : null}
       <StickToBottom className="relative min-h-0 flex-1" resize="smooth" initial="instant">
-        <StickToBottom.Content className="flex flex-col gap-3 py-3">
-          {!chat.messages.length ? <EmptyState title={t("chat.ui.empty")} /> : null}
+        <StickToBottom.Content className="flex min-h-full flex-col gap-3 py-3">
+          {!chat.messages.length ? (
+            <div className="flex flex-col items-center gap-1 px-4 pt-2 text-center">
+              <Logo size={40} />
+              <Text weight="semibold">{t("chat.ui.empty")}</Text>
+              <Text variant="caption" tone="muted">
+                {t("chat.ui.hint")}
+              </Text>
+            </div>
+          ) : null}
           {chat.messages.map((m) => (
             <Message key={m.id} message={m} accounts={accounts.data?.items ?? []} chat={chat} />
           ))}
-          {chat.busy ? (
-            <Card className="max-w-[85%]" aria-busy>
-              <SkeletonText lines={2} />
-            </Card>
-          ) : null}
+          {chat.busy ? <Spinner variant="flower" size={36} className="self-start" /> : null}
           {chips.length && !chat.busy ? (
-            <div className="flex flex-wrap gap-2">
+            <div className={chat.messages.length ? "flex flex-wrap gap-2" : "-mx-4 mt-auto flex gap-2 overflow-x-auto px-4 pb-1 [&>*]:shrink-0"}>
               {chips.map((s) => (
-                <Chip key={s} onSelect={() => void chat.send(s)}>
+                <Chip key={s} disabled={consentOff} onSelect={() => void chat.send(s)}>
                   {s}
                 </Chip>
               ))}
@@ -89,29 +98,34 @@ export function ChatView() {
           ) : null}
         </StickToBottom.Content>
       </StickToBottom>
-      <div className="pb-2 pt-1">
-        <PromptBar
-          background="var(--card)"
-          color="var(--foreground)"
-          sparkColor="#b9a6f0"
-          width={760}
-          busy={chat.busy}
-          placeholders={STARTERS.map((k) => t(k))}
-          labels={{
-            prompt: t("chat.ui.prompt"),
-            send: t("chat.send" as never),
-            stop: t("chat.ui.stop"),
-            dictate: t("chat.ui.dictate"),
-            dictateStop: t("chat.ui.dictateStop"),
-            listening: t("chat.ui.recording"),
-          }}
-          onDictate={onDictate}
-          onSend={(text) => void chat.send(text)}
-        />
+      <div className="pb-0.5 pt-1">
+        <div className="flex items-center gap-2">
+          <IconButton icon={Wand2} label={t("chat.build.open")} variant="ghost" disabled={consentOff} onClick={() => setBuildOpen(true)} />
+          <PromptBar
+            disabled={consentOff}
+            background="var(--card)"
+            color="var(--foreground)"
+            sparkColor="#b9a6f0"
+            width={760}
+            busy={chat.busy}
+            placeholders={STARTERS.map((k) => t(k))}
+            labels={{
+              prompt: t("chat.ui.prompt"),
+              send: t("chat.send" as never),
+              stop: t("chat.ui.stop"),
+              dictate: t("chat.ui.dictate"),
+              dictateStop: t("chat.ui.dictateStop"),
+              listening: t("chat.ui.recording"),
+            }}
+            onDictate={onDictate}
+            onSend={(text) => void chat.send(text)}
+          />
+        </div>
         <Text variant="caption" tone="muted" className="mt-1 text-center">
           {t("chat.disclaimer" as never)}
         </Text>
       </div>
+      <BuildUiSheet open={buildOpen} onOpenChange={setBuildOpen} />
     </div>
   );
 }
@@ -130,7 +144,7 @@ function Message({ message: m, accounts, chat }: { message: UiMessage; accounts:
     );
   }
   if (m.error) {
-    return <StatusBanner kind="error" title={m.content === "ai_consent_required" ? t("chat.ui.consentTitle") : t("chat.ui.error")} />;
+    return <StatusBanner kind="error" title={t("chat.ui.error")} />;
   }
   const canSave = !!m.ui && m.ui.includes("Calculator(");
   const save = async () => {

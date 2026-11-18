@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LogIn } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
 import { Button, LanguageSwitcher } from "@/components/ui";
 import { usePublicT } from "./use-public-t";
@@ -19,17 +20,17 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="border-b border-border">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-page py-2 sm:px-page-lg">
-          <Link href="/" className="focus-ring min-target inline-flex items-center rounded-control" aria-label="Oydin">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-page py-2 sm:flex-nowrap sm:px-page-lg">
+          <Link href="/" className="focus-ring min-target order-1 inline-flex shrink-0 items-center rounded-control" aria-label="Oydin">
             <Wordmark size={32} />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="order-2 ml-auto flex shrink-0 items-center gap-2 sm:order-3">
             <LanguageSwitcher className="w-auto" />
-            <Button asChild size="sm" variant="secondary" className="hidden sm:inline-flex">
+            <Button asChild size="sm" variant="secondary" icon={LogIn} className="hidden sm:inline-flex">
               <Link href="/login">{t("public.nav.login")}</Link>
             </Button>
           </div>
-          <nav aria-label={t("public.nav.aria")} className="-mx-2 flex w-full flex-wrap items-center gap-x-1 sm:order-last sm:w-auto sm:flex-1 sm:justify-center">
+          <nav aria-label={t("public.nav.aria")} className="-mx-2 order-3 flex w-full flex-wrap items-center gap-x-1 sm:order-2 sm:w-auto sm:flex-1 sm:justify-center">
             {NAV.map((n) => (
               <Link key={n.href} href={n.href} className={linkClass}>
                 {t(n.key)}

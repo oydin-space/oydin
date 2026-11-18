@@ -48,8 +48,11 @@ export function useUiChat(): UiChat {
     try {
       await request(userId);
     } catch (e) {
-      if (e instanceof ApiError && e.message === "ai_consent_required") setBlock("consent");
-      else if (e instanceof ApiError && e.status === 403) setBlock("forbidden");
+      if (e instanceof ApiError && e.message === "ai_consent_required") {
+        setBlock("consent");
+        return;
+      }
+      if (e instanceof ApiError && e.status === 403) setBlock("forbidden");
       const code = e instanceof ApiError ? e.message : "error";
       setMessages((all) => [...all, { id: `m${Date.now().toString(36)}${seq++}`, role: "assistant", content: code, error: true }]);
     } finally {

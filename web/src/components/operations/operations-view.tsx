@@ -1,9 +1,9 @@
 "use client"
 
-import { Plus, Search } from "lucide-react"
+import { CalendarDays, Plus, Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { useCoreT } from "@/components/app/use-core-t"
-import { Button, EmptyState, ErrorState, FilterBar, Icon, Input, ListGroup, PageHeader, SkeletonList, Text } from "@/components/ui"
+import { Button, EmptyState, ErrorState, FilterBar, Icon, Input, ListGroup, PAGE_WIDTH, PageHeader, SkeletonList, Text } from "@/components/ui"
 import { groupByDate } from "@/lib/core-api"
 import { useI18n } from "@/i18n"
 import { useApi } from "@/lib/use-api"
@@ -65,7 +65,7 @@ export function OperationsView() {
       <div className="flex flex-col gap-4">
         {groups.map(({ date, items }) => (
           <div key={date} className="flex flex-col gap-1">
-            <Text variant="caption" tone="muted" className="px-4">{formatDate(date)}</Text>
+            <Text variant="caption" tone="muted" className="flex items-center gap-1.5 px-4"><Icon icon={CalendarDays} size={16} />{formatDate(date)}</Text>
             <ListGroup>
               {items.map((tx) => (
                 <TxRow key={tx.id} tx={tx} accounts={accs} onOpen={(x) => edit(x)} />
@@ -77,10 +77,10 @@ export function OperationsView() {
     )
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-6">
+    <div className={`${PAGE_WIDTH} flex flex-col gap-4 pb-6`}>
       <PageHeader title={t("core.ops.title")} hint={t("core.ops.hint")} actions={<Button icon={Plus} onClick={() => open({})}>{t("core.ops.add")}</Button>} />
       <DraftsSection drafts={drafts.data?.items ?? []} accounts={accs} onEdit={(tx) => edit(tx, true)} onChanged={reload} />
-      <Input label={t("core.ops.search")} placeholder={t("core.ops.search")} value={q} onChange={(e) => setQ(e.target.value)} leading={<Icon icon={Search} size={16} />} />
+      <Input label={t("core.ops.search")} placeholder={t("core.ops.searchExample")} value={q} onChange={(e) => setQ(e.target.value)} leading={<Icon icon={Search} size={16} />} />
       <FilterBar label={t("core.ops.filter")} options={options} value={purpose} onValueChange={setPurpose} />
       {body}
       {sheet ? <EntrySheet key={sheet.n} accounts={accs} seed={sheet.seed} onClose={() => setSheet(null)} onSaved={() => { setSheet(null); reload() }} /> : null}

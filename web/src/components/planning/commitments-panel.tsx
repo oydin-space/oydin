@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCheck, Plus } from "lucide-react";
-import { AmountText, Badge, Button, Card, Input, MoneyInput, Select, SegmentedControl, SkeletonCard, Switch, TaskSheet, Text } from "@/components/ui";
+import { ArrowDownLeft, ArrowUpRight, CheckCheck, CalendarClock, Clock, Pause, Pencil, Plus, Repeat, Tag, Trash2 } from "lucide-react";
+import { AmountText, Badge, Button, Card, Icon, Input, MoneyInput, Select, SegmentedControl, SkeletonCard, Switch, TaskSheet, Text } from "@/components/ui";
 import { confirmCommitment, createCommitment, deleteCommitment, listAccounts, listCommitments, patchCommitment, today, type Account, type Commitment, type Frequency } from "@/lib/planning-api";
 import { ConfirmDelete } from "./confirm-delete";
 import { LoadView, useAction, useLoad, usePlanFormat, usePlanT } from "./plan-support";
@@ -72,18 +72,24 @@ export function CommitmentsPanel() {
             {d.items.map((c) => (
               <Card key={c.id} className="flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Text variant="body" weight="semibold" className="truncate">
-                      {c.title}
-                    </Text>
-                    <Text variant="caption" tone="muted">
-                      {c.frequency === "weekly" ? t("freq.weekly") : t("freq.monthly")} · {t("commitments.next", { date: f.dateLong(c.next_date) })}
-                      {accName(c.account_id) ? ` · ${accName(c.account_id)}` : ""}
-                    </Text>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Icon icon={c.direction === "out" ? ArrowUpRight : ArrowDownLeft} className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <Text variant="body" weight="semibold" className="truncate">
+                        {c.title}
+                      </Text>
+                      <Text variant="caption" tone="muted" className="flex items-center gap-1.5">
+                        <Icon icon={Repeat} size={16} className="shrink-0" />
+                        <span>
+                          {c.frequency === "weekly" ? t("freq.weekly") : t("freq.monthly")} · {t("commitments.next", { date: f.dateLong(c.next_date) })}
+                          {accName(c.account_id) ? ` · ${accName(c.account_id)}` : ""}
+                        </span>
+                      </Text>
+                    </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <AmountText value={c.direction === "out" ? -c.amount : c.amount} signed locale={f.locale} mode="compact" className="font-semibold" />
-                    {!c.active ? <Badge>{t("commitments.paused")}</Badge> : c.due ? <Badge tone="caution">{t("commitments.due")}</Badge> : null}
+                    {!c.active ? <Badge icon={<Icon icon={Pause} size={16} />}>{t("commitments.paused")}</Badge> : c.due ? <Badge tone="caution" icon={<Icon icon={Clock} size={16} />}>{t("commitments.due")}</Badge> : null}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -92,10 +98,10 @@ export function CommitmentsPanel() {
                       {c.direction === "out" ? t("commitments.confirmOut") : t("commitments.confirmIn")}
                     </Button>
                   ) : null}
-                  <Button size="sm" variant="secondary" onClick={() => open(c)}>
+                  <Button size="sm" variant="secondary" icon={Pencil} onClick={() => open(c)}>
                     {t("common.edit")}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setRemoving(c)}>
+                  <Button size="sm" variant="ghost" icon={Trash2} onClick={() => setRemoving(c)}>
                     {t("common.delete")}
                   </Button>
                 </div>
@@ -132,7 +138,7 @@ export function CommitmentsPanel() {
               onValueChange={(v) => setDraft({ ...draft, direction: v })}
             />
             <Input label={t("commitments.name")} value={draft.title} maxLength={120} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required />
-            <Input label={t("commitments.category")} value={draft.category} maxLength={60} onChange={(e) => setDraft({ ...draft, category: e.target.value })} />
+            <Input label={t("commitments.category")} value={draft.category} maxLength={60} onChange={(e) => setDraft({ ...draft, category: e.target.value })} leading={<Icon icon={Tag} size={16} />} />
             <Select label={t("commitments.account")} options={accs.map((a) => ({ value: String(a.id), label: `${a.name} · ${a.currency}` }))} value={draft.accountId} onValueChange={(v) => setDraft({ ...draft, accountId: v })} />
             <MoneyInput label={t("commitments.amount")} value={draft.amount} onValueChange={(v) => setDraft({ ...draft, amount: v })} currency={accs.find((a) => String(a.id) === draft.accountId)?.currency ?? "UZS"} locale={f.locale} required />
             <SegmentedControl<Frequency>
@@ -144,7 +150,7 @@ export function CommitmentsPanel() {
               value={draft.frequency}
               onValueChange={(v) => setDraft({ ...draft, frequency: v })}
             />
-            <Input label={t("commitments.nextDate")} type="date" value={draft.nextDate} onChange={(e) => setDraft({ ...draft, nextDate: e.target.value })} required />
+            <Input label={t("commitments.nextDate")} type="date" value={draft.nextDate} onChange={(e) => setDraft({ ...draft, nextDate: e.target.value })} required leading={<Icon icon={CalendarClock} size={16} />} />
             <label className="flex min-h-row items-center justify-between gap-3">
               <Text variant="body">{t("commitments.active")}</Text>
               <Switch checked={draft.active} onCheckedChange={(v) => setDraft({ ...draft, active: v })} aria-label={t("commitments.active")} />

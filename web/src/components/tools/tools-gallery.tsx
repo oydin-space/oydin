@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calculator, Pin, PinOff, Sparkles } from "lucide-react";
-import { Badge, Button, Card, Icon, IconButton, Input, ListGroup, ListRow, PageHeader, Section, Sheet, SkeletonCard, SkeletonList, StateView, toast } from "@/components/ui";
+import { Bookmark, Calculator, Eye, Pin, PinOff, Wrench } from "lucide-react";
+import { Badge, Button, Card, Icon, IconButton, Input, ListGroup, ListRow, PAGE_WIDTH, PageHeader, Section, Sheet, SkeletonCard, SkeletonList, StateView, toast } from "@/components/ui";
 import { useChatT } from "@/components/chat/chat-t";
-import { useI18n, useT } from "@/i18n";
+import { useI18n } from "@/i18n";
 import { ApiError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { createTool, generateTool, updateTool, type SavedTool, type ToolTemplate } from "@/lib/tools-api";
@@ -14,7 +14,6 @@ import { GenerativeUI } from "@/components/chat/generative-ui";
 /** /app/tools: шаблоны калькуляторов, генерация по запросу и сохранённые инструменты. */
 export function ToolsGallery() {
   const t = useChatT();
-  const tb = useT();
   const { locale } = useI18n();
   const router = useRouter();
   const templates = useApi<ToolTemplate[]>(`/tools/templates/?lang=${locale}`);
@@ -49,7 +48,7 @@ export function ToolsGallery() {
     try {
       await save(await generateTool({ prompt: text, lang: locale }));
     } catch (e) {
-      toast.error(e instanceof ApiError && e.message === "unsupported_kind" ? t("chat.tools.unsupported") : t("chat.ui.error"));
+      toast.error(e instanceof ApiError && e.message === "unsupported_kind" ? t("chat.tools.unsupported") : t("chat.build.err.error"));
       setBusy(null);
     }
   };
@@ -63,9 +62,15 @@ export function ToolsGallery() {
     }
   };
 
+  /** Тип показываем только если он не повторяет название. */
+  const kindHint = (x: ToolTemplate) => {
+    const kind = t(`chat.tools.kind.${x.kind}`);
+    return kind.trim().toLowerCase() === x.title.trim().toLowerCase() ? undefined : kind;
+  };
+
   if (forbidden) {
     return (
-      <div className="mx-auto w-full max-w-4xl pb-6">
+      <div className={`${PAGE_WIDTH} pb-6`}>
         <StateView status="empty" empty={{ title: t("chat.tools.forbidden") }}>
           {null}
         </StateView>
@@ -76,7 +81,7 @@ export function ToolsGallery() {
   const items = [...(saved.data ?? [])].sort((a, b) => Number(b.pinned) - Number(a.pinned));
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 pb-6">
+    <div className={`${PAGE_WIDTH} flex flex-col gap-6 pb-6`}>
       <PageHeader title={t("chat.tools.title")} hint={t("chat.tools.hint")} />
 
       <Card>
@@ -90,11 +95,11 @@ export function ToolsGallery() {
           <Input
             className="flex-1"
             label={t("chat.tools.generate")}
-            placeholder={tb("biz.tools.generatePlaceholder")}
+            placeholder={t("chat.tools.generatePlaceholder")}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
-          <Button type="submit" icon={Sparkles} loading={busy === "generate"} disabled={!prompt.trim() || !!busy}>
+          <Button type="submit" icon={Wrench} loading={busy === "generate"} disabled={!prompt.trim() || !!busy}>
             {busy === "generate" ? t("chat.tools.generating") : t("chat.tools.generate")}
           </Button>
         </form>
@@ -113,7 +118,7 @@ export function ToolsGallery() {
               <ListRow
                 key={tool.id}
                 title={tool.title}
-                subtitle={t(`chat.tools.kind.${tool.kind}`)}
+                subtitle={kindHint(tool)}
                 leading={<Icon icon={Calculator} />}
                 href={`/app/tools/${tool.id}`}
                 trailing={
@@ -129,7 +134,7 @@ export function ToolsGallery() {
                     }}
                   />
                 }
-                status={tool.pinned ? <Badge tone="neutral">{t("chat.tools.pinned")}</Badge> : undefined}
+                status={tool.pinned ? <Badge tone="neutral" icon={<Icon icon={Pin} size={16} />}>{t("chat.tools.pinned")}</Badge> : undefined}
               />
             ))}
           </ListGroup>
@@ -153,13 +158,13 @@ export function ToolsGallery() {
               <Card
                 key={tpl.kind}
                 title={tpl.title}
-                description={t(`chat.tools.kind.${tpl.kind}`)}
+                description={kindHint(tpl)}
                 footer={
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => openPreview(tpl)}>
+                    <Button variant="ghost" size="sm" icon={Eye} disabled={!!busy} onClick={() => openPreview(tpl)}>
                       {t("chat.tools.open")}
                     </Button>
-                    <Button variant="secondary" size="sm" loading={busy === tpl.kind} disabled={!!busy} onClick={() => void save(tpl)}>
+                    <Button variant="secondary" size="sm" icon={Bookmark} loading={busy === tpl.kind} disabled={!!busy} onClick={() => void save(tpl)}>
                       {t("chat.tools.save")}
                     </Button>
                   </div>
@@ -174,9 +179,9 @@ export function ToolsGallery() {
         open={!!preview}
         onOpenChange={(open) => !open && setPreview(null)}
         title={preview?.title ?? ""}
-        description={preview ? t(`chat.tools.kind.${preview.kind}`) : undefined}
+        description={preview ? kindHint(preview) : undefined}
         footer={
-          <Button block loading={!!preview && busy === preview.kind} disabled={!!busy} onClick={() => preview && void save(preview)}>
+          <Button block icon={Bookmark} loading={!!preview && busy === preview.kind} disabled={!!busy} onClick={() => preview && void save(preview)}>
             {t("chat.tools.save")}
           </Button>
         }

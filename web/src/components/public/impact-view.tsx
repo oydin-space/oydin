@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Card, ErrorState, StatusBanner, Text } from "@/components/ui";
+import { AlertTriangle, Building2, ListChecks, Wallet } from "lucide-react";
+import { Card, ErrorState, Icon, StatusBanner, Text } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { usePublicT } from "./use-public-t";
 import type { Impact } from "@/lib/public-api";
@@ -9,10 +10,10 @@ import { PublicShell } from "./public-shell";
 import { PublicTitle } from "./page-title";
 
 const COUNTERS = [
-  { field: "businesses", label: "public.impact.businesses", tint: "mint" },
-  { field: "operations_recorded", label: "public.impact.operations", tint: "sky" },
-  { field: "cash_closes", label: "public.impact.closes", tint: "butter" },
-  { field: "gaps_flagged", label: "public.impact.gaps", tint: "lavender" },
+  { field: "businesses", label: "public.impact.businesses", tint: "mint", icon: Building2 },
+  { field: "operations_recorded", label: "public.impact.operations", tint: "sky", icon: ListChecks },
+  { field: "cash_closes", label: "public.impact.closes", tint: "butter", icon: Wallet },
+  { field: "gaps_flagged", label: "public.impact.gaps", tint: "lavender", icon: AlertTriangle },
 ] as const;
 
 export function ImpactView({ impact }: { impact: Impact | null }) {
@@ -28,13 +29,13 @@ export function ImpactView({ impact }: { impact: Impact | null }) {
         <div className="flex flex-col gap-4">
           {impact.suppressed ? <StatusBanner kind="info" title={t("public.impact.notEnough")}>{t("public.impact.suppressed")}</StatusBanner> : null}
           <ul className="grid gap-3 sm:grid-cols-2">
-            {COUNTERS.map(({ field, label, tint }) => {
+            {COUNTERS.map(({ field, label, tint, icon }) => {
               // 0 = скрыто бэкендом (k-анонимность), а не «ноль бизнесов».
               const value = impact.suppressed || impact[field] === 0 ? null : impact[field];
               return (
                 <li key={field}>
                   <Card tint={tint} className="flex h-full flex-col gap-1">
-                    <Text variant="secondary" tone="muted">{t(label)}</Text>
+                    <span className="flex items-center gap-2"><Icon icon={icon} size={20} /><Text variant="secondary" tone="muted">{t(label)}</Text></span>
                     {value === null ? (
                       <Text variant="body" weight="medium">{t("public.impact.notEnough")}</Text>
                     ) : (

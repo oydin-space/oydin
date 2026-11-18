@@ -3,7 +3,8 @@
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
-import { Input, MoneyInput, SegmentedControl, Select, TaskSheet } from "@/components/ui"
+import { CalendarDays, StickyNote, Tag, UserRound } from "lucide-react"
+import { Icon, Input, MoneyInput, SegmentedControl, Select, TaskSheet } from "@/components/ui"
 import { api } from "@/lib/api"
 import { currencyOf, todayIso } from "@/lib/core-api"
 import type { Account, Direction, Purpose, Transaction, TransactionInput } from "@/lib/types"
@@ -122,11 +123,11 @@ export function EntrySheet({ accounts, seed, onClose, onSaved }: Props) {
           error={attempted ? errors.account : undefined}
           required
         />
-        <Input label={t("core.ops.category")} value={form.category} onChange={(e) => set("category", e.target.value)} error={attempted ? errors.category : undefined} required />
+        <Input label={t("core.ops.category")} value={form.category} onChange={(e) => set("category", e.target.value)} error={attempted ? errors.category : undefined} required leading={<Icon icon={Tag} size={16} />} />
         <SegmentedControl label={t("core.ops.purpose")} options={purposeOptions} value={form.purpose} onValueChange={(p) => set("purpose", p)} />
-        <Input label={t("core.ops.counterparty")} value={form.counterparty} onChange={(e) => set("counterparty", e.target.value)} />
-        <Input label={t("core.ops.date")} type="date" value={form.date} onChange={(e) => set("date", e.target.value)} />
-        <Input label={t("core.ops.note")} value={form.note} onChange={(e) => set("note", e.target.value)} />
+        <Input label={t("core.ops.counterparty")} value={form.counterparty} onChange={(e) => set("counterparty", e.target.value)} leading={<Icon icon={UserRound} size={16} />} />
+        <Input label={t("core.ops.date")} type="date" value={form.date} onChange={(e) => set("date", e.target.value)} leading={<Icon icon={CalendarDays} size={16} />} />
+        <Input label={t("core.ops.note")} value={form.note} onChange={(e) => set("note", e.target.value)} leading={<Icon icon={StickyNote} size={16} />} />
       </div>
     </TaskSheet>
   )

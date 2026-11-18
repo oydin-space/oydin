@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
-import { ThumbsDown, ThumbsUp } from "lucide-react";
+import { AlertTriangle, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Icon } from "@/components/ui";
 import type { Account, TransactionInput } from "@/lib/types";
 import type { ChatMessage } from "@/lib/use-chat";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ export function ChatBubble({
   return (
     <motion.div className="flex origin-bottom-left justify-start pl-2" {...pop}>
       <div className={cn("tail-l max-w-[92%] rounded-[1.25rem] bg-secondary px-3.5 py-2.5 sm:max-w-[85%]", message.error && "bg-peach")}>
+        {message.error ? <Icon icon={AlertTriangle} size={16} className="mb-1" /> : null}
         <RichText>{message.content}</RichText>
         {message.chart ? <AnswerChart chart={message.chart} /> : null}
         {message.draft ? (
@@ -52,7 +54,7 @@ export function ChatBubble({
                 onClick={() => onRate(message.id, message.traceId!, v)}
                 className={cn("rounded-full p-1.5 hover:bg-muted", message.feedback === v && "bg-mint text-ink")}
               >
-                {v ? <ThumbsUp size={14} /> : <ThumbsDown size={14} />}
+                <Icon icon={v ? ThumbsUp : ThumbsDown} size={16} />
               </button>
             ))}
           </div>

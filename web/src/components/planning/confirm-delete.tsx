@@ -1,5 +1,6 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { Button, Dialog } from "@/components/ui";
 import { usePlanT } from "./plan-support";
 
@@ -17,7 +18,7 @@ export function ConfirmDelete({ open, title, busy, onConfirm, onClose }: { open:
           <Button variant="secondary" className="flex-1" onClick={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button variant="destructive" className="flex-1" loading={busy} onClick={onConfirm}>
+          <Button variant="destructive" icon={Trash2} className="flex-1" loading={busy} onClick={onConfirm}>
             {t("common.delete")}
           </Button>
         </>

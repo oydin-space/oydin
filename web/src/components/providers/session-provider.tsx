@@ -133,7 +133,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [tg.status, tg.initData, attempt]);
 
   useEffect(() => {
-    if (user?.needs_onboarding && path !== "/onboarding") router.replace("/onboarding");
+    const needs = user && (user.needs_onboarding || user.onboarding_done === false);
+    if (needs && path !== "/onboarding" && !path.startsWith("/join")) router.replace("/onboarding");
   }, [user, path, router]);
 
   const applyMe = useCallback((me: User) => {

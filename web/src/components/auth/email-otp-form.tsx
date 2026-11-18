@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight, Check, Pencil, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Input, OtpInput } from "@/components/ui";
 import { errorText, saveConsent, type ConsentChoice, requestEmailCode, verifyEmailCode } from "@/lib/auth-api";
@@ -78,16 +79,16 @@ export function EmailOtpForm({ consent, onSignedIn, onNeedTerms }: { consent: Co
       >
         <p className="text-small text-muted-foreground">{t("auth.email.sentTo", { email })}</p>
         <OtpInput value={code} onValueChange={setCode} onComplete={(v) => void verify(v)} label={t("auth.email.code")} error={error ?? undefined} disabled={busy} autoFocus />
-        <Button type="submit" block loading={busy} disabled={code.length !== 6}>{t("auth.email.verify")}</Button>
-        <Button variant="ghost" block disabled={left > 0 || busy} onClick={() => void send()}>{left > 0 ? t("auth.email.resendIn", { s: left }) : t("auth.email.resend")}</Button>
-        <Button variant="ghost" block onClick={() => { setStep("email"); setError(null); }}>{t("auth.email.change")}</Button>
+        <Button type="submit" icon={Check} block loading={busy} disabled={code.length !== 6}>{t("auth.email.verify")}</Button>
+        <Button variant="ghost" icon={RefreshCw} block disabled={left > 0 || busy} onClick={() => void send()}>{left > 0 ? t("auth.email.resendIn", { s: left }) : t("auth.email.resend")}</Button>
+        <Button variant="ghost" icon={Pencil} block onClick={() => { setStep("email"); setError(null); }}>{t("auth.email.change")}</Button>
       </form>
     );
   }
   return (
     <form className="flex flex-col gap-4" onSubmit={send}>
       <Input type="email" name="email" label={t("auth.email.label")} hint={t("auth.email.hint")} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" inputMode="email" required error={error ?? undefined} />
-      <Button type="submit" block loading={busy}>{t("auth.email.send")}</Button>
+      <Button type="submit" icon={ArrowRight} block loading={busy}>{t("auth.email.send")}</Button>
     </form>
   );
 }

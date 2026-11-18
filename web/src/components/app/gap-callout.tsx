@@ -1,23 +1,32 @@
 "use client"
 
+import { AlertTriangle, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { useCoreT } from "@/components/app/use-core-t"
-import { AmountText, Button, StatusBanner } from "@/components/ui"
+import { AmountText, Icon, Text } from "@/components/ui"
 import { useI18n } from "@/i18n"
 import type { PulseData } from "@/lib/core-api"
+import { PASTEL_BG } from "@/lib/tone"
+import { cn } from "@/lib/utils"
 
-export function GapCallout({ gap }: { gap: PulseData["gap"] }) {
+/** Cash-gap alert as a compact card; the whole card opens the "can I afford it" planner. */
+export function GapCallout({ gap, className }: { gap: PulseData["gap"]; className?: string }) {
   const t = useCoreT()
   const { formatDate } = useI18n()
-  const afford = (
-    <Button asChild size="sm" variant="secondary">
-      <Link href="/app/plan?tab=afford">{t("core.dash.afford")}</Link>
-    </Button>
-  )
-  if (!gap) return <StatusBanner kind="success" title={t("core.dash.noGapTitle")} action={afford}>{t("core.dash.noGapBody")}</StatusBanner>
   return (
-    <StatusBanner kind="warning" title={t("core.dash.gapTitle", { date: formatDate(gap.date) })} action={afford}>
-      {t("core.dash.gapShort")}: <AmountText value={gap.amount} /> · {gap.reason}
-    </StatusBanner>
+    <Link href="/app/plan?tab=afford" className={cn("min-h-11", gap ? PASTEL_BG.rose : PASTEL_BG.mint, className)}>
+      <div className="flex items-center gap-2">
+        <Icon icon={gap ? AlertTriangle : CheckCircle2} />
+        <Text variant="secondary" weight="semibold" className="line-clamp-2">
+          {gap ? t("core.dash.gapTitle", { date: formatDate(gap.date) }) : t("core.dash.noGapTitle")}
+        </Text>
+      </div>
+      <div className="flex flex-col">
+        <Text variant="secondary" tone="muted" className="line-clamp-2">
+          {gap ? (<>{t("core.dash.gapShort")}: <AmountText value={gap.amount} /></>) : t("core.dash.noGapBody")}
+        </Text>
+        <Text variant="caption" tone="muted">{t("core.dash.afford")}</Text>
+      </div>
+    </Link>
   )
 }

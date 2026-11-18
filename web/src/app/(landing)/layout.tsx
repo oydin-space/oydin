@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 export default function LandingLayout({ children }: { children: ReactNode }) {
   return (
     <>
+      <script dangerouslySetInnerHTML={{ __html: "document.documentElement.dataset.theme='light'" }} />
       <link rel="preload" as="image" href="/landing/assets/hero-phone-brief-2026-960.webp" />
       {STYLES.map((n) => (
         <link key={n} rel="stylesheet" href={`/landing/css/${n}.css`} precedence="default" />

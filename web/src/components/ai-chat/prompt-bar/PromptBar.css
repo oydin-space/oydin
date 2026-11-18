@@ -669,3 +669,19 @@
     transform: none;
   }
 }
+
+.prompt-bar-slot {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+}
+.prompt-bar-slot[data-disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Плавающая кнопка OpenUI Inspect (dev-автомонтирование @openuidev/react-lang) — скрыта. */
+[data-openui-devtools-auto-mount] {
+  display: none !important;
+}

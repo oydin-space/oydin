@@ -2,7 +2,8 @@
 
 import { useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { EmptyState, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
+import { Calculator, CalendarRange, ClipboardCheck, HandCoins, Landmark, Repeat, Target, type LucideIcon } from "lucide-react";
+import { EmptyState, Icon, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { useSession } from "@/components/providers/session-provider";
 import { AffordPanel } from "./afford-panel";
 import { ClosePanel } from "./close-panel";
@@ -16,6 +17,15 @@ import { TaxPanel } from "./tax-panel";
 const TABS = ["afford", "close", "goals", "tax", "debtors", "commitments", "season"] as const;
 type Tab = (typeof TABS)[number];
 const isTab = (v: string | null): v is Tab => TABS.includes(v as Tab);
+const TAB_ICON: Record<Tab, LucideIcon> = {
+  afford: Calculator,
+  close: ClipboardCheck,
+  goals: Target,
+  tax: Landmark,
+  debtors: HandCoins,
+  commitments: Repeat,
+  season: CalendarRange,
+};
 
 export function PlanView() {
   const t = usePlanT();
@@ -45,7 +55,10 @@ export function PlanView() {
         <TabsList>
           {TABS.map((k) => (
             <TabsTrigger key={k} value={k}>
-              {t(`tab.${k}` as PlanKey)}
+              <span className="inline-flex items-center gap-1.5">
+                <Icon icon={TAB_ICON[k]} size={16} />
+                {t(`tab.${k}` as PlanKey)}
+              </span>
             </TabsTrigger>
           ))}
         </TabsList>

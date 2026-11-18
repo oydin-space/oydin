@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Info, RotateCcw } from "lucide-react";
 import { Flower } from "@/components/brand/flower";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
+import { NamedIcon, type IconName } from "./icon";
 import { Card } from "./card";
 import { SkeletonList } from "./skeleton";
 
@@ -22,10 +23,10 @@ export function ErrorState({ message, onRetry, retryLabel, className }: { messag
   );
 }
 
-export function EmptyState({ title, hint, action, className }: { title: string; hint?: string; action?: React.ReactNode; className?: string }) {
+export function EmptyState({ title, icon, hint, action, className }: { title: string; icon?: IconName; hint?: string; action?: React.ReactNode; className?: string }) {
   return (
     <div className={cn("flex flex-col items-center gap-2 rounded-card border border-dashed border-border-strong/40 px-6 py-10 text-center", className)}>
-      <Flower className="size-8 text-brand" />
+      {icon ? <NamedIcon name={icon} size={20} className="text-brand" /> : <Flower className="size-8 text-brand" />}
       <p className="text-body font-medium">{title}</p>
       {hint ? <p className="max-w-xs text-small text-muted-foreground">{hint}</p> : null}
       {action}

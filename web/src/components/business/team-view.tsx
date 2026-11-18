@@ -1,13 +1,14 @@
 "use client";
 
-import { UserPlus } from "lucide-react";
+import { Check, Send, Trash2, User, UserMinus, UserPlus, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { Badge, Button, EmptyState, ErrorState, Input, ListGroup, ListRow, PageHeader, SegmentedControl, Sheet, SkeletonList } from "@/components/ui";
+import { Badge, Button, EmptyState, ErrorState, Icon, Input, ListGroup, ListRow, PAGE_WIDTH, PageHeader, SegmentedControl, Sheet, SkeletonList } from "@/components/ui";
 import { changeMemberRole, errorText, inviteMember, listMembers, removeMember, type TeamMember } from "@/lib/auth-api";
 import { useT } from "@/i18n";
 import type { Role } from "@/lib/types";
 import { ROLES, roleLabel } from "./roles";
+import { InviteLinks } from "./invite-links";
 
 type Panel = { kind: "invite" } | { kind: "member"; m: TeamMember } | { kind: "confirm"; m: TeamMember } | null;
 const who = (m: TeamMember) => m.name || m.email || m.invited_email || "";
@@ -103,7 +104,7 @@ export function TeamView() {
   const roleOptions = ROLES.map((r) => ({ value: r, label: roleLabel(t, r) }));
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+    <div className={`${PAGE_WIDTH} flex flex-col gap-4`}>
       <PageHeader title={strings.title} hint={strings.hint} actions={<Button icon={UserPlus} onClick={() => open({ kind: "invite" })}>{strings.invite}</Button>} />
       {loadFailed ? (
         <ErrorState message={strings.loadError} onRetry={() => { setLoadFailed(false); void load(); }} />
@@ -111,7 +112,7 @@ export function TeamView() {
         <SkeletonList rows={3} />
       ) : items.length <= 1 && items.every((m) => m.user_id === user?.id) ? (
         <>
-          <ListGroup>{items.map((m) => <ListRow key={m.id} title={who(m)} subtitle={label(m)} />)}</ListGroup>
+          <ListGroup>{items.map((m) => <ListRow key={m.id} title={who(m)} leading={<Icon icon={User} size={20} className="text-muted-foreground" />} subtitle={label(m)} />)}</ListGroup>
           <EmptyState title={strings.empty} hint={strings.emptyHint} />
         </>
       ) : (
@@ -120,6 +121,7 @@ export function TeamView() {
             <ListRow
               key={m.id}
               title={who(m)}
+              leading={<Icon icon={User} size={20} className="text-muted-foreground" />}
               subtitle={m.email && m.email !== who(m) ? `${m.email} · ${label(m)}` : label(m)}
               status={m.status === "invited" ? <Badge tone="caution">{strings.invited}</Badge> : undefined}
               onClick={() => open({ kind: "member", m })}
@@ -127,6 +129,8 @@ export function TeamView() {
           ))}
         </ListGroup>
       )}
+
+      <InviteLinks businessId={id} businessName={user?.business?.name ?? ""} />
 
       <Sheet
         open={panel !== null}
@@ -140,21 +144,21 @@ export function TeamView() {
             <SegmentedControl label={strings.role} value={role} onValueChange={setRole} options={roleOptions} />
             <p className="text-caption text-muted-foreground">{strings.roleHints[role]}</p>
             {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
-            <Button type="submit" block loading={busy}>{strings.send}</Button>
+            <Button type="submit" icon={Send} block loading={busy}>{strings.send}</Button>
           </form>
         ) : panel?.kind === "member" ? (
           <div className="flex flex-col gap-4">
             <SegmentedControl label={strings.role} value={role} onValueChange={setRole} options={roleOptions} />
             <p className="text-caption text-muted-foreground">{strings.roleHints[role]}</p>
             {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
-            <Button block loading={busy} disabled={role === panel.m.role} onClick={() => void run(() => changeMemberRole(id, panel.m.id, role))}>{strings.save}</Button>
-            <Button variant="destructive" block onClick={() => { setError(null); setPanel({ kind: "confirm", m: panel.m }); }}>{strings.remove}</Button>
+            <Button block icon={Check} loading={busy} disabled={role === panel.m.role} onClick={() => void run(() => changeMemberRole(id, panel.m.id, role))}>{strings.save}</Button>
+            <Button variant="destructive" icon={UserMinus} block onClick={() => { setError(null); setPanel({ kind: "confirm", m: panel.m }); }}>{strings.remove}</Button>
           </div>
         ) : panel?.kind === "confirm" ? (
           <div className="flex flex-col gap-3">
             {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
-            <Button variant="destructive" block loading={busy} onClick={() => void run(() => removeMember(id, panel.m.id))}>{strings.confirm}</Button>
-            <Button variant="ghost" block onClick={() => setPanel({ kind: "member", m: panel.m })}>{strings.cancel}</Button>
+            <Button variant="destructive" icon={Trash2} block loading={busy} onClick={() => void run(() => removeMember(id, panel.m.id))}>{strings.confirm}</Button>
+            <Button variant="ghost" icon={X} block onClick={() => setPanel({ kind: "member", m: panel.m })}>{strings.cancel}</Button>
           </div>
         ) : null}
       </Sheet>

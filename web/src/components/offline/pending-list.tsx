@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Clock, RefreshCw, Trash2, TriangleAlert } from "lucide-react";
 import { AmountText, Badge, Button, EmptyState, Icon, IconButton, ListGroup } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import type { Account } from "@/lib/types";
@@ -33,7 +33,7 @@ export function PendingList({ entries, accounts, lastSync, syncing, online, onSy
         <div className="min-w-0">
           <h2 className="text-body font-semibold">
             {t("offline.queue")}
-            {entries.length ? <Badge className="ml-2">{t("offline.pending", { count: entries.length })}</Badge> : null}
+            {entries.length ? <Badge className="ml-2" icon={<Icon icon={Clock} size={16} />}>{t("offline.pending", { count: entries.length })}</Badge> : null}
           </h2>
           <p className="truncate text-small text-muted-foreground">{lastSync ? t("offline.lastSync", { time: time(lastSync) }) : t("offline.never")}</p>
         </div>
@@ -56,7 +56,8 @@ export function PendingList({ entries, accounts, lastSync, syncing, online, onSy
                     {[accounts.find((a) => a.id === e.payload.account_id)?.name, e.payload.note, time(e.created_at)].filter(Boolean).join(" · ")}
                   </span>
                   {e.error ? (
-                    <span className="text-small text-danger">
+                    <span className="flex items-center gap-1 text-small text-danger">
+                      <Icon icon={TriangleAlert} size={16} />
                       {t("offline.failed")}: {t(`offline.error.${e.error}`) === `offline.error.${e.error}` ? e.error : t(`offline.error.${e.error}`)}
                     </span>
                   ) : null}

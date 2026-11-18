@@ -58,7 +58,16 @@ export type PromptBarProps = {
   className?: string;
 };
 
-export const PromptBar = PromptBarRaw as unknown as ComponentType<PromptBarProps>;
+const PromptBarBase = PromptBarRaw as unknown as ComponentType<PromptBarProps>;
+
+/** Oydin: `disabled` делает композер inert (нет фокуса и ввода) и приглушает его. */
+export function PromptBar({ disabled, ...props }: PromptBarProps & { disabled?: boolean }) {
+  return (
+    <div className="prompt-bar-slot" data-disabled={disabled ? "" : undefined} inert={disabled}>
+      <PromptBarBase {...props} />
+    </div>
+  );
+}
 
 /** The dark glass styling used in the original app. Spread it onto `PromptBar`. */
 export const midnightPreset = {

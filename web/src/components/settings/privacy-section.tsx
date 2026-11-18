@@ -1,8 +1,9 @@
 "use client";
 
+import { Ban, Check, Handshake, ScrollText, ShieldCheck, Store } from "lucide-react";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { Badge, Button, ChoiceControl, FeedbackNotice, ListGroup, ListRow, PlainCard, SkeletonList } from "@/components/ui";
+import { Badge, Button, ChoiceControl, FeedbackNotice, Icon, ListGroup, ListRow, PlainCard, SkeletonList } from "@/components/ui";
 import { type ConsentPurpose, type Consents, fetchConsents, grantPartnerConsent, listPartnerConsents, revokePartnerConsent, saveConsents } from "@/lib/settings-api";
 import { ResourceGate } from "./resource-gate";
 import { useResource } from "./use-resource";
@@ -29,7 +30,7 @@ function ConsentToggles({ initial }: { initial: Consents }) {
   }
 
   return (
-    <PlainCard title={t("settings.privacy.title")} description={t("settings.privacy.hint")}>
+    <PlainCard title={<span className="inline-flex items-center gap-2"><Icon icon={ShieldCheck} size={20} />{t("settings.privacy.title")}</span>} description={t("settings.privacy.hint")}>
       <div className="flex flex-col gap-4">
         {PURPOSES.map((p) => (
           <ChoiceControl
@@ -70,7 +71,7 @@ function PartnerConsents() {
 
   return (
     <section className="flex flex-col gap-2" aria-labelledby="partners-h">
-      <h2 id="partners-h" className="text-title font-semibold">{t("settings.partners.title")}</h2>
+      <h2 id="partners-h" className="flex items-center gap-2 text-title font-semibold"><Icon icon={Handshake} size={20} />{t("settings.partners.title")}</h2>
       <p className="text-small text-muted-foreground">{t("settings.partners.hint")}</p>
       <ResourceGate loading={loading} error={error} onRetry={reload} skeleton={<SkeletonList rows={2} />}>
         {data && data.length === 0 ? (
@@ -81,10 +82,11 @@ function PartnerConsents() {
               <ListRow
                 key={c.partner.id}
                 title={c.partner.name}
+                leading={<Icon icon={Store} size={20} className="text-muted-foreground" />}
                 subtitle={c.partner.kind}
                 status={<Badge tone={c.granted ? "positive" : "neutral"}>{c.granted ? t("settings.partners.granted") : t("settings.partners.revoked")}</Badge>}
                 trailing={
-                  <Button size="sm" variant={c.granted ? "secondary" : "primary"} loading={busy === c.partner.id} onClick={() => change(c.partner.id, c.granted)}>
+                  <Button size="sm" variant={c.granted ? "secondary" : "primary"} icon={c.granted ? Ban : Check} loading={busy === c.partner.id} onClick={() => change(c.partner.id, c.granted)}>
                     {c.granted ? t("settings.partners.revoke") : t("settings.partners.grant")}
                   </Button>
                 }
@@ -109,8 +111,8 @@ export function PrivacySection() {
       </ResourceGate>
       {user?.role === "owner" ? <PartnerConsents /> : null}
       <ListGroup header={t("settings.privacy.links")}>
-        <ListRow title={t("settings.profile.privacy")} href="/privacy" chevron />
-        <ListRow title={t("settings.profile.terms")} href="/terms" chevron />
+        <ListRow title={t("settings.profile.privacy")} href="/privacy" chevron leading={<Icon icon={ShieldCheck} size={20} className="text-muted-foreground" />} />
+        <ListRow title={t("settings.profile.terms")} href="/terms" chevron leading={<Icon icon={ScrollText} size={20} className="text-muted-foreground" />} />
       </ListGroup>
     </div>
   );

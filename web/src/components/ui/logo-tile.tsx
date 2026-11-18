@@ -18,6 +18,9 @@ const FILES: Record<string, { src: string; wide?: boolean; w: number; h: number 
   didox: { src: "/logos/didox.png", w: 192, h: 192 },
   "1c": { src: "/logos/1c.png", w: 230, h: 174 },
   payme: { src: "/logos/payme.png", w: 180, h: 180 },
+  click: { src: "/logos/click.svg", w: 160, h: 160 },
+  billz: { src: "/logos/billz.png", w: 160, h: 160 },
+  banks: { src: "/logos/hamkorbank.png", w: 2237, h: 2237 },
 };
 
 const GLYPHS = { csv: Table2, api: Globe, webhooks: Webhook } as const;
@@ -70,7 +73,7 @@ export function LogoTile({ logo, name, description, status, statusLabel, onClick
       <LogoMark logo={logo} name={name} size={48} />
       <span className="flex min-w-0 flex-1 flex-col text-left">
         <span className="truncate text-body font-medium">{name}</span>
-        {description ? <span className="truncate text-small text-muted-foreground">{description}</span> : null}
+        {description ? <span className="line-clamp-2 break-words text-small text-muted-foreground">{description}</span> : null}
       </span>
       <Badge tone={s.tone}>{statusLabel ?? t(s.key)}</Badge>
     </>

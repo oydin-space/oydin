@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AmountText, Badge, Card, Input, ListGroup, ListRow, Button, Section, Select, SkeletonCard, Text, FeedbackNotice } from "@/components/ui";
+import { Check, CheckCircle2, ClipboardCheck, CalendarDays, StickyNote, TrendingDown, TrendingUp } from "lucide-react";
+import { AmountText, Badge, Card, Icon, Input, ListGroup, ListRow, Button, Section, Select, SkeletonCard, Text, FeedbackNotice } from "@/components/ui";
 import { MoneyInput } from "@/components/ui";
 import { api } from "@/lib/api";
 import { cashExpected, listAccounts, saveCashClose, today, type CashClose } from "@/lib/planning-api";
@@ -68,7 +69,7 @@ function CloseForm({ accounts, onSaved }: { accounts: { id: number; name: string
         }}
       >
         {accounts.length > 1 ? <Select label={t("close.account")} options={accounts.map((a) => ({ value: String(a.id), label: `${a.name} · ${a.currency}` }))} value={accountId} onValueChange={setAccountId} /> : null}
-        <Input label={t("close.date")} type="date" value={date} max={today()} onChange={(e) => e.target.value && setDate(e.target.value)} />
+        <Input label={t("close.date")} type="date" value={date} max={today()} onChange={(e) => e.target.value && setDate(e.target.value)} leading={<Icon icon={CalendarDays} size={16} />} />
         <div className="flex items-baseline justify-between gap-3 rounded-control bg-muted px-3 py-3">
           <Text variant="secondary" tone="muted">
             {t("close.expected")}
@@ -77,8 +78,8 @@ function CloseForm({ accounts, onSaved }: { accounts: { id: number; name: string
         </div>
         <MoneyInput label={t("close.counted")} value={counted} onValueChange={setCounted} currency={account.currency} locale={f.locale} required />
         {diff != null ? <Difference diff={diff} currency={account.currency} /> : null}
-        <Input label={t("close.note")} value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
-        <Button type="submit" loading={busy} disabled={counted == null}>
+        <Input label={t("close.note")} value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} leading={<Icon icon={StickyNote} size={16} />} />
+        <Button type="submit" icon={Check} loading={busy} disabled={counted == null}>
           {t("close.save")}
         </Button>
       </form>
@@ -93,7 +94,7 @@ function Difference({ diff, currency }: { diff: number; currency: "UZS" | "USD" 
     <FeedbackNotice>{t("close.match")}</FeedbackNotice>
   ) : (
     <div className="flex items-center justify-between gap-2">
-      <Badge tone={diff < 0 ? "negative" : "caution"}>{diff < 0 ? t("close.short") : t("close.over")}</Badge>
+      <Badge tone={diff < 0 ? "negative" : "caution"} icon={<Icon icon={diff < 0 ? TrendingDown : TrendingUp} size={16} />}>{diff < 0 ? t("close.short") : t("close.over")}</Badge>
       <AmountText value={diff} currency={currency} locale={f.locale} signed className="text-body font-semibold" />
     </div>
   );
@@ -111,9 +112,10 @@ function HistorySection({ res }: { res: Loaded<{ items: CashClose[] }> }) {
             {sorted.map((c) => (
               <ListRow
                 key={c.id}
+                leading={<Icon icon={ClipboardCheck} className="text-muted-foreground" />}
                 title={f.dateLong(c.date)}
                 subtitle={c.note || undefined}
-                status={c.difference === 0 ? <Badge tone="positive">{t("close.match")}</Badge> : <Badge tone={c.difference < 0 ? "negative" : "caution"}>{c.difference < 0 ? t("close.short") : t("close.over")}</Badge>}
+                status={c.difference === 0 ? <Badge tone="positive" icon={<Icon icon={CheckCircle2} size={16} />}>{t("close.match")}</Badge> : <Badge tone={c.difference < 0 ? "negative" : "caution"} icon={<Icon icon={c.difference < 0 ? TrendingDown : TrendingUp} size={16} />}>{c.difference < 0 ? t("close.short") : t("close.over")}</Badge>}
                 trailing={<AmountText value={c.difference} currency={c.currency} locale={f.locale} mode="compact" signed />}
               />
             ))}

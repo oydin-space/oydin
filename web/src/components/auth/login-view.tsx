@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Globe, Play, Send } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { Button, Card, ErrorState, LanguageSwitcher, SkeletonList, Text } from "@/components/ui";
+import { Button, Card, ErrorState, Icon, LanguageSwitcher, SkeletonList, Text } from "@/components/ui";
 import { ConsentNotice } from "@/components/legal/consent-notice";
 import { demoLogin, errorText, fetchProviders, noConsent, stashConsent, type ConsentChoice } from "@/lib/auth-api";
 import type { AuthProviders, Me } from "@/lib/types";
@@ -16,7 +17,8 @@ const noopSubscribe = () => () => undefined;
 const inTelegram = () => hasTelegramLaunchParams() || !!window.Telegram?.WebApp?.initData;
 
 /** Только относительные пути внутри приложения. */
-const safeNext = (next: string | null) => (next && next.startsWith("/app") && !next.startsWith("//") ? next : "/app");
+const safeNext = (next: string | null) =>
+  next && (next.startsWith("/app") || next.startsWith("/join/")) && !next.startsWith("//") ? next : "/app";
 
 export function LoginView({ next }: { next: string | null }) {
   const { t, locale } = useAT();
@@ -91,7 +93,7 @@ export function LoginView({ next }: { next: string | null }) {
                 } else stashConsent(consent);
               }}
             >
-              <a href={`/api/auth/google/start/?next=${encodeURIComponent(target)}`}>{t("auth.google")}</a>
+              <a href={`/api/auth/google/start/?next=${encodeURIComponent(target)}`} className="inline-flex items-center justify-center gap-2"><Icon icon={Globe} size={20} />{t("auth.google")}</a>
             </Button>
           ) : null}
           {showTelegram ? (
@@ -102,10 +104,10 @@ export function LoginView({ next }: { next: string | null }) {
                 onError={(e) => setError(errorText(e, errors, t("auth.generic")))}
               />
             ) : (
-              <Button variant="secondary" block aria-disabled onClick={needTerms}>{t("auth.telegram")}</Button>
+              <Button variant="secondary" icon={Send} block aria-disabled onClick={needTerms}>{t("auth.telegram")}</Button>
             )
           ) : null}
-          {providers.demo ? <Button variant="ghost" block loading={busy} onClick={demo}>{t("auth.demo")}</Button> : null}
+          {providers.demo ? <Button variant="ghost" icon={Play} block loading={busy} onClick={demo}>{t("auth.demo")}</Button> : null}
           {providers.email || providers.google || showTelegram ? (
             <ConsentNotice compact locale={locale} value={consent} onChange={(c) => { setConsent(c); if (c.terms) setTermsInvalid(false); }} disabled={busy} invalid={termsInvalid && !consent.terms} termsRef={termsRef} />
           ) : null}

@@ -1,46 +1,71 @@
 "use client"
 
+import { CalendarClock, CheckCircle2, ShieldCheck, TriangleAlert, Eye } from "lucide-react"
 import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
-import { AmountText, Badge, Card, ProgressRing, StatTile, Text, type StatTileProps } from "@/components/ui"
+import { AmountText, Badge, Icon, ProgressRing, Skeleton, StatTile, Text, type StatTileProps } from "@/components/ui"
 import type { PulseData } from "@/lib/core-api"
 
+const TONE_ICON = { calm: ShieldCheck, watch: Eye, risk: TriangleAlert } as const
 const TONE = { calm: "positive", watch: "caution", risk: "negative" } as const
 
+export function PulseHeroSkeleton() {
+  return (
+    <div className="flex items-center gap-4" aria-hidden="true">
+      <Skeleton className="size-[72px] rounded-pill" />
+      <div className="flex flex-1 flex-col gap-2">
+        <Skeleton className="h-5 w-20" />
+        <Skeleton className="h-9 w-3/4" />
+      </div>
+    </div>
+  )
+}
+
+/** Above the fold: safe-to-spend number and a one-line status. */
 export function PulseHero({ pulse }: { pulse: PulseData }) {
   const t = useCoreT()
+  return (
+    <div className="flex items-center gap-4">
+      <ProgressRing value={pulse.score / 100} label={t("core.dash.pulseLabel", { score: String(pulse.score) })} size={72}>
+        <Text variant="body" weight="bold">{pulse.score}</Text>
+      </ProgressRing>
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+        <Badge className="self-start" icon={<Icon icon={TONE_ICON[pulse.tone as keyof typeof TONE_ICON] ?? ShieldCheck} size={16} />} tone={TONE[pulse.tone as keyof typeof TONE] ?? "neutral"}>{t(`core.dash.tone.${pulse.tone}` as CoreKey)}</Badge>
+        <Text variant="secondary" tone="muted">{t("core.dash.safe")}</Text>
+        <AmountText value={pulse.safe_to_spend} className="text-page font-semibold" />
+      </div>
+    </div>
+  )
+}
+
+/** Below the fold: balance and other metrics. */
+export function PulseDetails({ pulse }: { pulse: PulseData }) {
+  const t = useCoreT()
   const metric = (key: string) => pulse.metrics.find((m) => m.key === key)?.value
-  const ownerTake = metric("owner_take")
-  const profit = metric("profit")
   const optional: StatTileProps[] = [
-    { tint: "lavender", label: t("core.dash.ownerTake"), value: ownerTake ?? null },
-    { tint: "peach", label: t("core.dash.profit"), value: profit ?? null },
-    { tint: "rose", label: t("core.dash.taxReserved"), value: pulse.tax_reserved ?? null },
-    { tint: "butter", label: t("core.dash.cashDifference"), value: pulse.cash_difference ?? null },
+    { tint: "lavender", icon: "hand-coins", label: t("core.dash.ownerTake"), value: metric("owner_take") ?? null },
+    { tint: "peach", icon: "trending-up", label: t("core.dash.profit"), value: metric("profit") ?? null },
+    { tint: "rose", icon: "landmark", label: t("core.dash.taxReserved"), value: pulse.tax_reserved ?? null },
+    { tint: "butter", icon: "scale", label: t("core.dash.cashDifference"), value: pulse.cash_difference ?? null },
   ]
-  const tiles: StatTileProps[] = [{ tint: "sky", label: t("core.dash.balance"), value: pulse.balance }, ...optional.filter((tile) => tile.value != null)]
+  const tiles: StatTileProps[] = [{ tint: "sky", icon: "wallet", label: t("core.dash.balance"), value: pulse.balance }, ...optional.filter((tile) => tile.value != null)]
   return (
     <div className="flex flex-col gap-3">
-      <Card tint="mint">
-        <div className="flex items-center gap-4">
-          <ProgressRing value={pulse.score / 100} label={t("core.dash.pulseLabel", { score: String(pulse.score) })} size={72}>
-            <Text variant="body" weight="bold">{pulse.score}</Text>
-          </ProgressRing>
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <Badge tone={TONE[pulse.tone as keyof typeof TONE] ?? "neutral"}>{t(`core.dash.tone.${pulse.tone}` as CoreKey)}</Badge>
-            <Text variant="secondary" tone="muted">{t("core.dash.safe")}</Text>
-            <AmountText value={pulse.safe_to_spend} className="text-page font-semibold" />
-          </div>
-        </div>
-        <Text variant="caption" tone="muted" className="mt-3">{t("core.dash.safeHint")}</Text>
-      </Card>
+      <Text variant="caption" tone="muted" className="px-1">{t("core.dash.safeHint")}</Text>
       <div className="grid grid-cols-2 gap-3">
         {tiles.map((tile, i) => (
           <StatTile key={tile.label} {...tile} className={i === 0 || (i === tiles.length - 1 && i % 2 === 1) ? "col-span-2" : undefined} />
         ))}
       </div>
-      <Text variant="secondary" tone="muted" className="px-1">
-        {t("core.dash.runway", { count: pulse.runway_days })} · {t("core.dash.promises", { kept: String(pulse.promises.kept), total: String(pulse.promises.total) })}
-      </Text>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-muted-foreground">
+        <Text variant="secondary" tone="muted" className="inline-flex items-center gap-1.5">
+          <Icon icon={CalendarClock} size={16} />
+          {t("core.dash.runway", { count: pulse.runway_days })}
+        </Text>
+        <Text variant="secondary" tone="muted" className="inline-flex items-center gap-1.5">
+          <Icon icon={CheckCircle2} size={16} />
+          {t("core.dash.promises", { kept: String(pulse.promises.kept), total: String(pulse.promises.total) })}
+        </Text>
+      </div>
     </div>
   )
 }

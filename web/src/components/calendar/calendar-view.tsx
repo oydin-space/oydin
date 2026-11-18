@@ -2,17 +2,28 @@
 
 import { useMemo } from "react"
 import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
-import { AmountText, Badge, Card, CashChart, EmptyState, EnvelopeProgress, ErrorState, ListGroup, ListRow, PageHeader, Section, SkeletonCard, SkeletonChart, SkeletonList, Text } from "@/components/ui"
+import { Banknote, CalendarClock, CheckCircle2, CircleAlert, FileText, HandCoins, Home, Landmark, ShieldCheck, Truck, TriangleAlert, Users, type LucideIcon } from "lucide-react"
+import { AmountText, Badge, Card, CashChart, EmptyState, EnvelopeProgress, ErrorState, Icon, ListGroup, ListRow, PAGE_WIDTH, PageHeader, Section, SkeletonCard, SkeletonChart, SkeletonList, Text } from "@/components/ui"
 import { cashPoints, todayIso, type ForecastResponse } from "@/lib/core-api"
 import { useI18n } from "@/i18n"
 import type { Envelope, Obligation } from "@/lib/types"
 import { useApi } from "@/lib/use-api"
 
+const KIND_ICON: Record<Obligation["kind"], LucideIcon> = {
+  salary: Users,
+  rent: Home,
+  tax: Landmark,
+  supplier: Truck,
+  loan: Banknote,
+  other: FileText,
+  receivable: HandCoins,
+}
+
 function ObligationBadge({ o }: { o: Obligation }) {
   const t = useCoreT()
-  if (o.status === "paid") return <Badge tone="positive">{t("core.cal.paid")}</Badge>
-  if (o.status === "overdue") return <Badge tone="negative">{t("core.cal.overdue")}</Badge>
-  return <Badge tone={o.covered ? "positive" : "caution"}>{o.covered ? t("core.cal.covered") : t("core.cal.notCovered")}</Badge>
+  if (o.status === "paid") return <Badge tone="positive" icon={<Icon icon={CheckCircle2} size={16} />}>{t("core.cal.paid")}</Badge>
+  if (o.status === "overdue") return <Badge tone="negative" icon={<Icon icon={TriangleAlert} size={16} />}>{t("core.cal.overdue")}</Badge>
+  return <Badge tone={o.covered ? "positive" : "caution"} icon={<Icon icon={o.covered ? ShieldCheck : CircleAlert} size={16} />}>{o.covered ? t("core.cal.covered") : t("core.cal.notCovered")}</Badge>
 }
 
 export function CalendarView() {
@@ -63,6 +74,7 @@ export function CalendarView() {
               {obs.map((o) => (
                 <ListRow
                   key={o.id}
+                  leading={<Icon icon={KIND_ICON[o.kind]} className="text-muted-foreground" />}
                   title={o.title}
                   wrapTitle
                   subtitle={`${t(`core.cal.kind.${o.kind}` as CoreKey)} · ${t("core.cal.due", { date: formatDate(o.due_date) })}`}
@@ -81,8 +93,9 @@ export function CalendarView() {
               {envs.map((e) => (
                 <Card key={e.id} tint="mint">
                   <EnvelopeProgress label={t("core.cal.envelope", { title: e.title })} saved={e.saved} target={e.target} />
-                  <Text variant="caption" tone="muted" className="mt-2">
-                    {t("core.cal.due", { date: formatDate(e.due_date) })} · {t("core.cal.perDay", { amount: formatSumShort(e.daily) })}
+                  <Text variant="caption" tone="muted" className="mt-2 flex items-center gap-1.5">
+                    <Icon icon={CalendarClock} size={16} />
+                    <span>{t("core.cal.due", { date: formatDate(e.due_date) })} · {t("core.cal.perDay", { amount: formatSumShort(e.daily) })}</span>
                   </Text>
                 </Card>
               ))}
@@ -96,7 +109,7 @@ export function CalendarView() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-6">
+    <div className={`${PAGE_WIDTH} flex flex-col gap-4 pb-6`}>
       <PageHeader title={t("core.cal.title")} hint={t("core.cal.hint")} />
       {body}
     </div>

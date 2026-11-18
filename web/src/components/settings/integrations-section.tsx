@@ -1,9 +1,10 @@
 "use client";
 
+import { CircleCheck, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { LogoTile } from "@/components/ui";
+import { Icon, LogoTile } from "@/components/ui";
 import { fetchProviders } from "@/lib/auth-api";
 import { fetchTelegramLink } from "@/lib/settings-api";
 import { TelegramDialog } from "./telegram-dialog";
@@ -43,7 +44,7 @@ export function IntegrationsSection() {
       <p className="text-small text-muted-foreground">{t("settings.integrations.hint")}</p>
 
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="int-now">
-        <h2 id="int-now" className="text-title font-semibold">{t("settings.integrations.available")}</h2>
+        <h2 id="int-now" className="flex items-center gap-2 text-title font-semibold"><Icon icon={CircleCheck} size={20} />{t("settings.integrations.available")}</h2>
         <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 [&>*]:min-w-0">
           <LogoTile
             logo="telegram"
@@ -65,7 +66,7 @@ export function IntegrationsSection() {
       </section>
 
       <section className="flex min-w-0 flex-col gap-3" aria-labelledby="int-soon">
-        <h2 id="int-soon" className="text-title font-semibold">{t("settings.integrations.soon")}</h2>
+        <h2 id="int-soon" className="flex items-center gap-2 text-title font-semibold"><Icon icon={Clock} size={20} />{t("settings.integrations.soon")}</h2>
         <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 [&>*]:min-w-0">
           {SOON.map((s) => (
             <LogoTile key={s.logo} logo={s.logo} name={t(s.name)} description={t(s.desc)} status="coming-soon" statusLabel={label.soon} />

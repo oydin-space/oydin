@@ -279,6 +279,8 @@ const MoneyField = defineComponent({
   },
 });
 
+const NO_SPIN = "[&_input]:[appearance:textfield] [&_input::-webkit-inner-spin-button]:appearance-none [&_input::-webkit-outer-spin-button]:appearance-none";
+
 const NumberField = defineComponent({
   name: "NumberField",
   description: "Plain number input with optional unit.",
@@ -289,6 +291,7 @@ const NumberField = defineComponent({
     return (
       <Input
         type="number"
+        className={NO_SPIN}
         inputMode="decimal"
         label={props.label}
         value={Number.isFinite(value) ? value : ""}
@@ -305,7 +308,7 @@ const NumberField = defineComponent({
 const SliderField = defineComponent({
   name: "SliderField",
   description: "Bounded number with step buttons.",
-  props: z.object({ name: z.string(), label: z.string(), value: z.number(), min: z.number(), max: z.number(), step: z.number().optional() }),
+  props: z.object({ name: z.string(), label: z.string(), value: z.number(), min: z.number(), max: z.number(), step: z.number().optional(), unit: z.string().optional() }),
   component: function SliderFieldView({ props }) {
     // В ките нет Slider: −/+ IconButton вокруг числового Input, значение зажато в [min, max].
     const calc = useCalc();
@@ -314,17 +317,18 @@ const SliderField = defineComponent({
     const value = calc.values[props.name] ?? props.value;
     const set = (v: number) => calc.set(props.name, Math.max(props.min, Math.min(props.max, Math.round(v / step) * step)));
     return (
-      <div className="flex items-end gap-2">
+      <div className="flex w-full items-end gap-2">
         <IconButton icon={Minus} label={t("chat.ui.decrease")} variant="secondary" disabled={value <= props.min} onClick={() => set(value - step)} />
         <Input
           type="number"
           inputMode="decimal"
-          className="flex-1"
+          className={`min-w-0 flex-1 ${NO_SPIN}`}
           label={props.label}
           min={props.min}
           max={props.max}
           step={step}
           value={value}
+          trailing={props.unit ? <Text as="span" variant="secondary" tone="muted">{props.unit}</Text> : undefined}
           onChange={(e) => {
             const n = Number(e.target.value);
             if (e.target.value !== "" && Number.isFinite(n)) calc.set(props.name, Math.max(props.min, Math.min(props.max, n)));

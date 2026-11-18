@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, CircleAlert, XCircle } from "lucide-react";
+import { Calculator, CalendarCheck, CalendarDays, CalendarX, CheckCircle2, CircleAlert, Coins, Tag, TriangleAlert, Wallet, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge, Button, Card, Icon, Input, ListGroup, ListRow, MoneyInput, Section, SegmentedControl, Switch, Text, AmountText } from "@/components/ui";
 import { checkAfford, today, type AffordResult, type Frequency, type Verdict } from "@/lib/planning-api";
@@ -69,8 +69,8 @@ export function AffordPanel() {
             onValueChange={setCurrency}
           />
           <MoneyInput label={t("afford.amount")} value={amount} onValueChange={setAmount} currency={currency} locale={f.locale} required />
-          <Input label={t("afford.what")} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder={t("afford.whatPlaceholder")} />
-          <Input label={t("afford.date")} hint={t("afford.dateHint")} type="date" value={date} min={today()} onChange={(e) => setDate(e.target.value)} />
+          <Input label={t("afford.what")} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder={t("afford.whatPlaceholder")} leading={<Icon icon={Tag} size={16} />} />
+          <Input label={t("afford.date")} hint={t("afford.dateHint")} type="date" value={date} min={today()} onChange={(e) => setDate(e.target.value)} leading={<Icon icon={CalendarDays} size={16} />} />
           <label className="flex min-h-row items-center justify-between gap-3">
             <Text variant="body">{t("afford.recurring")}</Text>
             <Switch checked={recurring} onCheckedChange={setRecurring} aria-label={t("afford.recurring")} />
@@ -86,7 +86,7 @@ export function AffordPanel() {
               onValueChange={setFreq}
             />
           ) : null}
-          <Button type="submit" loading={busy} disabled={!amount || amount <= 0}>
+          <Button type="submit" icon={Calculator} loading={busy} disabled={!amount || amount <= 0}>
             {t("afford.check")}
           </Button>
         </form>
@@ -114,9 +114,9 @@ function AffordResultView({ r, currency }: { r: AffordResult; currency: Currency
 
       <Section title={t("afford.effect")}>
         <ListGroup>
-          <ListRow title={t("afford.minBalance")} subtitle={t("afford.onDate", { date: f.date(r.min_balance_date) })} trailing={<AmountText value={r.min_balance_after} locale={f.locale} mode="compact" tone="auto" />} />
-          <ListRow title={t("afford.gap")} trailing={r.gap_date ? <Badge tone="negative">{f.date(r.gap_date)}</Badge> : <Badge tone="positive">{t("afford.noGap")}</Badge>} />
-          {currency !== "UZS" ? <ListRow title={t("afford.inUzs")} trailing={<AmountText value={r.amount_uzs} locale={f.locale} mode="compact" />} /> : null}
+          <ListRow leading={<Icon icon={Wallet} className="text-muted-foreground" />} title={t("afford.minBalance")} subtitle={t("afford.onDate", { date: f.date(r.min_balance_date) })} trailing={<AmountText value={r.min_balance_after} locale={f.locale} mode="compact" tone="auto" />} />
+          <ListRow leading={<Icon icon={r.gap_date ? CalendarX : CalendarCheck} className="text-muted-foreground" />} title={t("afford.gap")} trailing={r.gap_date ? <Badge tone="negative" icon={<Icon icon={TriangleAlert} size={16} />}>{f.date(r.gap_date)}</Badge> : <Badge tone="positive" icon={<Icon icon={CheckCircle2} size={16} />}>{t("afford.noGap")}</Badge>} />
+          {currency !== "UZS" ? <ListRow leading={<Icon icon={Coins} className="text-muted-foreground" />} title={t("afford.inUzs")} trailing={<AmountText value={r.amount_uzs} locale={f.locale} mode="compact" />} /> : null}
         </ListGroup>
       </Section>
 

@@ -1,7 +1,8 @@
 "use client";
 
+import { Bell } from "lucide-react";
 import { useState } from "react";
-import { ChoiceControl, FeedbackNotice, PlainCard, Select, SkeletonList } from "@/components/ui";
+import { ChoiceControl, FeedbackNotice, Icon, PlainCard, Select, SkeletonList } from "@/components/ui";
 import { fetchNotifications, type NotificationSettings, saveNotifications } from "@/lib/settings-api";
 import { ResourceGate } from "./resource-gate";
 import { useResource } from "./use-resource";
@@ -32,7 +33,7 @@ function Form({ initial }: { initial: NotificationSettings }) {
   }
 
   return (
-    <PlainCard title={t("settings.notifications.title")} description={t("settings.notifications.hint")}>
+    <PlainCard title={<span className="inline-flex items-center gap-2"><Icon icon={Bell} size={20} />{t("settings.notifications.title")}</span>} description={t("settings.notifications.hint")}>
       <div className="flex flex-col gap-4">
         {TOGGLES.map((k) => (
           <ChoiceControl

@@ -1,9 +1,9 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Banknote, CreditCard, Landmark, type LucideIcon, Plus, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { AmountText, Badge, Button, EmptyState, FeedbackNotice, Input, ListGroup, ListRow, MoneyInput, PlainCard, Section, Select, SkeletonList } from "@/components/ui";
+import { AmountText, Badge, Button, EmptyState, FeedbackNotice, Icon, Input, ListGroup, ListRow, MoneyInput, PlainCard, Section, Select, SkeletonList } from "@/components/ui";
 import { type AccountKind, createAccount } from "@/lib/auth-api";
 import { fetchRates, listAccounts } from "@/lib/settings-api";
 import type { Currency } from "@/lib/types";
@@ -14,6 +14,7 @@ import { useST } from "./use-st";
 
 const KINDS: AccountKind[] = ["cash", "card", "bank"];
 const CURRENCIES: Currency[] = ["UZS", "USD"];
+const KIND_ICON: Record<AccountKind, LucideIcon> = { cash: Banknote, card: CreditCard, bank: Landmark };
 
 function RateCard() {
   const { t, locale, formatDate } = useST();
@@ -21,7 +22,7 @@ function RateCard() {
   return (
     <ResourceGate loading={loading} error={error} onRetry={reload} skeleton={<SkeletonList rows={1} />}>
       {data ? (
-        <PlainCard title={t("settings.accounts.rateTitle")}>
+        <PlainCard title={<span className="inline-flex items-center gap-2"><Icon icon={TrendingUp} size={20} />{t("settings.accounts.rateTitle")}</span>}>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-body font-medium">{t("settings.accounts.rateLine", { rate: Number(data.USD).toLocaleString(locale === "en" ? "en-US" : "ru-RU") })}</span>
             <Badge tone={data.stale ? "caution" : "positive"}>{data.stale ? t("settings.accounts.rateStale") : t("settings.accounts.rateFresh")}</Badge>
@@ -122,6 +123,7 @@ export function AccountsSection() {
               {data?.map((a) => (
                 <ListRow
                   key={a.id}
+                  leading={<Icon icon={KIND_ICON[a.kind]} size={20} className="text-muted-foreground" />}
                   title={a.name}
                   status={<Badge>{t(`settings.accounts.kind.${a.kind}`)}</Badge>}
                   trailing={a.balance == null ? undefined : <AmountText value={a.balance} currency={a.currency} locale={locale} />}

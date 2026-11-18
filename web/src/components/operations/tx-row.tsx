@@ -1,7 +1,8 @@
 "use client"
 
 import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
-import { AmountText, Badge, ListRow } from "@/components/ui"
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CircleHelp, UserRound } from "lucide-react"
+import { AmountText, Badge, Icon, ListRow } from "@/components/ui"
 import { currencyOf } from "@/lib/core-api"
 import type { Account, Transaction } from "@/lib/types"
 
@@ -21,7 +22,8 @@ export function TxRow({ tx, accounts, onOpen }: { tx: Transaction; accounts: Acc
     <ListRow
       title={txTitle(tx, t("core.ops.uncategorized"))}
       subtitle={[tx.category, account?.name].filter(Boolean).join(" · ")}
-      status={tx.purpose !== "business" ? <Badge tone={tx.purpose === "unclear" ? "caution" : "neutral"}>{purposeLabel}</Badge> : undefined}
+      leading={<Icon icon={tx.direction === "in" ? ArrowDownLeft : tx.direction === "out" ? ArrowUpRight : ArrowLeftRight} className="text-muted-foreground" />}
+      status={tx.purpose !== "business" ? <Badge tone={tx.purpose === "unclear" ? "caution" : "neutral"} icon={<Icon icon={tx.purpose === "unclear" ? CircleHelp : UserRound} size={16} />}>{purposeLabel}</Badge> : undefined}
       trailing={<AmountText value={txSigned(tx)} currency={currencyOf(accounts, tx.account_id)} signed tone={tx.direction === "transfer" ? "none" : "auto"} />}
       onClick={() => onOpen(tx)}
     />

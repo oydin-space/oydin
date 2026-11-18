@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Loader2, X } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Briefcase, Check, Loader2, User, X } from "lucide-react";
+import { Icon } from "@/components/ui";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n";
@@ -10,6 +11,7 @@ import { money, todayIso, dateShort } from "@/lib/format";
 import { haptic } from "@/lib/telegram";
 import { cn } from "@/lib/utils";
 
+const DIRECTION_ICON = { in: ArrowDownLeft, out: ArrowUpRight, transfer: ArrowLeftRight } as const satisfies Record<Direction, typeof Check>;
 const DIRECTION_KEY = { in: "biz.draft.in", out: "biz.draft.out", transfer: "biz.draft.transfer" } as const satisfies Record<Direction, string>;
 
 /** Черновик операции: ничего не сохраняется, пока пользователь не нажмёт «Сохранить». */
@@ -46,7 +48,7 @@ export function DraftCard({
   return (
     <div className="brush mt-3 rounded-2xl bg-butter p-3.5" role="group" aria-label={t("biz.draft.aria")}>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-sm text-ink/70">{t(DIRECTION_KEY[draft.direction])} · {dateShort(draft.date ?? todayIso(), locale)}</span>
+        <span className="inline-flex items-center gap-1.5 text-sm text-ink/70"><Icon icon={DIRECTION_ICON[draft.direction]} size={16} />{t(DIRECTION_KEY[draft.direction])} · {dateShort(draft.date ?? todayIso(), locale)}</span>
         <span className="tabular text-xl font-semibold">
           {isOut ? "−" : draft.direction === "in" ? "+" : ""}
           {money(draft.amount, locale)}
@@ -82,6 +84,7 @@ export function DraftCard({
               onClick={() => setPurpose(p)}
               className={cn("rounded-full px-3.5 py-1.5 text-sm transition-colors", purpose === p ? "bg-ink text-card shadow-sm" : "text-ink/70")}
             >
+              <Icon icon={p === "business" ? Briefcase : User} size={16} className="mr-1 inline" />
               {p === "business" ? t("biz.draft.business") : t("biz.draft.personal")}
             </button>
           ))}
@@ -90,7 +93,7 @@ export function DraftCard({
       <div className="mt-3 flex items-center gap-2">
         {state === "saved" ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-mint px-3.5 py-2 text-sm font-medium">
-            <Check size={16} /> {t("biz.draft.saved")}
+            <Icon icon={Check} size={16} /> {t("biz.draft.saved")}
           </span>
         ) : (
           <>
@@ -100,10 +103,10 @@ export function DraftCard({
               disabled={state === "saving"}
               className="inline-flex items-center gap-1.5 rounded-full bg-ink px-5 py-2 text-sm font-medium text-card shadow-sm transition active:scale-95 disabled:opacity-60"
             >
-              {state === "saving" ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} {t("biz.draft.save")}
+              {state === "saving" ? <Icon icon={Loader2} size={16} className="animate-spin" /> : <Icon icon={Check} size={16} />} {t("biz.draft.save")}
             </button>
             <button type="button" onClick={onDismiss} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 text-sm text-ink/70 active:scale-95">
-              <X size={15} /> {t("biz.draft.dismiss")}
+              <Icon icon={X} size={16} /> {t("biz.draft.dismiss")}
             </button>
           </>
         )}

@@ -6,6 +6,10 @@ import { ChevronsUpDown, Plus } from "lucide-react";
 import { useKitT } from "./kit-t";
 import { Logo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
+import { NamedIcon, type IconName } from "./icon";
+
+/** Единая ширина контента страниц приложения. */
+export const PAGE_WIDTH = "mx-auto w-full max-w-3xl";
 
 export interface NavItem {
   href: string;
@@ -103,7 +107,7 @@ export function PageHeader({ title, hint, actions, className }: { title: string;
       <div aria-hidden={!compact} className={cn("pt-safe glass fixed inset-x-0 top-0 z-30 flex min-h-12 items-center justify-center border-b border-border text-small font-semibold transition-opacity duration-(--dur-base)", compact ? "opacity-100" : "pointer-events-none opacity-0")}>
         {title}
       </div>
-      <header className={cn("mb-4 flex flex-wrap items-end justify-between gap-3 px-1 pt-1", className)}>
+      <header className={cn("mb-4 flex flex-wrap items-end justify-between gap-3", className)}>
         <div className="min-w-0 flex-1 basis-48">
           <h1 className="text-page font-bold tracking-tight">{title}</h1>
           {hint ? <p className="mt-1 text-small text-muted-foreground">{hint}</p> : null}
@@ -114,11 +118,14 @@ export function PageHeader({ title, hint, actions, className }: { title: string;
   );
 }
 
-export function Section({ title, action, className, children }: { title: string; action?: React.ReactNode; className?: string; children: React.ReactNode }) {
+export function Section({ title, icon, action, className, children }: { title: string; icon?: IconName; action?: React.ReactNode; className?: string; children: React.ReactNode }) {
   return (
     <section className={cn("flex flex-col gap-3", className)}>
-      <div className="flex items-center justify-between gap-2 px-1">
-        <h2 className="text-title font-semibold">{title}</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-title font-semibold">
+          {icon ? <NamedIcon name={icon} size={20} /> : null}
+          {title}
+        </h2>
         {action}
       </div>
       {children}

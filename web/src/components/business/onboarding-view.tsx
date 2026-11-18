@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ArrowRight, Wallet } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { useSession } from "@/components/providers/session-provider";
-import { Button, Card, Input, MoneyInput, SegmentedControl, SkeletonList, Text } from "@/components/ui";
+import { Button, Card, Icon, Input, MoneyInput, SegmentedControl, SkeletonList, Text } from "@/components/ui";
 import { createAccount, createBusiness, errorText, setSegment, type AccountKind, type Segment } from "@/lib/auth-api";
 import type { Currency } from "@/lib/types";
 import { useAT, type AKey } from "@/components/auth/use-at";
@@ -67,13 +68,13 @@ export function OnboardingView() {
           <Card className="flex flex-col gap-4">
             <Input label={t("auth.onboarding.name")} value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required error={touched && !name.trim() ? t("auth.onboarding.required") : undefined} />
             <SegmentSelect value={segment} onValueChange={setSeg} error={touched && !segment ? t("auth.onboarding.pickSegment") : undefined} />
-            <Text variant="section" weight="semibold" as="h2">{t("auth.onboarding.account")}</Text>
+            <Text variant="section" weight="semibold" as="h2" className="flex items-center gap-2"><Icon icon={Wallet} size={20} />{t("auth.onboarding.account")}</Text>
             <Input label={t("auth.onboarding.accountName")} value={accountName} onChange={(e) => setAccountName(e.target.value)} maxLength={80} required error={touched && !accountName.trim() ? t("auth.onboarding.required") : undefined} />
             <SegmentedControl label={t("auth.onboarding.kind")} value={kind} onValueChange={setKind} options={KINDS.map((v) => ({ value: v, label: t(`auth.onboarding.kind.${v}` satisfies AKey) }))} />
             <SegmentedControl label={t("auth.onboarding.currency")} value={currency} onValueChange={setCurrency} options={[{ value: "UZS", label: "UZS" }, { value: "USD", label: "USD" }]} />
             <MoneyInput label={t("auth.onboarding.balance")} value={balance} onValueChange={setBalance} currency={currency} />
             {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
-            <Button type="submit" block loading={busy}>{t("auth.onboarding.submit")}</Button>
+            <Button type="submit" icon={ArrowRight} block loading={busy}>{t("auth.onboarding.submit")}</Button>
           </Card>
         </form>
       )}

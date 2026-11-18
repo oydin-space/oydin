@@ -1,10 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AmountText, Card, Input, ListGroup, ListRow, ProgressBar, Section, SkeletonCard, StatusBanner, Text } from "@/components/ui";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarRange, Coins, TrendingDown, TrendingUp, type LucideIcon } from "lucide-react";
+import { AmountText, Card, Icon, Input, ListGroup, ListRow, ProgressBar, Section, SkeletonCard, StatusBanner, Text } from "@/components/ui";
 import { getSeasonality, isoDay, periodReport, type PeriodReport } from "@/lib/planning-api";
 import { LoadView, useLoad, usePlanFormat, usePlanT, type PlanKey } from "./plan-support";
 
+const REPORT_ICON: Record<"revenue" | "expenses" | "profit" | "cashChange" | "draws" | "contributions", LucideIcon> = {
+  revenue: TrendingUp,
+  expenses: TrendingDown,
+  profit: Coins,
+  cashChange: ArrowLeftRight,
+  draws: ArrowUpRight,
+  contributions: ArrowDownLeft,
+};
 export function SeasonPanel() {
   const t = usePlanT();
   const f = usePlanFormat();
@@ -55,8 +64,8 @@ export function SeasonPanel() {
 
       <Section title={t("season.reportTitle")}>
         <div className="grid grid-cols-2 gap-3">
-          <Input label={t("season.from")} type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
-          <Input label={t("season.to")} type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+          <Input label={t("season.from")} type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} leading={<Icon icon={CalendarRange} size={16} />} />
+          <Input label={t("season.to")} type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} leading={<Icon icon={CalendarRange} size={16} />} />
         </div>
         <LoadView res={report} skeleton={<SkeletonCard />}>
           {(r) =>
@@ -73,7 +82,7 @@ export function SeasonPanel() {
                       ["contributions", r.owner_contributions],
                     ] as const
                   ).map(([k, v]) => (
-                    <ListRow key={k} title={t(`season.r.${k}` as PlanKey)} trailing={<AmountText value={v} signed={k !== "revenue"} locale={f.locale} mode="compact" />} />
+                    <ListRow key={k} leading={<Icon icon={REPORT_ICON[k]} className="text-muted-foreground" />} title={t(`season.r.${k}` as PlanKey)} trailing={<AmountText value={v} signed={k !== "revenue"} locale={f.locale} mode="compact" />} />
                   ))}
                 </ListGroup>
                 {r.missing_data.length > 0 ? (

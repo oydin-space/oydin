@@ -8,14 +8,14 @@ import { cn } from "@/lib/utils";
 import { Spinner } from "./spinner";
 
 export const buttonVariants = cva(
-  "state-layer press focus-ring motion-fast relative inline-flex min-target shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-control font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 aria-busy:pointer-events-none [&_svg]:shrink-0",
+  "state-layer lip focus-ring motion-fast relative inline-flex min-target shrink-0 select-none items-center justify-center gap-2 whitespace-nowrap rounded-2xl font-bold transition-colors aria-busy:pointer-events-none disabled:pointer-events-none [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground",
-        secondary: "border border-border bg-secondary text-foreground",
-        ghost: "bg-transparent text-foreground",
-        destructive: "bg-danger text-danger-foreground",
+        primary: "bg-brand text-[#3b342a] [--lip:#c9a000] dark:[--lip:#9a7a00]",
+        secondary: "border border-border bg-card text-foreground [--lip:var(--border-strong)]",
+        ghost: "bg-transparent text-foreground shadow-none active:translate-y-0 [--lip:transparent]",
+        destructive: "bg-danger text-danger-foreground [--lip:color-mix(in_srgb,var(--danger)_70%,black)]",
       },
       size: {
         sm: "px-3 text-small",
@@ -63,13 +63,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 });
 
 const iconButtonVariants = cva(
-  "state-layer press focus-ring motion-fast inline-flex size-11 min-target shrink-0 items-center justify-center rounded-pill transition-colors disabled:pointer-events-none disabled:opacity-50 aria-pressed:bg-muted",
+  "state-layer focus-ring motion-fast inline-flex size-11 min-target shrink-0 items-center justify-center rounded-pill transition-colors disabled:pointer-events-none aria-pressed:bg-muted",
   {
     variants: {
       variant: {
-        ghost: "text-foreground",
-        secondary: "border border-border bg-secondary text-foreground",
-        primary: "bg-primary text-primary-foreground",
+        ghost: "press text-foreground disabled:opacity-50",
+        secondary: "lip border border-border bg-card text-foreground [--lip:var(--border-strong)]",
+        primary: "lip bg-brand text-[#3b342a] [--lip:#c9a000] dark:[--lip:#9a7a00]",
       },
     },
     defaultVariants: { variant: "ghost" },

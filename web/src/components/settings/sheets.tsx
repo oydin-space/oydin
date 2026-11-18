@@ -1,5 +1,6 @@
 "use client";
 
+import { Trash2, X } from "lucide-react";
 import { Button, Dialog, TaskSheet } from "@/components/ui";
 import { useST } from "./use-st";
 
@@ -59,10 +60,10 @@ export function ConfirmDialog({
       closeLabel={t("settings.common.close")}
       footer={
         <>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
+          <Button variant="secondary" icon={X} onClick={() => onOpenChange(false)}>
             {t("settings.common.cancel")}
           </Button>
-          <Button variant="destructive" loading={busy} onClick={onConfirm}>
+          <Button variant="destructive" icon={Trash2} loading={busy} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </>

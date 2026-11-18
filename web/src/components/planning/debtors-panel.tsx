@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, MessageSquareText } from "lucide-react";
-import { AmountText, Badge, Button, Card, ListGroup, Section, SkeletonCard, StatusBanner, TaskSheet, Text, Textarea } from "@/components/ui";
+import { Check, CheckCircle2, CalendarClock, ChevronDown, ChevronUp, FilePenLine, MessageSquareText, Pencil, TriangleAlert, UserRound } from "lucide-react";
+import { AmountText, Badge, Button, Card, Icon, ListGroup, Section, SkeletonCard, StatusBanner, TaskSheet, Text, Textarea } from "@/components/ui";
 import { draftDebtorReminder, listDebtorReminders, listDebtors, patchDebtorReminder, type Debtor, type DebtorReminder } from "@/lib/planning-api";
 import { LoadView, useAction, useLoad, usePlanFormat, usePlanT } from "./plan-support";
 
@@ -96,17 +96,21 @@ function DebtorCard({ d, busy, onDraft }: { d: Debtor; busy: boolean; onDraft: (
   return (
     <Card tint={late ? undefined : "mint"} className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Text variant="body" weight="semibold" className="truncate">
-            {d.counterparty}
-          </Text>
-          <Text variant="caption" tone="muted">
-            {t("debtors.since", { date: f.dateLong(d.oldest_due_date) })}
-          </Text>
+        <div className="flex min-w-0 items-start gap-3">
+          <Icon icon={UserRound} className="mt-0.5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <Text variant="body" weight="semibold" className="truncate">
+              {d.counterparty}
+            </Text>
+            <Text variant="caption" tone="muted" className="flex items-center gap-1.5">
+              <CalendarClock size={16} className="shrink-0" aria-hidden="true" />
+              <span>{t("debtors.since", { date: f.dateLong(d.oldest_due_date) })}</span>
+            </Text>
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <AmountText value={d.balance} locale={f.locale} mode="compact" className="font-semibold" />
-          <Badge tone={tone}>{late ? t("debtors.overdue", { days: d.overdue_days }) : t("debtors.notDue")}</Badge>
+          <Badge tone={tone} icon={<Icon icon={late ? TriangleAlert : CheckCircle2} size={16} />}>{late ? t("debtors.overdue", { days: d.overdue_days }) : t("debtors.notDue")}</Badge>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -144,10 +148,13 @@ function ReminderCard({ r, canEdit, busy, onEdit, onApprove }: { r: DebtorRemind
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
-        <Text variant="body" weight="semibold" className="truncate">
-          {r.counterparty}
-        </Text>
-        <Badge tone={r.status === "approved" ? "positive" : "caution"}>{r.status === "approved" ? t("debtors.statusApproved") : t("debtors.statusDraft")}</Badge>
+        <div className="flex min-w-0 items-center gap-2">
+          <Icon icon={UserRound} className="shrink-0 text-muted-foreground" />
+          <Text variant="body" weight="semibold" className="truncate">
+            {r.counterparty}
+          </Text>
+        </div>
+        <Badge tone={r.status === "approved" ? "positive" : "caution"} icon={<Icon icon={r.status === "approved" ? CheckCircle2 : FilePenLine} size={16} />}>{r.status === "approved" ? t("debtors.statusApproved") : t("debtors.statusDraft")}</Badge>
       </div>
       <Text variant="secondary" className="whitespace-pre-wrap">
         {r.text}
@@ -156,11 +163,11 @@ function ReminderCard({ r, canEdit, busy, onEdit, onApprove }: { r: DebtorRemind
         <AmountText value={r.amount} locale={f.locale} mode="compact" />
         {canEdit ? (
           <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={onEdit}>
+            <Button size="sm" variant="secondary" icon={Pencil} onClick={onEdit}>
               {t("common.edit")}
             </Button>
             {r.status === "draft" ? (
-              <Button size="sm" loading={busy} onClick={onApprove}>
+              <Button size="sm" icon={Check} loading={busy} onClick={onApprove}>
                 {t("debtors.approve")}
               </Button>
             ) : null}

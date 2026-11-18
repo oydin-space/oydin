@@ -2,12 +2,14 @@ import { FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AmountText } from "./money";
 import { Badge } from "./badge";
+import { NamedIcon, type IconName } from "./icon";
 import { Card } from "./card";
 import type { Currency } from "./money-format";
 
 export interface EvidenceCardProps {
   /** Утверждение, которое подтверждается («Касса уйдёт в минус 14 июня»). */
   claim: string;
+  icon?: IconName;
   /** Операции/источники, на которых оно основано. */
   items: { id: string; label: string; date: string; amount: number; currency?: Currency }[];
   confidence?: { label: string; tone: "positive" | "caution" | "negative" };
@@ -16,11 +18,14 @@ export interface EvidenceCardProps {
 }
 
 /** «Почему мы так считаем»: утверждение + конкретные строки-основания. Без них число не показываем уверенно. */
-export function EvidenceCard({ claim, items, confidence, source, className }: EvidenceCardProps) {
+export function EvidenceCard({ claim, icon, items, confidence, source, className }: EvidenceCardProps) {
   return (
     <Card className={cn("flex flex-col gap-3", className)}>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-body font-medium">{claim}</p>
+        <p className="flex items-start gap-2 text-body font-medium">
+          {icon ? <NamedIcon name={icon} size={20} className="mt-0.5" /> : null}
+          {claim}
+        </p>
         {confidence ? <Badge tone={confidence.tone}>{confidence.label}</Badge> : null}
       </div>
       <ul className="divide-y divide-border">

@@ -16,7 +16,7 @@ export function FirstSteps({ onEntry }: { onEntry: () => void }) {
     { id: "telegram", icon: MessageCircle, go: () => router.push("/app/settings") },
   ] as const
   return (
-    <Section title={t("core.first.title")}>
+    <Section icon="flag" title={t("core.first.title")}>
       <ListGroup footer={t("core.first.hint")}>
         {steps.map((s) => (
           <ListRow key={s.id} leading={<Icon icon={s.icon} />} title={t(`core.first.${s.id}`)} subtitle={t(`core.first.${s.id}Hint`)} onClick={s.go} />

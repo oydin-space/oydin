@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Building2, Lock } from "lucide-react";
+import { Building2, ExternalLink, Lock, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { Badge, Button, Card, Chip, EmptyState, ErrorState, Icon, ListGroup, ListRow, SegmentedControl, Sheet, SkeletonList, StatusBanner, Text } from "@/components/ui";
 import { usePublicT } from "./use-public-t";
@@ -59,7 +59,7 @@ export function PartnerView() {
         <StatusBanner
           kind="info"
           title={t("public.partner.notPartner")}
-          action={<Button asChild size="sm" variant="secondary"><a href={REQUEST_ACCESS_URL} target="_blank" rel="noopener noreferrer">{t("public.partner.become")}</a></Button>}
+          action={<Button asChild size="sm" variant="secondary" icon={ExternalLink}><a href={REQUEST_ACCESS_URL} target="_blank" rel="noopener noreferrer">{t("public.partner.become")}</a></Button>}
         >
           {t("public.partner.notPartnerHint")}
         </StatusBanner>
@@ -121,6 +121,7 @@ function Cabinet({ me, initial }: { me: PartnerMe; initial: PartnerLead[] }) {
             {shown.map((l) => (
               <ListRow
                 key={l.id}
+                leading={<Icon icon={MapPin} />}
                 title={`${l.city || t("public.partner.unknown")} · ${segmentName(t, l.segment)}`}
                 subtitle={`${t("public.partner.revenue")}: ${l.revenue_band}`}
                 status={<Badge tone={STATUS_TONE[l.status]}>{t(`public.partner.status.${l.status}`)}</Badge>}

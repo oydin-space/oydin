@@ -1,9 +1,9 @@
 "use client";
 
-import { Check, Plus } from "lucide-react";
+import { ArrowLeft, Check, Plus, Store } from "lucide-react";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { BusinessSwitcher, Badge, Button, Input, ListGroup, ListRow, Sheet } from "@/components/ui";
+import { BusinessSwitcher, Badge, Button, Icon, Input, ListGroup, ListRow, Sheet } from "@/components/ui";
 import { useT } from "@/i18n";
 import { createBusiness, errorText, setSegment, switchBusiness, type Segment } from "@/lib/auth-api";
 import { roleLabel } from "./roles";
@@ -89,8 +89,8 @@ export function BusinessSwitcherMenu({ className }: { className?: string }) {
             <Input label={strings.name} value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required error={touched && !name.trim() ? strings.required : undefined} />
             <SegmentSelect value={segment} onValueChange={setSeg} error={touched && !segment ? strings.pickSegment : undefined} />
             {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
-            <Button type="submit" block loading={busy}>{strings.create}</Button>
-            <Button variant="ghost" block onClick={() => { setCreating(false); setError(null); }}>{strings.back}</Button>
+            <Button type="submit" icon={Plus} block loading={busy}>{strings.create}</Button>
+            <Button variant="ghost" icon={ArrowLeft} block onClick={() => { setCreating(false); setError(null); }}>{strings.back}</Button>
           </form>
         ) : (
           <div className="flex flex-col gap-4">
@@ -99,6 +99,7 @@ export function BusinessSwitcherMenu({ className }: { className?: string }) {
                 <ListRow
                     key={b.id}
                     title={b.name}
+                    leading={<Icon icon={Store} size={20} className="text-muted-foreground" />}
                     subtitle={roleLabel(t, b.role)}
                     status={b.id === user.active_business_id ? <Badge tone="positive" icon={<Check className="size-3" aria-hidden="true" />}>{strings.current}</Badge> : b.is_demo ? <Badge>{strings.demo}</Badge> : undefined}
                     onClick={busy ? undefined : () => void pick(b.id)}

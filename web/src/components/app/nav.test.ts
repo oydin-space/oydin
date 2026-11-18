@@ -7,8 +7,9 @@ test("seller sees only operations and settings", () => {
 })
 
 test("owner sees everything, accountant has no team", () => {
-  expect(primaryFor("owner")).toHaveLength(4)
+  expect(primaryFor("owner").map((e) => e.id)).toEqual(["home", "operations", "chat"])
   expect(secondaryFor("owner").map((e) => e.id)).toContain("team")
+  expect(secondaryFor("owner").map((e) => e.id)).toContain("plan")
   expect(secondaryFor("accountant").map((e) => e.id)).not.toContain("team")
 })
 

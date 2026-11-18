@@ -35,7 +35,7 @@ export async function LegalDocument({ kind, searchParams }: { kind: Exclude<Docu
           <div className="space-y-3">{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>
         </section>)}
       </article>
-      <LanguageSwitcher />
+      <LanguageSwitcher locale={locale} />
     </main>
   );
 }

@@ -70,6 +70,13 @@ export const biz = {
     "biz.chat.typing": "Oydin печатает",
     "biz.chart.asTable": "Показать как таблицу",
     "biz.tools.generatePlaceholder": "Окупаемость кофемашины",
+
+    "biz.home.briefTitle": "Утренняя сводка",
+    "biz.home.qaVoice": "Голос",
+    "biz.home.qaText": "Записать",
+    "biz.home.qaAsk": "Спросить Oydin",
+    "biz.home.tool": "Инструмент",
+    "biz.home.toolOpen": "Открыть",
   },
   uz: {
     "biz.generic": "Bajarilmadi. Qayta urinib ko‘ring.",
@@ -141,6 +148,13 @@ export const biz = {
     "biz.chat.typing": "Oydin yozmoqda",
     "biz.chart.asTable": "Jadval sifatida ko‘rsatish",
     "biz.tools.generatePlaceholder": "Kofe mashinasining qoplanishi",
+
+    "biz.home.briefTitle": "Ertalabki xulosa",
+    "biz.home.qaVoice": "Ovoz",
+    "biz.home.qaText": "Yozish",
+    "biz.home.qaAsk": "Oydindan soʻrash",
+    "biz.home.tool": "Vosita",
+    "biz.home.toolOpen": "Ochish",
   },
   en: {
     "biz.generic": "Something went wrong. Please try again.",
@@ -212,5 +226,12 @@ export const biz = {
     "biz.chat.typing": "Oydin is typing",
     "biz.chart.asTable": "Show as table",
     "biz.tools.generatePlaceholder": "Coffee machine payback",
+
+    "biz.home.briefTitle": "Morning brief",
+    "biz.home.qaVoice": "Voice",
+    "biz.home.qaText": "Type",
+    "biz.home.qaAsk": "Ask Oydin",
+    "biz.home.tool": "Tool",
+    "biz.home.toolOpen": "Open",
   },
 } as const

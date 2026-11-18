@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import { Button, Chip, Input, MoneyInput, SegmentedControl, Select, Text, VoiceButton, type VoiceState } from "@/components/ui";
+import { Check, StickyNote } from "lucide-react";
+import { Button, Chip, Icon, Input, MoneyInput, SegmentedControl, Select, Text, VoiceButton, type VoiceState } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { api } from "@/lib/api";
 import { CATEGORIES } from "@/lib/offline/reference";
@@ -100,6 +101,18 @@ export function QuickEntryForm({ accounts, online }: { accounts: Account[]; onli
     }
   }
 
+  const autoVoice = useRef(false);
+  useEffect(() => {
+    if (autoVoice.current || !canVoice) return;
+    if (new URLSearchParams(window.location.search).get("voice") !== "1") return;
+    const id = setTimeout(() => {
+      autoVoice.current = true;
+      void onVoice();
+    }, 0);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount
+  }, [canVoice]);
+
   const categories = CATEGORIES[direction];
   const knownCategory = categories.some((c) => c.value === category);
   return (
@@ -142,10 +155,10 @@ export function QuickEntryForm({ accounts, online }: { accounts: Account[]; onli
         options={accounts.map((a) => ({ value: String(a.id), label: a.name }))}
         error={errors.account}
       />
-      <Input label={t("offline.note")} placeholder={t("offline.notePlaceholder")} value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
+      <Input label={t("offline.note")} placeholder={t("offline.notePlaceholder")} value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} leading={<Icon icon={StickyNote} size={16} />} />
 
       <div className="flex items-center gap-3">
-        <Button type="submit" size="lg" className="flex-1" loading={saving}>
+        <Button type="submit" size="lg" className="flex-1" icon={Check} loading={saving}>
           {t("offline.save")}
         </Button>
         {online && canVoice ? (

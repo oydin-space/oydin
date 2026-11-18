@@ -10,11 +10,12 @@ export function InsightsSection({ items }: { items: Insight[] }) {
   const t = useCoreT()
   if (!items.length) return null
   return (
-    <Section title={t("core.dash.insightsTitle")}>
+    <Section icon="lightbulb" title={t("core.dash.insightsTitle")}>
       <div className="grid gap-3 md:grid-cols-2">
         {items.map((i) => {
           return (
             <EvidenceCard
+              icon="lightbulb"
               key={i.id}
               claim={i.title}
               items={[]}

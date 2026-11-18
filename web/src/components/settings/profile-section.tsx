@@ -1,10 +1,10 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { LogOut, Palette, Save, ScrollText, ShieldCheck, Store } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { Button, FeedbackNotice, Input, LanguageSwitcher, ListGroup, ListRow, PlainCard, SegmentedControl, Select, StatusBanner } from "@/components/ui";
+import { Button, FeedbackNotice, Icon, Input, LanguageSwitcher, ListGroup, ListRow, PlainCard, SegmentedControl, Select, StatusBanner } from "@/components/ui";
 import { logout, type Segment } from "@/lib/auth-api";
 import { applyTheme, readTheme, type ThemeChoice, updateBusiness } from "@/lib/settings-api";
 import { useST } from "./use-st";
@@ -44,7 +44,7 @@ function BusinessForm({ id, initialName, demo }: { id: number; initialName: stri
   }
 
   return (
-    <PlainCard title={t("settings.profile.business")} description={t("settings.profile.businessHint")}>
+    <PlainCard title={<span className="inline-flex items-center gap-2"><Icon icon={Store} size={20} />{t("settings.profile.business")}</span>} description={t("settings.profile.businessHint")}>
       {demo ? (
         <StatusBanner kind="info" title={t("settings.profile.demo")}>
           {owner ? t("settings.profile.demoScope") : t("settings.profile.readOnly")}
@@ -63,7 +63,7 @@ function BusinessForm({ id, initialName, demo }: { id: number; initialName: stri
         {error ? <FeedbackNotice kind="error">{error}</FeedbackNotice> : null}
         {done ? <FeedbackNotice>{t("settings.profile.saved")}</FeedbackNotice> : null}
         <div>
-          <Button type="submit" loading={saving} disabled={demo}>
+          <Button type="submit" icon={Save} loading={saving} disabled={demo}>
             {t("settings.common.save")}
           </Button>
         </div>
@@ -96,29 +96,32 @@ export function ProfileSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PlainCard title={t("settings.profile.appearance")}>
+      <PlainCard title={<span className="inline-flex items-center gap-2"><Icon icon={Palette} size={20} />{t("settings.profile.appearance")}</span>}>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <span className="text-small font-medium">{t("settings.profile.language")}</span>
             <LanguageSwitcher />
           </div>
-          <SegmentedControl
-            label={t("settings.profile.theme")}
-            value={theme}
-            onValueChange={(v) => {
-              setTheme(v);
-              applyTheme(v);
-            }}
-            options={THEMES.map((v) => ({ value: v, label: t(`settings.profile.theme.${v}`) }))}
-          />
+          <div className="flex flex-col gap-1.5">
+            <span className="text-small font-medium">{t("settings.profile.theme")}</span>
+            <SegmentedControl
+              label={t("settings.profile.theme")}
+              value={theme}
+              onValueChange={(v) => {
+                setTheme(v);
+                applyTheme(v);
+              }}
+              options={THEMES.map((v) => ({ value: v, label: t(`settings.profile.theme.${v}`) }))}
+            />
+          </div>
         </div>
       </PlainCard>
 
       {user?.role === "owner" && user.business ? <BusinessForm key={user.business.id} id={user.business.id} initialName={user.business.name} demo={!!active?.is_demo} /> : null}
 
       <ListGroup header={t("settings.profile.legal")}>
-        <ListRow title={t("settings.profile.privacy")} href="/privacy" chevron />
-        <ListRow title={t("settings.profile.terms")} href="/terms" chevron />
+        <ListRow title={t("settings.profile.privacy")} href="/privacy" chevron leading={<Icon icon={ShieldCheck} size={20} className="text-muted-foreground" />} />
+        <ListRow title={t("settings.profile.terms")} href="/terms" chevron leading={<Icon icon={ScrollText} size={20} className="text-muted-foreground" />} />
       </ListGroup>
 
       {logoutError ? <FeedbackNotice kind="error">{t("settings.profile.logoutFailed")}</FeedbackNotice> : null}

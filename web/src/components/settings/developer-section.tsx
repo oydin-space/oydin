@@ -1,9 +1,9 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Ban, BookOpen, KeyRound, Plus, Send, Trash2, Webhook } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Badge, Button, ChoiceControl, EmptyState, FeedbackNotice, Input, ListGroup, ListRow, PlainCard, Section } from "@/components/ui";
+import { Badge, Button, ChoiceControl, EmptyState, FeedbackNotice, Icon, Input, ListGroup, ListRow, PlainCard, Section } from "@/components/ui";
 import {
   type ApiTokenItem,
   createToken,
@@ -97,6 +97,7 @@ function TokensPanel() {
               <ListRow
                 key={k.id}
                 title={k.name}
+                leading={<Icon icon={KeyRound} size={20} className="text-muted-foreground" />}
                 subtitle={`${k.prefix}… · ${k.last_used_at ? t("settings.tokens.lastUsed", { date: formatDate(k.last_used_at) }) : t("settings.tokens.neverUsed")}`}
                 status={
                   <>
@@ -106,7 +107,7 @@ function TokensPanel() {
                   </>
                 }
                 trailing={
-                  <Button size="sm" variant="ghost" onClick={() => setTarget(k)}>
+                  <Button size="sm" variant="ghost" icon={Ban} onClick={() => setTarget(k)}>
                     {t("settings.common.revoke")}
                   </Button>
                 }
@@ -212,7 +213,7 @@ function WebhooksPanel() {
         ) : (
           <div className="flex flex-col gap-3">
             {data?.map((w) => (
-              <PlainCard key={w.id} title={w.url} description={w.events.map((e) => t(`settings.webhooks.event.${e}`)).join(" · ")}>
+              <PlainCard key={w.id} title={<span className="inline-flex items-center gap-2"><Icon icon={Webhook} size={20} />{w.url}</span>} description={w.events.map((e) => t(`settings.webhooks.event.${e}`)).join(" · ")}>
                 <div className="flex flex-col gap-3">
                   <ChoiceControl
                     kind="switch"
@@ -223,10 +224,10 @@ function WebhooksPanel() {
                   />
                   {w.last_delivery_status != null ? <p className="text-small text-muted-foreground">{t("settings.webhooks.lastStatus", { status: String(w.last_delivery_status) })}</p> : null}
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="secondary" loading={rowBusy === w.id} onClick={() => ping(w)}>
+                    <Button size="sm" variant="secondary" icon={Send} loading={rowBusy === w.id} onClick={() => ping(w)}>
                       {t("settings.webhooks.ping")}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setTarget(w)}>
+                    <Button size="sm" variant="ghost" icon={Trash2} onClick={() => setTarget(w)}>
                       {t("settings.common.delete")}
                     </Button>
                   </div>
@@ -258,7 +259,7 @@ export function DeveloperSection() {
   return (
     <div className="flex flex-col gap-6">
       <p className="text-small text-muted-foreground">{t("settings.developer.hint")}</p>
-      <PlainCard title={t("settings.developer.docsTitle")}>
+      <PlainCard title={<span className="inline-flex items-center gap-2"><Icon icon={BookOpen} size={20} />{t("settings.developer.docsTitle")}</span>}>
         <p className="text-small">{t("settings.developer.docsBody")}</p>
       </PlainCard>
       <TokensPanel />

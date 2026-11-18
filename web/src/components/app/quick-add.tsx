@@ -1,12 +1,16 @@
 "use client"
 
-import { Plus } from "lucide-react"
+import { MessageCircle, PenLine } from "lucide-react"
+import Link from "next/link"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { useCoreT } from "@/components/app/use-core-t"
-import { Button, Card, Text, VoiceButton } from "@/components/ui"
+import { Icon, Text, VoiceButton } from "@/components/ui"
+import { useT } from "@/i18n"
 import { api } from "@/lib/api"
+import { PASTEL_BG } from "@/lib/tone"
 import type { TransactionInput, VoiceReply } from "@/lib/types"
+import { cn } from "@/lib/utils"
 import { recordVoice, voiceSupported } from "@/lib/voice"
 
 type State = "idle" | "recording" | "processing" | "disabled"
@@ -16,9 +20,12 @@ interface Props {
   onManual: () => void
 }
 
-/** Voice + manual entry. A voice draft is never saved silently: it opens the entry sheet for confirmation. */
+const TILE = "flex min-h-[104px] flex-col items-center justify-center gap-2 rounded-card p-3 text-center text-foreground active:scale-[0.98] transition-transform"
+
+/** Quick actions: voice, text entry, ask Oydin. A voice draft is never saved silently: it opens the entry sheet for confirmation. */
 export function QuickAdd({ onDraft, onManual }: Props) {
   const t = useCoreT()
+  const tb = useT()
   const [state, setState] = useState<State>(() => (voiceSupported() ? "idle" : "disabled"))
   const stop = useRef<AbortController | null>(null)
 
@@ -47,19 +54,24 @@ export function QuickAdd({ onDraft, onManual }: Props) {
   }
 
   return (
-    <Card tint="sky" title={t("core.dash.quickTitle")}>
-      <div className="flex items-center gap-4">
+    <section aria-label={t("core.dash.quickTitle")} className="grid grid-cols-3 gap-3">
+      <div className={cn(TILE, PASTEL_BG.butter)}>
         <VoiceButton
           state={state}
           onPress={press}
-          size={72}
+          size={56}
           labels={{ idle: t("core.voice.idle"), recording: t("core.voice.recording"), processing: t("core.voice.processing"), disabled: t("core.voice.disabled") }}
         />
-        <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
-          <Text variant="secondary" tone="muted">{t("core.dash.quickHint")}</Text>
-          <Button size="sm" variant="secondary" icon={Plus} onClick={onManual}>{t("core.dash.manual")}</Button>
-        </div>
+        <Text variant="caption" weight="semibold">{tb("biz.home.qaVoice")}</Text>
       </div>
-    </Card>
+      <button type="button" onClick={onManual} className={cn(TILE, PASTEL_BG.sky)}>
+        <Icon icon={PenLine} />
+        <Text variant="caption" weight="semibold">{tb("biz.home.qaText")}</Text>
+      </button>
+      <Link href="/app/chat" className={cn(TILE, PASTEL_BG.lavender)}>
+        <Icon icon={MessageCircle} />
+        <Text variant="caption" weight="semibold">{tb("biz.home.qaAsk")}</Text>
+      </Link>
+    </section>
   )
 }

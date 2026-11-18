@@ -1,9 +1,9 @@
 "use client";
 
-import { FileDown, Plus } from "lucide-react";
+import { Ban, FileDown, Link2, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Badge, Button, EmptyState, FeedbackNotice, Input, ListGroup, ListRow, Section, Select } from "@/components/ui";
+import { Badge, Button, EmptyState, FeedbackNotice, Icon, Input, ListGroup, ListRow, Section, Select } from "@/components/ui";
 import { createShareLink, listShareLinks, revokeShareLink, type ShareLink, sharePdfUrl } from "@/lib/settings-api";
 import { ResourceGate } from "./resource-gate";
 import { SecretBox } from "./secret-box";
@@ -118,11 +118,12 @@ export function SharingSection() {
                 <ListRow
                   key={l.id}
                   title={l.label || t("settings.sharing.noLabel")}
+                  leading={<Icon icon={Link2} size={20} className="text-muted-foreground" />}
                   subtitle={`${t("settings.sharing.period", { from: formatDate(l.period_from), to: formatDate(l.period_to) })} · ${t("settings.sharing.until", { date: formatDate(l.expires_at) })} · ${t("settings.sharing.views", { count: l.views })}`}
                   status={badge(l)}
                   trailing={
                     l.revoked_at ? undefined : (
-                      <Button size="sm" variant="ghost" onClick={() => setTarget(l)}>
+                      <Button size="sm" variant="ghost" icon={Ban} onClick={() => setTarget(l)}>
                         {t("settings.common.revoke")}
                       </Button>
                     )

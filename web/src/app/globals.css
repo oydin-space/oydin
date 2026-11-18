@@ -264,6 +264,42 @@
   backdrop-filter: saturate(180%) blur(20px);
 }
 
+/* Liquid glass: блюр + насыщенность, полупрозрачный тон, волосяная граница, внутренний блик. Цвета берутся из токенов → светлая и тёмная темы. */
+@utility glass-liquid {
+  background-color: color-mix(in srgb, var(--background) 58%, transparent);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--foreground) 7%, transparent), transparent 60%);
+  -webkit-backdrop-filter: saturate(190%) blur(24px);
+  backdrop-filter: saturate(190%) blur(24px);
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--foreground) 14%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--background) 30%, transparent),
+    0 10px 30px -12px rgb(0 0 0 / 0.28);
+}
+
+/* Плавающие панели оболочки скрываются при открытой клавиатуре без сдвига вёрстки */
+@utility shell-float {
+  transition: transform var(--dur-sheet, 240ms) ease, opacity var(--dur-sheet, 240ms) ease;
+  &[data-hidden="true"] {
+    transform: translateY(120%);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+@utility shell-float-top {
+  transition: box-shadow var(--dur-sheet, 240ms) ease;
+  &[data-hidden="true"] {
+    box-shadow: none;
+  }
+}
+
+/* Десктоп: активный пункт сайдбара заметен и в тёмной теме (bg-muted сливался с карточкой) */
+aside nav a[aria-current="page"] {
+  background-color: color-mix(in srgb, var(--brand) 22%, var(--card));
+  box-shadow: inset 3px 0 0 var(--brand);
+  color: var(--foreground);
+}
+
 /* Сгруппированный список: карточка со скруглением и разделителями */
 @utility inset-group {
   border-radius: 1.25rem;
@@ -337,6 +373,24 @@
   transition: transform var(--dur-fast) var(--ease-enter);
   &:active {
     transform: scale(0.98);
+  }
+}
+/* Кнопка с «губой»: сплошная нижняя кромка, при нажатии опускается на её высоту */
+@utility lip {
+  --lip-h: 4px;
+  box-shadow: 0 var(--lip-h) 0 0 var(--lip, var(--border-strong));
+  transition-property: transform, box-shadow, background-color, color;
+  transition-duration: var(--dur-fast);
+  &:active:not(:disabled) {
+    transform: translateY(var(--lip-h));
+    box-shadow: none;
+  }
+  &:disabled {
+    --lip: transparent;
+    box-shadow: none;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    opacity: 1;
   }
 }
 @utility motion-fast {

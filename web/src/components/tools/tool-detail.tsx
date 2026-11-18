@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
-import { Button, IconButton, Input, PageHeader, Sheet, SkeletonCard, StateView, toast } from "@/components/ui";
+import { ArrowLeft, Check, Pencil, Pin, PinOff, Trash2, X } from "lucide-react";
+import { Button, IconButton, Input, PAGE_WIDTH, PageHeader, Sheet, SkeletonCard, StateView, toast } from "@/components/ui";
 import { useChatT } from "@/components/chat/chat-t";
 import { GenerativeUI } from "@/components/chat/generative-ui";
 import { useApi } from "@/lib/use-api";
@@ -52,7 +52,7 @@ export function ToolDetail({ id }: { id: number }) {
       toast.success(t("chat.tools.deleted"));
       router.push("/app/tools");
     } catch {
-      toast.error(t("chat.ui.error"));
+      toast.error(t("chat.tools.deleteFailed"));
       setWorking(false);
     }
   };
@@ -60,7 +60,7 @@ export function ToolDetail({ id }: { id: number }) {
   const status = !Number.isFinite(id) || res.error === "not_found" ? "empty" : res.error ? "error" : !tool ? "loading" : "ready";
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-6">
+    <div className={`${PAGE_WIDTH} flex flex-col gap-4 pb-6`}>
       <Button asChild variant="ghost" size="sm" icon={ArrowLeft} className="self-start">
         <Link href="/app/tools">{t("chat.tools.back")}</Link>
       </Button>
@@ -75,7 +75,7 @@ export function ToolDetail({ id }: { id: number }) {
           <>
             <PageHeader
               title={tool.title}
-              hint={t(`chat.tools.kind.${tool.kind}`)}
+              hint={t(`chat.tools.kind.${tool.kind}`).trim().toLowerCase() === tool.title.trim().toLowerCase() ? undefined : t(`chat.tools.kind.${tool.kind}`)}
               actions={
                 <div className="flex gap-1">
                   <IconButton
@@ -112,6 +112,7 @@ export function ToolDetail({ id }: { id: number }) {
         footer={
           <Button
             block
+            icon={Check}
             loading={working}
             disabled={!name.trim()}
             onClick={async () => {
@@ -133,10 +134,10 @@ export function ToolDetail({ id }: { id: number }) {
         description={t("chat.tools.deleteHint")}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setConfirm(false)}>
+            <Button variant="secondary" icon={X} onClick={() => setConfirm(false)}>
               {t("chat.tools.cancel")}
             </Button>
-            <Button variant="destructive" loading={working} onClick={() => void remove()}>
+            <Button variant="destructive" icon={Trash2} loading={working} onClick={() => void remove()}>
               {t("chat.tools.delete")}
             </Button>
           </div>

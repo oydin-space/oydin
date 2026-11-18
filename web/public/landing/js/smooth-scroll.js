@@ -23,7 +23,7 @@
  const load = () => loading ||= new Promise(resolve => {
   if (window.Lenis) {resolve(true); return;}
   const script = document.createElement('script');
-  script.src = '/lenis-1.3.26.min.js'; // Self-hosted copy of lenis@1.3.26 (MIT).
+  script.src = '/landing/js/lenis-1.3.27.min.js'; // Self-hosted copy of lenis@1.3.27 (MIT).
   script.async = true;
   script.onload = () => resolve(!!window.Lenis);
   script.onerror = () => resolve(false); // Native scrolling remains fully usable.

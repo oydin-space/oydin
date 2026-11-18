@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Settings2 } from "lucide-react";
-import { AmountText, Badge, Button, Card, Checkbox, Input, ListGroup, MoneyInput, Section, SegmentedControl, SkeletonCard, StatusBanner, Switch, TaskSheet, Text } from "@/components/ui";
+import { Banknote, CalendarDays, Check, CheckCircle2, Clock, FileText, Landmark, Pause, Pencil, Plus, RotateCcw, Settings2, ShieldCheck, Trash2 } from "lucide-react";
+import { AmountText, Badge, Button, Card, Checkbox, Icon, Input, ListGroup, MoneyInput, Section, SegmentedControl, SkeletonCard, StatusBanner, Switch, TaskSheet, Text } from "@/components/ui";
 import { createTaxReminder, deleteTaxReminder, getTaxReserve, listTaxReminders, patchTaxReminder, saveTaxReserve, today, type TaxMethod, type TaxPeriod, type TaxReminder, type TaxReserve } from "@/lib/planning-api";
 import { ConfirmDelete } from "./confirm-delete";
 import { LoadView, useAction, useLoad, usePlanFormat, usePlanT } from "./plan-support";
@@ -73,10 +73,11 @@ function ReserveSection({ canWrite }: { canWrite: boolean }) {
           <>
             <Card tint={r.enabled ? "lavender" : undefined} className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
-                <Text variant="secondary" tone="muted">
-                  {t("tax.period", { from: f.date(r.period_from), to: f.date(r.period_to) })}
+                <Text variant="secondary" tone="muted" className="flex items-center gap-1.5">
+                  <Icon icon={Landmark} size={16} className="shrink-0" />
+                  <span>{t("tax.period", { from: f.date(r.period_from), to: f.date(r.period_to) })}</span>
                 </Text>
-                <Badge tone={r.enabled ? "positive" : "neutral"}>{r.enabled ? t("tax.on") : t("tax.off")}</Badge>
+                <Badge tone={r.enabled ? "positive" : "neutral"} icon={<Icon icon={r.enabled ? ShieldCheck : Pause} size={16} />}>{r.enabled ? t("tax.on") : t("tax.off")}</Badge>
               </div>
               {r.enabled ? (
                 <>
@@ -230,7 +231,7 @@ function RemindersSection({ canWrite }: { canWrite: boolean }) {
       >
         {draft ? (
           <div className="flex flex-col gap-3">
-            <Input label={t("tax.reminderName")} value={draft.title} maxLength={120} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required />
+            <Input label={t("tax.reminderName")} value={draft.title} maxLength={120} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required leading={<Icon icon={FileText} size={16} />} />
             <SegmentedControl<"payment" | "report">
               label={t("tax.kind")}
               options={[
@@ -240,7 +241,7 @@ function RemindersSection({ canWrite }: { canWrite: boolean }) {
               value={draft.kind}
               onValueChange={(v) => setDraft({ ...draft, kind: v })}
             />
-            <Input label={t("tax.dueDate")} type="date" value={draft.due} min={draft.id == null ? today() : undefined} onChange={(e) => setDraft({ ...draft, due: e.target.value, confirmed: false })} required />
+            <Input label={t("tax.dueDate")} type="date" value={draft.due} min={draft.id == null ? today() : undefined} onChange={(e) => setDraft({ ...draft, due: e.target.value, confirmed: false })} required leading={<Icon icon={CalendarDays} size={16} />} />
             <MoneyInput label={t("tax.amountOptional")} value={draft.amount} onValueChange={(v) => setDraft({ ...draft, amount: v })} currency="UZS" locale={f.locale} />
             <label className="flex min-h-row items-center justify-between gap-3">
               <Text variant="body">{t("tax.notify")}</Text>
@@ -266,28 +267,31 @@ function ReminderRow({ r, canWrite, onEdit, onToggle, onRemove }: { r: TaxRemind
   return (
     <li className="flex flex-col gap-2 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Text variant="body" className="truncate">
-            {r.title}
-          </Text>
-          <Text variant="secondary" tone="muted">
-            {r.kind === "payment" ? t("tax.kindPayment") : t("tax.kindReport")} · {f.dateLong(r.due_date)}
-          </Text>
+        <div className="flex min-w-0 items-start gap-3">
+          <Icon icon={r.kind === "payment" ? Banknote : FileText} className="mt-0.5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <Text variant="body" className="truncate">
+              {r.title}
+            </Text>
+            <Text variant="secondary" tone="muted">
+              {r.kind === "payment" ? t("tax.kindPayment") : t("tax.kindReport")} · {f.dateLong(r.due_date)}
+            </Text>
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           {r.amount != null ? <AmountText value={r.amount} locale={f.locale} mode="compact" className="font-medium" /> : null}
-          <Badge tone={r.status === "done" ? "positive" : "neutral"}>{r.status === "done" ? t("tax.done") : t("tax.planned")}</Badge>
+          <Badge tone={r.status === "done" ? "positive" : "neutral"} icon={<Icon icon={r.status === "done" ? CheckCircle2 : Clock} size={16} />}>{r.status === "done" ? t("tax.done") : t("tax.planned")}</Badge>
         </div>
       </div>
       {canWrite ? (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={onToggle}>
+          <Button size="sm" variant="secondary" icon={r.status === "done" ? RotateCcw : Check} onClick={onToggle}>
             {r.status === "done" ? t("tax.reopen") : t("tax.markDone")}
           </Button>
-          <Button size="sm" variant="secondary" onClick={onEdit}>
+          <Button size="sm" variant="secondary" icon={Pencil} onClick={onEdit}>
             {t("common.edit")}
           </Button>
-          <Button size="sm" variant="ghost" onClick={onRemove}>
+          <Button size="sm" variant="ghost" icon={Trash2} onClick={onRemove}>
             {t("common.delete")}
           </Button>
         </div>

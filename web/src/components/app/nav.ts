@@ -8,21 +8,22 @@ export interface NavEntry {
   label: CoreKey
   icon: LucideIcon
   roles: readonly Role[]
+  dock?: "left" | "right"
 }
 
 const FINANCE: readonly Role[] = ["owner", "accountant"]
 const ALL: readonly Role[] = ["owner", "accountant", "seller"]
 
-/** Bottom bar: ≤4 destinations + "More". */
+/** Dock: Home · Operations · [mic] · Assistant · More. `dock` is the side of the central mic. */
 export const PRIMARY: readonly NavEntry[] = [
-  { id: "home", href: "/app", label: "core.nav.home", icon: House, roles: FINANCE },
-  { id: "operations", href: "/app/operations", label: "core.nav.operations", icon: ReceiptText, roles: ALL },
-  { id: "chat", href: "/app/chat", label: "core.nav.chat", icon: MessageCircle, roles: FINANCE },
-  { id: "plan", href: "/app/plan", label: "core.nav.plan", icon: Target, roles: FINANCE },
+  { id: "home", href: "/app", label: "core.nav.home", icon: House, roles: FINANCE, dock: "left" },
+  { id: "operations", href: "/app/operations", label: "core.nav.operations", icon: ReceiptText, roles: ALL, dock: "left" },
+  { id: "chat", href: "/app/chat", label: "core.nav.assistant", icon: MessageCircle, roles: FINANCE, dock: "right" },
 ]
 
 /** Lives in the "More" sheet on mobile, flat in the desktop sidebar. */
 export const SECONDARY: readonly NavEntry[] = [
+  { id: "plan", href: "/app/plan", label: "core.nav.plan", icon: Target, roles: FINANCE },
   { id: "calendar", href: "/app/calendar", label: "core.nav.calendar", icon: CalendarDays, roles: FINANCE },
   { id: "products", href: "/app/products", label: "core.nav.products", icon: Package, roles: FINANCE },
   { id: "tools", href: "/app/tools", label: "core.nav.tools", icon: Wrench, roles: FINANCE },
@@ -32,6 +33,9 @@ export const SECONDARY: readonly NavEntry[] = [
 ]
 
 export const MORE_ICON = Ellipsis
+
+/** Voice entry: the existing quick-entry screen opened in voice mode. */
+export const VOICE_HREF = "/app/quick?voice=1"
 
 const allowed = (list: readonly NavEntry[], role: Role | null | undefined) => (role ? list.filter((e) => e.roles.includes(role)) : [])
 

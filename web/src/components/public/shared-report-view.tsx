@@ -1,8 +1,8 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight, Banknote, Calendar, CalendarClock, Download, Landmark, PiggyBank, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
-import { AmountText, Badge, Button, Card, EmptyState, ErrorState, ListGroup, ListRow, Section, StatusBanner, Text } from "@/components/ui";
+import { AmountText, Badge, Button, Card, EmptyState, ErrorState, Icon, ListGroup, ListRow, Section, StatusBanner, Text } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { usePublicT } from "./use-public-t";
 import { sharedPdfUrl, type SharedResult } from "@/lib/public-api";
@@ -15,7 +15,7 @@ export function SharedReportView({ token, result }: { token: string; result: Sha
   const { locale, formatDate } = useI18n();
   const t = usePublicT();
   const home = (
-    <Button asChild variant="secondary">
+    <Button asChild variant="secondary" icon={ArrowLeft}>
       <Link href="/">{t("public.shared.home")}</Link>
     </Button>
   );
@@ -36,10 +36,10 @@ export function SharedReportView({ token, result }: { token: string; result: Sha
   const money = (v: number | null, signed = false) => <AmountText value={v} locale={locale} signed={signed} />;
   const date = (d: string) => formatDate(d, { dateStyle: "medium" });
   const kpis = [
-    { label: t("public.shared.revenue"), value: p.revenue, tint: "mint" },
-    { label: t("public.shared.expenses"), value: p.expenses, tint: "peach" },
-    { label: t("public.shared.profit"), value: p.profit, tint: "butter" },
-    { label: t("public.shared.cashChange"), value: p.cash_change, tint: "sky", signed: true },
+    { label: t("public.shared.revenue"), value: p.revenue, tint: "mint", icon: TrendingUp },
+    { label: t("public.shared.expenses"), value: p.expenses, tint: "peach", icon: TrendingDown },
+    { label: t("public.shared.profit"), value: p.profit, tint: "butter", icon: PiggyBank },
+    { label: t("public.shared.cashChange"), value: p.cash_change, tint: "sky", signed: true, icon: ArrowLeftRight },
   ] as const;
 
   return (
@@ -59,7 +59,7 @@ export function SharedReportView({ token, result }: { token: string; result: Sha
           {kpis.map((k) => (
             <li key={k.label}>
               <Card tint={k.tint} className="flex h-full flex-col gap-1">
-                <Text variant="caption" tone="muted">{k.label}</Text>
+                <span className="flex items-center gap-1.5"><Icon icon={k.icon} size={16} /><Text variant="caption" tone="muted">{k.label}</Text></span>
                 <span className="text-section font-semibold">{money(k.value, "signed" in k && k.signed)}</span>
               </Card>
             </li>
@@ -67,15 +67,15 @@ export function SharedReportView({ token, result }: { token: string; result: Sha
         </ul>
         {p.profit === null || p.missing_data.length ? <StatusBanner kind="warning" title={t("public.shared.profitMissing")} /> : null}
         <ListGroup>
-          <ListRow title={t("public.shared.draws")} trailing={money(p.owner_draws)} />
-          <ListRow title={t("public.shared.contributions")} trailing={money(p.owner_contributions)} />
+          <ListRow leading={<Icon icon={TrendingDown} />} title={t("public.shared.draws")} trailing={money(p.owner_draws)} />
+          <ListRow leading={<Icon icon={TrendingUp} />} title={t("public.shared.contributions")} trailing={money(p.owner_contributions)} />
         </ListGroup>
 
         {r.accounts.length ? (
           <Section title={t("public.shared.accounts")}>
             <ListGroup>
               {r.accounts.map((a) => (
-                <ListRow key={a.id} title={a.name} subtitle={t(`public.shared.kind.${a.kind}`)} trailing={<AmountText value={a.balance} currency={a.currency} locale={locale} />} />
+                <ListRow key={a.id} leading={<Icon icon={Landmark} />} title={a.name} subtitle={t(`public.shared.kind.${a.kind}`)} trailing={<AmountText value={a.balance} currency={a.currency} locale={locale} />} />
               ))}
             </ListGroup>
           </Section>
@@ -87,6 +87,7 @@ export function SharedReportView({ token, result }: { token: string; result: Sha
               {r.by_category.map((c) => (
                 <ListRow
                   key={c.category}
+                  leading={<Icon icon={Banknote} />}
                   title={c.category === "personal" ? t("public.shared.personal") : c.category}
                   subtitle={`${t("public.shared.in")}: ${c.inflow.toLocaleString(locale)} · ${t("public.shared.out")}: ${c.outflow.toLocaleString(locale)}`}
                   trailing={money(c.inflow - c.outflow, true)}
@@ -104,6 +105,7 @@ export function SharedReportView({ token, result }: { token: string; result: Sha
               {r.obligations.map((o) => (
                 <ListRow
                   key={o.id}
+                  leading={<Icon icon={CalendarClock} />}
                   title={o.title}
                   subtitle={`${t("public.shared.due", { date: date(o.due_date) })} · ${o.covered ? t("public.shared.covered") : t("public.shared.notCovered")}`}
                   status={<Badge tone={OBLIGATION_TONE[o.status]}>{t(`public.shared.status.${o.status}`)}</Badge>}
@@ -120,6 +122,7 @@ export function SharedReportView({ token, result }: { token: string; result: Sha
               {r.cash_closes.map((c) => (
                 <ListRow
                   key={c.id}
+                  leading={<Icon icon={Calendar} />}
                   title={date(c.date)}
                   subtitle={`${t("public.shared.expected")}: ${c.expected.toLocaleString(locale)} · ${t("public.shared.counted")}: ${c.counted.toLocaleString(locale)}`}
                   trailing={<span><span className="sr-only">{t("public.shared.difference")}: </span>{money(c.difference, true)}</span>}

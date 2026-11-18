@@ -34,6 +34,7 @@ export interface User {
   role: Role | null;
   active_business_id: number | null;
   needs_onboarding: boolean;
+  onboarding_done?: boolean;
   business: Business | null;
   businesses: BusinessSummary[];
 }

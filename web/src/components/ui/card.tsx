@@ -4,6 +4,7 @@ import { useKitT } from "./kit-t";
 import { cn } from "@/lib/utils";
 import { PASTEL_BG, PASTEL_DEEP, type Pastel } from "@/lib/tone";
 import { AmountText } from "./money";
+import { NamedIcon, type IconName } from "./icon";
 import { Sparkline } from "./sparkline";
 import { Text } from "./text";
 import type { Currency } from "./money-format";
@@ -42,6 +43,7 @@ export function PlainCard(props: Omit<CardProps, "tint">) {
 
 export interface StatTileProps {
   label: string;
+  icon?: IconName;
   value: number | null;
   currency?: Currency;
   /** Изменение в тех же единицах (со знаком) и пояснение «к прошлой неделе». */
@@ -52,10 +54,13 @@ export interface StatTileProps {
   className?: string;
 }
 
-export function StatTile({ label, value, currency = "UZS", delta, deltaLabel, trend, tint = "mint", className }: StatTileProps) {
+export function StatTile({ label, icon, value, currency = "UZS", delta, deltaLabel, trend, tint = "mint", className }: StatTileProps) {
   return (
     <Card tint={tint} className={cn("flex flex-col gap-1", className)}>
-      <Text variant="caption" tone="muted">{label}</Text>
+      <Text variant="caption" tone="muted" className="inline-flex items-center gap-1.5">
+        {icon ? <NamedIcon name={icon} size={16} /> : null}
+        {label}
+      </Text>
       <AmountText value={value} currency={currency} mode="compact" className="text-section font-semibold" />
       {delta != null ? (
         <p className="text-caption text-muted-foreground">

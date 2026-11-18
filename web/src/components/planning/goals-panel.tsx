@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
-import { AmountText, Badge, Button, Card, Input, MoneyInput, ProgressBar, Select, Text, TaskSheet, SkeletonCard } from "@/components/ui";
+import { Archive, ArchiveRestore, CalendarDays, Pencil, Plus, Target, Trash2, Trophy, TriangleAlert } from "lucide-react";
+import { AmountText, Badge, Button, Card, Icon, Input, MoneyInput, ProgressBar, Select, Text, TaskSheet, SkeletonCard } from "@/components/ui";
 import { createGoal, deleteGoal, GOAL_KINDS, listGoals, patchGoal, type Goal, type GoalKind } from "@/lib/planning-api";
 import { ConfirmDelete } from "./confirm-delete";
 import { LoadView, useAction, useLoad, usePlanFormat, usePlanT, type PlanKey } from "./plan-support";
@@ -66,16 +66,19 @@ export function GoalsPanel({ canWrite }: { canWrite: boolean }) {
               return (
                 <Card key={g.id} tint={g.status === "achieved" ? "mint" : undefined} className="flex flex-col gap-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <Text variant="body" weight="semibold" className="truncate">
-                        {g.title}
-                      </Text>
-                      <Text variant="caption" tone="muted">
-                        {t(`goals.kind.${g.kind}` as PlanKey)}
-                        {g.due_date ? ` · ${t("goals.until", { date: f.dateLong(g.due_date) })}` : ""}
-                      </Text>
+                    <div className="flex min-w-0 items-start gap-3">
+                      <Icon icon={Target} className="mt-0.5 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <Text variant="body" weight="semibold" className="truncate">
+                          {g.title}
+                        </Text>
+                        <Text variant="caption" tone="muted">
+                          {t(`goals.kind.${g.kind}` as PlanKey)}
+                          {g.due_date ? ` · ${t("goals.until", { date: f.dateLong(g.due_date) })}` : ""}
+                        </Text>
+                      </div>
                     </div>
-                    {g.status === "achieved" ? <Badge tone="positive">{t("goals.achieved")}</Badge> : g.status === "archived" ? <Badge>{t("goals.archived")}</Badge> : cap && ratio > 1 ? <Badge tone="negative">{t("goals.over")}</Badge> : null}
+                    {g.status === "achieved" ? <Badge tone="positive" icon={<Icon icon={Trophy} size={16} />}>{t("goals.achieved")}</Badge> : g.status === "archived" ? <Badge icon={<Icon icon={Archive} size={16} />}>{t("goals.archived")}</Badge> : cap && ratio > 1 ? <Badge tone="negative" icon={<Icon icon={TriangleAlert} size={16} />}>{t("goals.over")}</Badge> : null}
                   </div>
                   <ProgressBar value={ratio} label={g.title} />
                   <div className="flex items-baseline justify-between gap-2 text-small">
@@ -86,13 +89,13 @@ export function GoalsPanel({ canWrite }: { canWrite: boolean }) {
                   </div>
                   {canWrite ? (
                     <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="secondary" onClick={() => open(g)}>
+                      <Button size="sm" variant="secondary" icon={Pencil} onClick={() => open(g)}>
                         {t("common.edit")}
                       </Button>
-                      <Button size="sm" variant="secondary" onClick={() => void archive(g)}>
+                      <Button size="sm" variant="secondary" icon={g.status === "archived" ? ArchiveRestore : Archive} onClick={() => void archive(g)}>
                         {g.status === "archived" ? t("goals.restore") : t("goals.archive")}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setRemoving(g)}>
+                      <Button size="sm" variant="ghost" icon={Trash2} onClick={() => setRemoving(g)}>
                         {t("common.delete")}
                       </Button>
                     </div>
@@ -122,9 +125,9 @@ export function GoalsPanel({ canWrite }: { canWrite: boolean }) {
         {draft ? (
           <div className="flex flex-col gap-3">
             <Select label={t("goals.type")} options={GOAL_KINDS.map((k) => ({ value: k, label: t(`goals.kind.${k}` as PlanKey) }))} value={draft.kind} onValueChange={(v) => setDraft({ ...draft, kind: v as GoalKind })} />
-            <Input label={t("goals.name")} value={draft.title} maxLength={120} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required />
+            <Input label={t("goals.name")} value={draft.title} maxLength={120} onChange={(e) => setDraft({ ...draft, title: e.target.value })} required leading={<Icon icon={Target} size={16} />} />
             <MoneyInput label={t("goals.target")} value={draft.target} onValueChange={(v) => setDraft({ ...draft, target: v })} currency="UZS" locale={f.locale} required />
-            <Input label={t("goals.due")} type="date" value={draft.due} onChange={(e) => setDraft({ ...draft, due: e.target.value })} />
+            <Input label={t("goals.due")} type="date" value={draft.due} onChange={(e) => setDraft({ ...draft, due: e.target.value })} leading={<Icon icon={CalendarDays} size={16} />} />
           </div>
         ) : null}
       </TaskSheet>
