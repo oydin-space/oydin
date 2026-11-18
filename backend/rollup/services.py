@@ -8,6 +8,7 @@ from accounts.models import Membership
 from finance import services as fin
 from finance.models import Obligation, Transaction
 from people.models import Person
+from people.services import active_q
 
 WINDOW_DAYS = 30
 MONEY_KEYS = ("net_uzs", "inflow_30d_uzs", "outflow_30d_uzs", "receivable_uzs", "payable_uzs", "headcount")
@@ -15,11 +16,9 @@ MONEY_KEYS = ("net_uzs", "inflow_30d_uzs", "outflow_30d_uzs", "receivable_uzs", 
 
 def _headcount(business, today):
     """Активные сотрудники и подрядчики; покупатели и партнёры не штат."""
-    return sum(
-        1
-        for p in Person.objects.filter(business=business, kind__in=(Person.Kind.STAFF, Person.Kind.CONTRACTOR))
-        if (p.ended_on is None or p.ended_on >= today) and (p.started_on is None or p.started_on <= today)
-    )
+    return Person.objects.filter(
+        active_q(today), business=business, kind__in=(Person.Kind.STAFF, Person.Kind.CONTRACTOR)
+    ).count()
 
 
 def business_row(membership, today):

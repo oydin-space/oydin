@@ -2,6 +2,8 @@ from datetime import timedelta
 
 from django.db.models import Sum
 
+from accounts.http import ApiError
+
 from finance import services as fin
 from finance.domain import forecast as fc
 from finance.domain.categories import OBLIGATION_CATEGORIES
@@ -67,5 +69,8 @@ def build_insights(business, now=None, lang="ru"):
     now = now or fin.today()
     items = [i for i in (_own_gap(business, now, lang), _own_category_growth(business, now, lang)) if i]
     items += catalog.market_local(lang)
-    items += staff_insights(business, now, lang)
+    try:
+        items += staff_insights(business, now, lang)
+    except ApiError:  # нет курса — карточки команды пропускаем, остальные инсайты отдаём
+        pass
     return [{**i, "as_of": i["as_of"].isoformat()} for i in items]

@@ -35,6 +35,21 @@ class StaffInsightsTests(TestCase):
         self.assertEqual(staff_insights(setup([10_000_000]), NOW), [])
         self.assertEqual(staff_insights(setup([0], [("A", 3_000_000)]), NOW), [])
 
+    def test_missing_rate_skips_hire_card_instead_of_failing(self):
+        from unittest.mock import patch
+
+        from accounts.http import ApiError
+        b = setup([20_000_000], [("A", 3_000_000)])
+        with patch("insights.staff.afford", side_effect=ApiError(503, "no_rate")):
+            items = by_id(staff_insights(b, NOW))
+        self.assertIn("staff-payroll-share", items)
+        self.assertNotIn("staff-hire-headroom", items)
+
+    def test_person_ending_today_still_active(self):
+        b = setup([20_000_000], [("A", 3_000_000)])
+        Person.objects.update(ended_on=NOW)
+        self.assertIn("staff-payroll-share", by_id(staff_insights(b, NOW)))
+
     def test_share_and_per_head_numbers(self):
         b = setup([20_000_000], [("A", 3_000_000), ("B", 3_000_000)])
         items = by_id(staff_insights(b, NOW))

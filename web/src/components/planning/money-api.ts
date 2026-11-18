@@ -19,8 +19,9 @@ export interface OwnerSplitData {
   net: number;
   shortfall: number;
   afloat: { amount: number; needed: number; payroll: number; obligations: number; payroll_unconverted: string[]; items: SplitItem[] };
-  development: { amount: number; pct: number };
-  owner: { amount: number; pct: number };
+  development: { amount: number | null; pct: number };
+  owner: { amount: number | null; pct: number };
+  uncomputable_reason: "payroll_unconverted" | null;
   configured: boolean;
   owner_money: { draw_month: number; contribution_month: number; draw_30d: number; contribution_30d: number };
 }

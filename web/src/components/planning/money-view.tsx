@@ -62,7 +62,8 @@ function SplitCard({ data, canEdit, onSaved }: { data: OwnerSplitData; canEdit: 
   const [ownerPct, setOwnerPct] = useState(data.owner.pct);
   const [busy, setBusy] = useState(false);
   const dirty = ownerPct !== data.owner.pct;
-  const free = data.development.amount + data.owner.amount;
+  const cantCompute = data.development.amount === null || data.owner.amount === null;
+  const free = (data.development.amount ?? 0) + (data.owner.amount ?? 0);
   const [dev, own] = largestRemainder(free, [100 - ownerPct, ownerPct]);
   const rows = [
     { id: "afloat", label: t("split.afloat"), amount: data.afloat.amount, pct: null as number | null },
@@ -94,7 +95,9 @@ function SplitCard({ data, canEdit, onSaved }: { data: OwnerSplitData; canEdit: 
         <Text variant="secondary" tone="muted">{t("split.setAside", { tax: formatMoney(data.tax_reserve), envelopes: formatMoney(data.envelopes) })}</Text>
       </div>
 
-      {data.net > 0 ? (
+      {cantCompute ? (
+        <Text variant="secondary">{t("split.cantCompute")}</Text>
+      ) : data.net > 0 ? (
         <>
           <SegmentedBar label={t("split.title")} segments={rows.map((r) => ({ label: r.label, value: r.amount, className: SEGMENT_CLASS[r.id] }))} />
           <ul className="flex flex-col gap-2">
@@ -185,7 +188,7 @@ function OwnerFlows({ data }: { data: OwnerSplitData }) {
   const { formatMoney } = useI18n();
   const m = data.owner_money;
   const pace = useMemo(() => {
-    if (m.draw_month <= 0) return null;
+    if (m.draw_month <= 0 || data.owner.amount === null) return null;
     const now = new Date();
     const elapsed = getElapsed(new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 1), now);
     return getBudgetPace({ budget: m.draw_month + data.owner.amount, elapsed, spent: m.draw_month });

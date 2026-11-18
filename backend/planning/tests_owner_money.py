@@ -60,6 +60,18 @@ class SplitTests(PlanningCase):
         Person.objects.create(business=self.business, name="Али", kind="staff", pay_type="monthly", pay_amount=Decimal(3_000_000))
         self.assertEqual(self.get().json()["afloat"]["needed"], 3_000_000)
 
+    def test_unconverted_payroll_makes_shares_null_and_keeps_salary_obligation(self):
+        self.fund(10_000_000)
+        Obligation.objects.create(business=self.business, title="ЗП", kind="salary", amount=3_000_000, due_date=TODAY + timedelta(days=3))
+        Person.objects.create(business=self.business, name="Иван", kind="staff", pay_type="monthly",
+                              pay_amount=Decimal(1000), currency="RUB")
+        r = self.get().json()
+        self.assertIsNone(r["development"]["amount"])
+        self.assertIsNone(r["owner"]["amount"])
+        self.assertEqual(r["uncomputable_reason"], "payroll_unconverted")
+        self.assertEqual(r["afloat"]["payroll_unconverted"], ["RUB"])
+        self.assertEqual(r["afloat"]["obligations"], 3_000_000)
+
     def test_shortfall_leaves_nothing_for_shares(self):
         self.fund(1_000_000)
         Obligation.objects.create(business=self.business, title="Долг", kind="loan", amount=4_000_000, due_date=TODAY + timedelta(days=1))

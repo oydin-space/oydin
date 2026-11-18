@@ -63,12 +63,12 @@ def owner_flows(business, now):
     }
 
 
-def committed(business, now, payroll):
+def committed(business, now, payroll, drop_salary):
     """Исходящие на 30 дней: обязательства (кроме полученных к оплате и оплаченных), повторяющиеся платежи, зарплата."""
     end = now + timedelta(days=HORIZON_DAYS)
     obligations = Obligation.objects.filter(business=business, due_date__lte=end).exclude(
         status=Obligation.Status.PAID).exclude(kind=Obligation.Kind.RECEIVABLE)
-    if payroll > 0:  # зарплата берётся из people.Person, иначе обязательство salary посчиталось бы дважды
+    if drop_salary:  # зарплата берётся из people.Person, иначе обязательство salary посчиталось бы дважды
         obligations = obligations.exclude(kind=Obligation.Kind.SALARY)
     items = [{"kind": "obligation", "title": o.title, "date": o.due_date.isoformat(), "amount": o.amount,
               "overdue": o.due_date < now} for o in obligations]
@@ -88,7 +88,8 @@ def split(business, now=None):
         raise ApiError(503, "no_rate") from None
     people = people_svc.summary(business)
     payroll = int(Decimal(people["monthly_cost_uzs"]).to_integral_value())
-    items = committed(business, now, payroll)
+    unconverted = people.get("unconverted", [])
+    items = committed(business, now, payroll, drop_salary=payroll > 0 and not unconverted)
     obligations_total = sum(i["amount"] for i in items)
     tax = svc.tax_reserve_amount(business, now)
     saved = svc.envelopes_saved(business)
@@ -99,14 +100,17 @@ def split(business, now=None):
     free = max(net - need, 0)
     afloat = min(max(net, 0), need)
     dev, mine = largest_remainder(free, [settings["development_pct"], settings["owner_pct"]])
+    if unconverted:  # фонд зарплаты занижен — свободную сумму честно посчитать нельзя
+        dev = mine = None
     return {
         "as_of": now.isoformat(), "horizon_days": HORIZON_DAYS,
         "balance": balance, "tax_reserve": tax, "envelopes": saved, "net": net,
         "shortfall": max(need - max(net, 0), 0),
         "afloat": {"amount": afloat, "needed": need, "payroll": payroll, "obligations": obligations_total,
-                   "payroll_unconverted": people.get("unconverted", []), "items": items},
+                   "payroll_unconverted": unconverted, "items": items},
         "development": {"amount": dev, "pct": settings["development_pct"]},
         "owner": {"amount": mine, "pct": settings["owner_pct"]},
+        "uncomputable_reason": "payroll_unconverted" if unconverted else None,
         "configured": settings["configured"],
         "owner_money": owner,
     }

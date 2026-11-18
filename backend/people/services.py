@@ -1,5 +1,6 @@
 from decimal import Decimal, InvalidOperation
 
+from django.db.models import Q
 from django.utils import timezone
 
 from accounts.http import ApiError
@@ -90,11 +91,16 @@ def check_dates(started, ended):
         raise ApiError(400, "invalid_date")
 
 
+def active_q(day):
+    """Единое правило «действует на дату day»: не раньше начала и не позже последнего дня (ended_on включительно)."""
+    return (Q(started_on__isnull=True) | Q(started_on__lte=day)) & (Q(ended_on__isnull=True) | Q(ended_on__gte=day))
+
+
 def summary(business):
     today = timezone.localdate()
     month_start = today.replace(day=1)
     people = list(Person.objects.filter(business=business))
-    active = [p for p in people if (p.ended_on is None or p.ended_on >= today) and (p.started_on is None or p.started_on <= today)]
+    active = list(Person.objects.filter(active_q(today), business=business))
     kinds = {k: 0 for k in Person.Kind.values}
     for p in active:
         kinds[p.kind] += 1

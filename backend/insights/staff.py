@@ -7,13 +7,14 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Q
+from accounts.http import ApiError
 
 from finance import services as fin
 from finance.models import Transaction
-from finance.rates import MINOR_UNITS, RateUnavailable, to_uzs
+from finance.rates import MINOR_UNITS, to_uzs
 from finance.texts import money
 from people.models import Person
+from people.services import active_q
 from planning.services import afford, envelopes_saved, tax_reserve_amount
 
 WINDOW = 30
@@ -126,9 +127,7 @@ def tr(key, lang, **kw):
 
 def _active(business, day):
     """Сотрудники, действующие на дату day (нет даты начала — считаем действующим)."""
-    return Person.objects.filter(business=business, kind=Person.Kind.STAFF).filter(
-        Q(started_on__isnull=True) | Q(started_on__lte=day), Q(ended_on__isnull=True) | Q(ended_on__gt=day)
-    )
+    return Person.objects.filter(active_q(day), business=business, kind=Person.Kind.STAFF)
 
 
 def _monthly_uzs(person):
@@ -225,7 +224,7 @@ def staff_insights(business, now=None, lang="ru"):
         else:
             try:
                 verdict = afford(business, hire, "UZS", day=now, title="hire", recurring="monthly", now=now, lang=lang)
-            except RateUnavailable:
+            except ApiError:  # afford() превращает RateUnavailable в ApiError(503): без курса карточку пропускаем
                 verdict = None
             if verdict:
                 if verdict["verdict"] == "yes":
