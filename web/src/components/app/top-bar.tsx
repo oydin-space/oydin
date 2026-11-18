@@ -2,19 +2,16 @@
 
 import Link from "next/link"
 import { useState } from "react"
-import { Check, Settings } from "lucide-react"
+import { Settings } from "lucide-react"
 import { Flower } from "@/components/brand/flower"
 import { BusinessSwitcherMenu } from "@/components/business/business-switcher-menu"
 import { OfflineBadge } from "@/components/offline"
 import { useSession } from "@/components/providers/session-provider"
-import { Avatar, Icon, ListGroup, ListRow, Sheet } from "@/components/ui"
-import { useLocale } from "@/i18n"
-import { setPeriod, usePeriod, type Period } from "@/lib/period"
+import { Avatar, Icon } from "@/components/ui"
+import { usePeriod } from "@/lib/period"
 import { cn } from "@/lib/utils"
+import { PeriodSheet, usePeriodLabels } from "./period-picker"
 import { useCoreT } from "./use-core-t"
-
-const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"]
-const INTL: Record<string, string> = { ru: "ru-RU", uz: "uz-UZ", en: "en-US" }
 
 /**
  * Mobile floating glass header: flower circle · [business switcher | period] pill · settings/avatar circle.
@@ -23,21 +20,15 @@ const INTL: Record<string, string> = { ru: "ru-RU", uz: "uz-UZ", en: "en-US" }
 export function TopBar({ flat }: { flat: boolean }) {
   const t = useCoreT()
   const { user } = useSession()
-  const [locale] = useLocale()
   const current = usePeriod()
   const [open, setOpen] = useState(false)
-  const monthName = (p: Period) => (locale === "uz" ? UZ_MONTHS[p.month] : new Intl.DateTimeFormat(INTL[locale] ?? "ru-RU", { month: "long" }).format(new Date(p.year, p.month, 1)))
-  const label = (p: Period) => `${monthName(p)} ${p.year}`
-  const today = new Date()
-  const months: Period[] = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
-    return { year: d.getFullYear(), month: d.getMonth() }
-  })
-  const period = monthName(current)
+  const { month, full } = usePeriodLabels()
+  const period = month(current)
 
   return (
     <header data-hidden={flat} className="shell-float-top pointer-events-none absolute inset-x-0 top-0 z-20 md:hidden">
-      <div className="pt-safe px-3">
+      <div aria-hidden="true" className="absolute inset-x-0 -bottom-3 top-0 bg-gradient-to-b from-background from-75% to-transparent" />
+      <div className="pt-safe relative px-3">
         <div className="mx-auto flex max-w-lg items-center gap-3 pt-3">
           <Link
             href="/app"
@@ -58,7 +49,7 @@ export function TopBar({ flat }: { flat: boolean }) {
             <button
               type="button"
               aria-haspopup="dialog"
-              aria-label={t("core.period.open", { month: label(current) })}
+              aria-label={t("core.period.open", { month: full(current) })}
               onClick={() => setOpen(true)}
               className="focus-ring press -my-0.5 flex h-11 min-w-11 shrink-0 items-center rounded-pill px-2 text-caption font-medium capitalize text-muted-foreground"
             >
@@ -76,24 +67,7 @@ export function TopBar({ flat }: { flat: boolean }) {
           </Link>
         </div>
       </div>
-      <Sheet open={open} onOpenChange={setOpen} title={t("core.period.title")} closeLabel={t("core.close")}>
-        <ListGroup>
-          {months.map((m) => {
-            const active = m.year === current.year && m.month === current.month
-            return (
-              <ListRow
-                key={`${m.year}-${m.month}`}
-                title={<span className="capitalize">{label(m)}</span>}
-                trailing={active ? <Icon icon={Check} size={20} /> : undefined}
-                onClick={() => {
-                  setPeriod(m)
-                  setOpen(false)
-                }}
-              />
-            )
-          })}
-        </ListGroup>
-      </Sheet>
+      <PeriodSheet open={open} onOpenChange={setOpen} />
     </header>
   )
 }

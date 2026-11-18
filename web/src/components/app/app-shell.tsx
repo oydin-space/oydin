@@ -21,6 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { user } = useSession()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [rev, setRev] = useState(0)
   const kbOpen = useKeyboardOpen()
 
   const primary = primaryFor(user?.role)
@@ -59,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const mainPad = kbOpen ? "pb-6 [&:has(>[data-fill])]:pb-0" : "pb-[var(--app-dock)] md:pb-6 [&:has(>[data-fill])]:pb-[var(--app-dock)] md:[&:has(>[data-fill])]:pb-0"
 
   return (
-    <div className={`flex h-[var(--app-h,100dvh)] flex-col md:flex-row ${vars}`}>
+    <div className={`flex h-[var(--app-h,100dvh)] flex-col overflow-clip md:flex-row ${vars}`}>
       <Sidebar
         items={sidebarItems}
         className="pt-safe md:pt-8!"
@@ -71,9 +72,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main
           className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-[calc(4.25rem+max(env(safe-area-inset-top),var(--tg-top)))] md:px-8 md:pt-8 [&:has(>[data-fill])]:overflow-hidden ${mainPad}`}
         >
-          <Fragment key={user?.active_business_id ?? 0}>{children}</Fragment>
+          <Fragment key={`${user?.active_business_id ?? 0}-${rev}`}>{children}</Fragment>
         </main>
-        <BottomNav items={primary} pathname={path} moreActive={moreActive} onMore={() => setMoreOpen(true)} hidden={kbOpen} />
+        <BottomNav items={primary} pathname={path} moreActive={moreActive} onMore={() => setMoreOpen(true)} hidden={kbOpen} onEntrySaved={() => setRev((n) => n + 1)} />
       </div>
       <MoreSheet open={moreOpen} onOpenChange={setMoreOpen} items={secondary} />
     </div>

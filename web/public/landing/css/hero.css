@@ -134,3 +134,7 @@ html.hero-scroll-stable{scrollbar-gutter:stable}
 /* AA contrast on the pastel CTA gradient. */
 .dawn-cta .cta-email,.dawn-cta .cta-email:hover{background:rgba(17,18,20,.62);color:#fff}
 .dawn-cta .cta-proof{color:#1a1a1a}
+
+/* Nav CTA: short label on narrow screens so the pill fits the bar. */
+.btn-short{display:none}
+@media(max-width:560px){.floating-nav .btn-long{display:none}.floating-nav .btn-short{display:inline}}

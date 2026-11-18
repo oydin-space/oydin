@@ -30,6 +30,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
   const id = idProp ?? auto;
   return (
     <FieldShell id={id} label={label} hint={hint} error={error} required={required} className={className}>
+      <div className="relative">
       <S.Root value={value} onValueChange={onValueChange} disabled={disabled} required={required}>
         <S.Trigger
           ref={ref}
@@ -68,6 +69,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
           </S.Content>
         </S.Portal>
       </S.Root>
+      </div>
     </FieldShell>
   );
 });

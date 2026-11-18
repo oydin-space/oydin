@@ -3,11 +3,14 @@
 import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CircleHelp, UserRound } from "lucide-react"
 import { AmountText, Badge, Icon, ListRow } from "@/components/ui"
+import { categoryName } from "@/components/chat/category-name"
+import { useLocale } from "@/i18n"
+import type { Locale } from "@/i18n/core"
 import { currencyOf } from "@/lib/core-api"
 import type { Account, Transaction } from "@/lib/types"
 
-export function txTitle(tx: Transaction, fallback: string) {
-  return tx.counterparty || tx.category || fallback
+export function txTitle(tx: Transaction, fallback: string, locale: Locale = "ru") {
+  return tx.counterparty || (tx.category ? categoryName(tx.category, locale) : "") || fallback
 }
 
 export function txSigned(tx: Transaction) {
@@ -16,12 +19,13 @@ export function txSigned(tx: Transaction) {
 
 export function TxRow({ tx, accounts, onOpen }: { tx: Transaction; accounts: Account[]; onOpen: (tx: Transaction) => void }) {
   const t = useCoreT()
+  const [locale] = useLocale()
   const account = accounts.find((a) => a.id === tx.account_id)
   const purposeLabel = t(`core.ops.purpose.${tx.purpose}` as CoreKey)
-  const sub = [tx.category, account?.name].filter(Boolean).join(" · ")
+  const sub = [tx.category ? categoryName(tx.category, locale) : "", account?.name].filter(Boolean).join(" · ")
   return (
     <ListRow
-      title={txTitle(tx, t("core.ops.uncategorized"))}
+      title={txTitle(tx, t("core.ops.uncategorized"), locale)}
       wrapTitle
       subtitle={sub ? <span className="line-clamp-2 whitespace-normal break-words">{sub}</span> : undefined}
       leading={<Icon icon={tx.direction === "in" ? ArrowDownLeft : tx.direction === "out" ? ArrowUpRight : ArrowLeftRight} className="text-muted-foreground" />}

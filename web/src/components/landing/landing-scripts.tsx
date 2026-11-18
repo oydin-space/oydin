@@ -2,7 +2,6 @@
 
 import { useEffect } from "react"
 import type { Locale } from "./copy"
-import { V } from "./build-version"
 
 const SCRIPTS = [
   "hero-mode", "smooth-scroll", "dialog", "navigation", "mobile-panel-motion", "app", "faq", "motion",
@@ -12,7 +11,7 @@ const SCRIPTS = [
 type LandingWindow = Window & { __oydinLoaded?: boolean }
 
 /** The moonin scripts bind to the DOM once; load them in order after hydration. */
-export function LandingScripts({ locale }: { locale: Locale }) {
+export function LandingScripts({ locale, version }: { locale: Locale; version: string }) {
   useEffect(() => {
     const w = window as LandingWindow
     if (w.__oydinLoaded) {
@@ -29,7 +28,7 @@ export function LandingScripts({ locale }: { locale: Locale }) {
       w.__oydinLoaded = true
       for (const name of SCRIPTS) {
         const s = document.createElement("script")
-        s.src = `/landing/js/${name}.js${V}`
+        s.src = `/landing/js/${name}.js${version}`
         s.async = false
         document.body.appendChild(s)
         added.push(s)
@@ -40,6 +39,6 @@ export function LandingScripts({ locale }: { locale: Locale }) {
       document.body.classList.remove("home-page", "v2")
       delete root.dataset.theme
     }
-  }, [locale])
+  }, [locale, version])
   return null
 }

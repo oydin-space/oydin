@@ -191,6 +191,7 @@ const ru: Record<string, string> = {
   "lp4.1": "Остановить пример сводки",
   "lp4.2": "Язык",
   "lp4.3": "скоро",
+  "lp4.6": "Открыть",
   "lp4.4": "Oydin — второй мозг для вашего бизнеса",
   "lp4.5": "Прогноз кассовых разрывов, пульс бизнеса и AI-помощник для малого бизнеса Узбекистана.",
 }
@@ -379,6 +380,7 @@ const uz: Record<string, string> = {
   "lp4.1": "Namuna hisobotni toʻxtatish",
   "lp4.2": "Til",
   "lp4.3": "tez orada",
+  "lp4.6": "Ochish",
   "lp4.4": "Oydin — biznesingiz uchun ikkinchi miya",
   "lp4.5": "Kassadagi uzilishlar prognozi, biznes pulsi va Oʻzbekiston kichik biznesi uchun AI yordamchi.",
 }
@@ -567,6 +569,7 @@ const en: Record<string, string> = {
   "lp4.1": "Pause the sample brief",
   "lp4.2": "Language",
   "lp4.3": "soon",
+  "lp4.6": "Open",
   "lp4.4": "Oydin — a second brain for your business",
   "lp4.5": "Cash-gap forecasts, a business pulse and an AI assistant for small businesses in Uzbekistan.",
 }

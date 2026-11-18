@@ -478,3 +478,15 @@ aside nav a[aria-current="page"] {
     display: none;
   }
 }
+
+/* No visible vertical scrollbars on the app scrollers: main, sheets/dialogs, chat history. */
+main,
+.overflow-y-auto,
+.overflow-y-scroll,
+.overflow-auto,
+[data-fill] [style*="overflow"] {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -42,7 +42,7 @@ export function ListRow({ title, subtitle, leading, trailing, status, onClick, h
         {subtitle || status ? (
           <span className="col-span-2 flex min-w-0 items-center gap-2 sm:contents">
             {status ? <span className="shrink-0 sm:hidden">{status}</span> : null}
-            {subtitle ? <span className="min-w-0 truncate text-small text-muted-foreground">{subtitle}</span> : null}
+            {subtitle ? <span className="min-w-0 break-words text-small text-muted-foreground sm:line-clamp-2">{subtitle}</span> : null}
           </span>
         ) : null}
       </span>

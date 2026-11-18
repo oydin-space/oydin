@@ -4,7 +4,9 @@ import { Check, FilePenLine, Pencil, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { useCoreT } from "@/components/app/use-core-t"
+import { categoryName } from "@/components/chat/category-name"
 import { AmountText, Button, Card, Icon, Section, Text } from "@/components/ui"
+import { useLocale } from "@/i18n"
 import { api } from "@/lib/api"
 import { currencyOf } from "@/lib/core-api"
 import type { Account, Transaction } from "@/lib/types"
@@ -19,6 +21,7 @@ interface Props {
 
 export function DraftsSection({ drafts, accounts, onEdit, onChanged }: Props) {
   const t = useCoreT()
+  const [locale] = useLocale()
   const [busy, setBusy] = useState<number | null>(null)
 
   async function run(tx: Transaction, action: "confirm" | "discard") {
@@ -46,8 +49,8 @@ export function DraftsSection({ drafts, accounts, onEdit, onChanged }: Props) {
               <div className="flex min-w-0 items-center gap-3">
                 <Icon icon={FilePenLine} className="text-muted-foreground" />
                 <div className="min-w-0">
-                  <Text variant="body" className="truncate">{txTitle(tx, t("core.ops.uncategorized"))}</Text>
-                  <Text variant="caption" tone="muted" className="truncate">{tx.category}</Text>
+                  <Text variant="body" className="truncate">{txTitle(tx, t("core.ops.uncategorized"), locale)}</Text>
+                  <Text variant="caption" tone="muted" className="truncate">{tx.category ? categoryName(tx.category, locale) : null}</Text>
                 </div>
               </div>
               <AmountText value={txSigned(tx)} currency={currencyOf(accounts, tx.account_id)} signed tone="auto" />

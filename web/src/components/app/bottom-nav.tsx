@@ -17,7 +17,7 @@ const pill = (active: boolean) => cn("motion-fast flex h-7 w-12 items-center jus
  * Floating liquid-glass dock: Home · Operations · [mic] · Assistant · More. Overlays the app column (absolute),
  * so `main` pads for it only while `hidden` is false. The mic protrudes ~1/3 above the glass.
  */
-export function BottomNav({ items, pathname, moreActive, onMore, hidden }: { items: readonly NavEntry[]; pathname: string; moreActive: boolean; onMore: () => void; hidden: boolean }) {
+export function BottomNav({ items, pathname, moreActive, onMore, hidden, onEntrySaved }: { items: readonly NavEntry[]; pathname: string; moreActive: boolean; onMore: () => void; hidden: boolean; onEntrySaved: () => void }) {
   const t = useCoreT()
   const tab = (e: NavEntry) => {
     const active = isActive(pathname, e.href)
@@ -42,7 +42,7 @@ export function BottomNav({ items, pathname, moreActive, onMore, hidden }: { ite
     >
       <ul className="glass-liquid pointer-events-auto relative mx-auto flex max-w-md items-center rounded-[2rem] px-2">
         {items.filter((e) => e.dock !== "right").map(tab)}
-        <DockMic />
+        <DockMic onEntrySaved={onEntrySaved} />
         {items.filter((e) => e.dock === "right").map(tab)}
         <li className="flex flex-1">
           <button type="button" aria-haspopup="dialog" aria-current={moreActive ? "page" : undefined} onClick={onMore} className={tabClass(moreActive)}>

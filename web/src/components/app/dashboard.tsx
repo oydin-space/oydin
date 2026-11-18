@@ -17,6 +17,7 @@ import { useBriefData } from "@/components/brief/use-brief-data"
 import { BriefCards, BriefCardsSkeleton } from "./brief-cards"
 import { FirstSteps } from "./first-steps"
 import { InsightsSection } from "./insights-section"
+import { PeriodButton } from "./period-picker"
 import { PulseDetails, PulseHero, PulseHeroSkeleton } from "./pulse-hero"
 import { QuickAdd } from "./quick-add"
 
@@ -86,8 +87,9 @@ export function Dashboard() {
     )
 
   return (
-    <div className={`${PAGE_WIDTH} flex flex-col gap-4 pb-[110px]`}>
+    <div className={`${PAGE_WIDTH} flex flex-col gap-4`}>
       <h1 className="sr-only">{t("core.dash.title")}</h1>
+      <PeriodButton className="hidden justify-end md:flex" />
       {body}
       {sheet ? <EntrySheet key={sheet.n} accounts={accs} seed={sheet.seed} onClose={() => setSheet(null)} onSaved={() => { setSheet(null); reload() }} /> : null}
     </div>

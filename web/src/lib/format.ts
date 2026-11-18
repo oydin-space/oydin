@@ -1,7 +1,7 @@
 // Мягкие, округлённые числа и даты с учётом языка интерфейса (ru / uz-latin / en).
 export type FormatLocale = "ru" | "uz" | "en";
 
-const INTL: Record<FormatLocale, string> = { ru: "ru-RU", uz: "uz-UZ", en: "en-US" };
+const INTL: Record<FormatLocale, string> = { ru: "ru-RU", uz: "ru-RU", en: "en-US" }; // uz numbers: comma decimal like ru; uz dates are assembled by hand
 
 const UNITS: Record<FormatLocale, { k: string; m: string; b: string; sum: string; day: [string, string, string] }> = {
   ru: { k: "тыс.", m: "млн", b: "млрд", sum: "сум", day: ["день", "дня", "дней"] },

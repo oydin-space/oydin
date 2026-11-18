@@ -42,7 +42,7 @@ function rank(q: string, option: CategoryOption): number | null {
  * Категории для чипов: сначала уже существующие в бизнесе (по частоте), затем стандартные.
  * Если что-то набрано — остаются только подходящие, самые близкие первыми.
  */
-export function categoryOptions(direction: "in" | "out", existing: string[], query: string, t: T): CategoryOption[] {
+export function categoryOptions(direction: "in" | "out", existing: string[], query: string, t: T, localize: (name: string) => string = (n) => n): CategoryOption[] {
   const label = new Map<string, string>(CATEGORIES[direction].map((c) => [norm(c.value), t(c.key)]));
   const options: CategoryOption[] = [];
   const seen = new Set<string>();
@@ -50,7 +50,7 @@ export function categoryOptions(direction: "in" | "out", existing: string[], que
     const key = norm(value);
     if (seen.has(key)) continue;
     seen.add(key);
-    options.push({ value, label: label.get(key) ?? value });
+    options.push({ value, label: label.get(key) ?? localize(value) });
   }
   const q = norm(query);
   if (!q) return options;

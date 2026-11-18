@@ -1,19 +1,24 @@
 "use client"
 
-import { Camera, Image as ImageIcon, Mic, Plus } from "lucide-react"
+import { Camera, Image as ImageIcon, Mic, Pencil, Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
+import { EntrySheet } from "@/components/operations/entry-sheet"
 import { Icon, ListGroup, ListRow, Sheet } from "@/components/ui"
+import type { Account } from "@/lib/types"
+import { useApi } from "@/lib/use-api"
 import { setPendingAttachment, type AttachmentKind } from "@/lib/pending-attachment"
 import { haptic } from "@/lib/telegram"
 import { VOICE_HREF } from "./nav"
 import { useCoreT } from "./use-core-t"
 
 /** Central dock "+": circular brand-yellow, bottom flush with the dock, top raised above it. Opens voice / photo / screenshot menu. */
-export function DockMic() {
+export function DockMic({ onEntrySaved }: { onEntrySaved: () => void }) {
   const t = useCoreT()
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [entry, setEntry] = useState(0)
+  const accounts = useApi<{ items: Account[] }>(open || entry ? "/accounts/" : null)
   const photoRef = useRef<HTMLInputElement>(null)
   const shotRef = useRef<HTMLInputElement>(null)
 
@@ -49,6 +54,15 @@ export function DockMic() {
       <Sheet open={open} onOpenChange={setOpen} title={t("core.nav.add")} closeLabel={t("core.close")}>
         <ListGroup>
           <ListRow
+            title={t("core.add.expense")}
+            leading={<Icon icon={Pencil} />}
+            onClick={() => {
+              haptic("select")
+              setOpen(false)
+              setEntry((n) => n + 1)
+            }}
+          />
+          <ListRow
             title={t("core.add.voice")}
             leading={<Icon icon={Mic} />}
             onClick={() => {
@@ -61,6 +75,7 @@ export function DockMic() {
           <ListRow title={t("core.add.screenshot")} leading={<Icon icon={ImageIcon} />} onClick={() => choose(shotRef)} />
         </ListGroup>
       </Sheet>
+      {entry ? <EntrySheet key={entry} accounts={accounts.data?.items ?? []} seed={{ values: { direction: "out" } }} onClose={() => setEntry(0)} onSaved={() => { setEntry(0); onEntrySaved() }} /> : null}
     </li>
   )
 }

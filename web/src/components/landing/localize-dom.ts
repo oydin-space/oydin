@@ -49,6 +49,41 @@ function syncImages(live: ParentNode, next: ParentNode): number {
   return changed
 }
 
+/** The marquee clones its chip group, so the clones no longer line up by position: refresh every chip label by index. */
+function syncCategoryPills(live: ParentNode, next: ParentNode): number {
+  const labels = [...(next.querySelector(".category-group")?.querySelectorAll(".category-pill span") ?? [])].map((el) => el.textContent ?? "")
+  if (!labels.length) return 0
+  let changed = 0
+  live.querySelectorAll(".category-track .category-group").forEach((group) => {
+    group.querySelectorAll(".category-pill span").forEach((el, i) => {
+      const label = labels[i % labels.length]
+      if (el.textContent !== label) {
+        el.textContent = label
+        changed++
+      }
+    })
+  })
+  return changed
+}
+
+/** `hero-chat.js` owns the read-aloud button's label at runtime; re-derive it from the freshly swapped hero labels. */
+function refreshReadAloud(root: ParentNode) {
+  const hero = root.querySelector<HTMLElement>(".hero")
+  root.querySelectorAll<HTMLElement>(".hero-read-aloud").forEach((button) => {
+    const label = button.getAttribute("aria-pressed") === "true" ? hero?.dataset.pauseLabel : hero?.dataset.playLabel
+    if (label) button.setAttribute("aria-label", label)
+  })
+}
+
+/** Picks an on-page element near the top third of the viewport to hold the reading position across the text swap. */
+function scrollAnchor(): { el: Element; top: number } | null {
+  const y = innerHeight * 0.35
+  const el = document
+    .elementsFromPoint(innerWidth / 2, y)
+    .find((e) => e.closest(".page-shell, main") && !e.closest(".floating-nav, .nav, [data-lang-slot], .hero-stage"))
+  return el ? { el, top: el.getBoundingClientRect().top } : null
+}
+
 /** `app.js` copies feature titles into a live status line and the mobile summary; refresh them from the swapped cards. */
 function refreshFeatureCopy(root: ParentNode) {
   const active = root.querySelector<HTMLElement>("[data-feature].active")
@@ -77,7 +112,8 @@ export async function applyLocaleInPlace(locale: Locale): Promise<boolean> {
   const liveShell = document.querySelector(".page-shell")
   const nextShell = doc.querySelector(".page-shell")
   if (!liveShell || !nextShell) return false
-  let changed = sync(liveShell, nextShell) + syncImages(liveShell, nextShell)
+  const anchor = scrollAnchor()
+  let changed = sync(liveShell, nextShell) + syncImages(liveShell, nextShell) + syncCategoryPills(liveShell, nextShell)
   let live = liveShell.nextElementSibling
   let next = nextShell.nextElementSibling
   while (live && next && !live.matches("script, link, next-route-announcer")) {
@@ -86,6 +122,11 @@ export async function applyLocaleInPlace(locale: Locale): Promise<boolean> {
     next = next.nextElementSibling
   }
   refreshFeatureCopy(liveShell)
+  refreshReadAloud(liveShell)
+  if (anchor?.el.isConnected) {
+    const drift = anchor.el.getBoundingClientRect().top - anchor.top
+    if (Math.abs(drift) > 0.5) window.scrollBy({ top: drift, behavior: "instant" })
+  }
   document.documentElement.lang = locale
   document.title = doc.title || document.title
   window.dispatchEvent(new CustomEvent(LOCALE_EVENT, { detail: locale }))

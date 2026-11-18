@@ -36,7 +36,7 @@ export function PendingList({ entries, accounts, lastSync, syncing, online, onSy
             {t("offline.queue")}
             {entries.length ? <Badge className="ml-2" icon={<Icon icon={Clock} size={16} />}>{t("offline.pending", { count: entries.length })}</Badge> : null}
           </h2>
-          <p className="truncate text-small text-muted-foreground">{lastSync ? t("offline.lastSync", { time: time(lastSync) }) : t("offline.never")}</p>
+          <p className="text-small text-muted-foreground">{lastSync ? t("offline.lastSync", { time: time(lastSync) }) : t("offline.never")}</p>
         </div>
         <Button size="sm" variant="secondary" icon={RefreshCw} loading={syncing} disabled={!online} onClick={onSync}>
           {t("offline.syncNow")}

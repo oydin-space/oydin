@@ -204,7 +204,7 @@ h1,h2,h3{font-weight:700;letter-spacing:-.02em}
 /* readability */
 .cta-proof img,.eyebrow img,.social-item img{opacity:1!important}
 .text-link,.footer-column a,.footer-bottom{color:var(--ink-2)}
-@media(max-width:480px){.tool-keys{grid-template-columns:repeat(3,56px);gap:10px}.tool-keys img{width:56px;height:56px;padding:9px}.pr-price{font-size:clamp(26px,8vw,32px)}html,body{overflow-x:hidden}}
+@media(max-width:480px){.tool-keys{grid-template-columns:repeat(3,56px);gap:10px}.tool-keys img{width:56px;height:56px;padding:9px}.pr-price{font-size:clamp(26px,8vw,32px)}html,body{overflow-x:clip}}
 .category-track{width:100%!important;max-width:100%;min-width:0;position:static;padding-inline:24px;box-sizing:border-box}.category-group{max-width:100%}
 /* edge blurs for features / faq / footer; features and footer are .wrap, so bleed to the viewport width */
 .operation,.faq-section,.footer{position:relative}
@@ -212,3 +212,14 @@ h1,h2,h3{font-weight:700;letter-spacing:-.02em}
 .operation>.edge-blur{background:linear-gradient(180deg,var(--cream),transparent)}
 .operation>.edge-blur.bot{background:linear-gradient(0deg,var(--cream),transparent)}
 .split-copy .sec-ico{margin-left:0}
+
+/* "soon" badge lives inside a scaled-down tile: size it so the rendered text stays ≥11px. */
+@media(max-width:800px){.logo-tile .soon-badge{--s:var(--grid-scale,.14);right:calc(4px/var(--s));top:calc(4px/var(--s));padding:calc(2px/var(--s)) calc(6px/var(--s));max-width:calc(100% - 8px/var(--s));font-size:calc(11px/var(--s));line-height:1.15;white-space:normal;text-align:center;box-shadow:0 calc(1.5px/var(--s)) 0 #b8940a}}
+
+/* Wide wordmark logos (click, moysklad) must not stretch their chip past its neighbours. */
+.category-pill img{max-width:96px;min-width:0;object-fit:contain}
+
+/* The brief reader image bakes in its own 9:41 status bar and island; the device frame already supplies the real one. */.brief-reader .reader-status-art{display:none}
+
+/* Tighter rhythm between the integrations grid and the first split section. */
+@media(min-width:801px){.integrations-wide{padding-bottom:0}.split-sections{padding-top:88px}}

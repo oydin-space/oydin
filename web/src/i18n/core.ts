@@ -84,6 +84,8 @@ export const makeT = (locale: Locale): TFunction => (key, params) => translate(l
 
 // ---------- formatting ----------
 const INTL: Record<Locale, string> = { ru: "ru-RU", uz: "uz-UZ", en: "en-US" }
+/** Uzbek decimals/grouping follow ru-RU (comma, nbsp): uz-UZ data is inconsistent across engines. */
+const NUM: Record<Locale, string> = { ru: "ru-RU", uz: "ru-RU", en: "en-US" }
 const SUM_WORDS: Record<Locale, { k: string; m: string; b: string; sep: string }> = {
   ru: { k: "тыс.", m: "млн", b: "млрд", sep: "\u00a0" },
   uz: { k: "ming", m: "mln", b: "mlrd", sep: "\u00a0" },
@@ -92,7 +94,7 @@ const SUM_WORDS: Record<Locale, { k: string; m: string; b: string; sep: string }
 const CUR: Record<Locale, string> = { ru: "сум", uz: "soʻm", en: "UZS" }
 
 export function formatNumber(n: number, locale: Locale, opts?: Intl.NumberFormatOptions): string {
-  return new Intl.NumberFormat(INTL[locale], opts).format(n)
+  return new Intl.NumberFormat(NUM[locale], opts).format(n)
 }
 
 /** Friendly sum: 3_000_000 → "3 млн" / "3 mln" / "3M"; below 1 000 → grouped integer. Major units. */

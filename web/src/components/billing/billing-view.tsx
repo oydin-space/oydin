@@ -1,11 +1,10 @@
 "use client";
 
-import { CreditCard, Info, MessageCircle } from "lucide-react";
-import Link from "next/link";
+import { CreditCard, MessageCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, ErrorState, PAGE_WIDTH, PageHeader, SkeletonCard, StatusBanner } from "@/components/ui";
-import { useT } from "@/i18n";
+import { useI18n, useT } from "@/i18n";
 import { ApiError } from "@/lib/api";
 import { PlanCard, planTint } from "./plan-card";
 import { PlanGrid } from "./plan-grid";
@@ -18,6 +17,7 @@ export function BillingView() {
   const t = useT();
   const code = useSearchParams().get("plan");
   const { locale, state, retry } = usePlans();
+  const { formatDate } = useI18n();
   const [sub, setSub] = useState<Subscription | null>(null);
   const [pay, setPay] = useState<PayState>("idle");
 
@@ -58,7 +58,7 @@ export function BillingView() {
           <div className="min-w-0 flex-1">
             <p className="text-caption text-muted-foreground">{t("billing.current")}</p>
             <p className="text-section font-semibold">{current?.name ?? sub.plan}</p>
-            {sub.renews_at ? <p className="text-small text-muted-foreground">{t("billing.renews", { date: new Date(sub.renews_at).toLocaleDateString(locale) })}</p> : null}
+            {sub.renews_at ? <p className="text-small text-muted-foreground">{t("billing.renews", { date: formatDate(sub.renews_at) })}</p> : null}
           </div>
           <Badge tone={sub.status === "active" ? "positive" : sub.status === "pending" ? "caution" : "neutral"}>{t(`billing.status.${sub.status}`)}</Badge>
         </Card>
@@ -110,9 +110,6 @@ export function BillingView() {
           ) : null}
           {pay === "forbidden" ? <StatusBanner kind="warning" title={t("billing.ownerOnly")} /> : null}
           {pay === "error" ? <StatusBanner kind="error" title={t("billing.payError")} /> : null}
-          <Button asChild variant="ghost" block icon={Info}>
-            <Link href="/app/billing">{t("billing.allPlans")}</Link>
-          </Button>
         </>
       ) : null}
 

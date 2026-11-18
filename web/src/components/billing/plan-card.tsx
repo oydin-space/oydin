@@ -64,9 +64,9 @@ export function PlanCard({ plan, locale, tint, hideCta, href, current, className
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-title font-semibold">{plan.name}</h2>
-          <p className={cn("mt-1 font-bold tracking-tight", "whitespace-nowrap", plan.popular ? "text-hero" : "text-section")}>
+          <p className={cn("mt-1 font-bold tracking-tight", "break-words", plan.popular ? "text-hero" : "text-section")}>
             {amount}
-            {period ? <span className="text-small font-medium text-foreground/80"> / {period}</span> : null}
+            {period ? <span className="whitespace-nowrap text-small font-medium text-foreground/80"> / {period}</span> : null}
           </p>
           <p className="mt-1 text-small text-foreground/80">{plan.tagline}</p>
         </div>
