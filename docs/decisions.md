@@ -85,3 +85,14 @@ Positioning: «Один экран для владельца» for young digital
 7. Beginner track
 
 **Traction:** none yet; do not claim any.
+
+## Cash-gap focus; HR trimmed to salaries/advances (UI hidden, backend kept)
+**Decision:** the product answers one owner question: «How much can I take or spend today so that salary and rent are covered on Friday?». The main screen shows the amount that can be taken, the date and size of the first cash gap, and the list of payments behind the calculation (`GET /api/planning/today/`).
+
+**Why:** cash gaps are the top interview problem; a single worked answer is easier to trust and demo than a broad set of screens.
+
+**Inputs:** only obligations, unpaid order remainders, 30-day confirmed averages and the tax reserve. Advances are salary-kind obligations; no new model field. No figure is invented: everything is user data or labelled demo data.
+
+**HR:** only salaries and advances stay in the UI because they affect the forecast. Other HR surfaces are hidden in the UI; backend code is kept, so this is reversible.
+
+**Not modelled yet:** inventory by size, per-payment FX, per-project accounting, yield scenarios. See `docs/scenarios.md`.

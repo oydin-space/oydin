@@ -873,6 +873,243 @@ components:
         segment: { $ref: '#/components/schemas/Segment' }
         plan: { type: string }
         is_demo: { type: boolean }
+    Person:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string, maxLength: 120 }
+        kind: { type: string, enum: [staff, contractor, buyer, partner] }
+        pay_type: { type: string, enum: [monthly, hourly, per_task, percent, none] }
+        pay_amount: { type: [string, 'null'], description: 'Десятичная строка (0…10^12, 2 знака) в валюте `currency`' }
+        currency: { type: string, enum: [UZS, USD, RUB, EUR] }
+        location_id: { type: [integer, 'null'] }
+        role_title: { type: string, maxLength: 100 }
+        started_on: { type: [string, 'null'], format: date }
+        ended_on: { type: [string, 'null'], format: date, description: 'Последний день включительно; не раньше started_on' }
+        note: { type: string, maxLength: 1000 }
+    PersonInput:
+      type: object
+      description: 'POST — обязателен `name`; PATCH — любое подмножество. Ошибки валидации: 400 `invalid_<поле>` (`invalid_date`, `invalid_location`); неизвестная точка — 404'
+      properties:
+        name: { type: string, maxLength: 120 }
+        kind: { type: string, enum: [staff, contractor, buyer, partner] }
+        pay_type: { type: string, enum: [monthly, hourly, per_task, percent, none] }
+        pay_amount: { type: [string, integer, 'null'] }
+        currency: { type: string, enum: [UZS, USD, RUB, EUR] }
+        location_id: { type: [integer, 'null'] }
+        role_title: { type: string, maxLength: 100 }
+        started_on: { type: [string, 'null'], format: date }
+        ended_on: { type: [string, 'null'], format: date }
+        note: { type: string, maxLength: 1000 }
+    Location:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string, maxLength: 100 }
+        address: { type: string, maxLength: 200 }
+    LocationInput:
+      type: object
+      description: POST — обязателен `name`
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        address: { type: string, maxLength: 200 }
+    PeopleSummary:
+      type: object
+      properties:
+        headcount_by_kind:
+          type: object
+          description: Действующие на сегодня люди по видам
+          properties: { staff: { type: integer }, contractor: { type: integer }, buyer: { type: integer }, partner: { type: integer } }
+        monthly_cost_uzs: { type: string, description: 'Фонд месячных окладов в UZS, десятичная строка' }
+        by_location:
+          type: array
+          items:
+            type: object
+            properties:
+              location_id: { type: [integer, 'null'] }
+              name: { type: string }
+              headcount: { type: integer }
+              monthly_cost_uzs: { type: string }
+        turnover_month:
+          type: object
+          properties: { joined: { type: integer }, left: { type: integer } }
+        unconverted: { type: array, items: { type: string }, description: 'Валюты без курса (RUB/EUR или нет курса USD); их оклады не вошли в сумму' }
+    RollupBusiness:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        is_demo: { type: boolean }
+        net_uzs: { type: integer }
+        inflow_30d_uzs: { type: integer }
+        outflow_30d_uzs: { type: integer }
+        receivable_uzs: { type: integer }
+        payable_uzs: { type: integer }
+        headcount: { type: integer, description: Действующие staff и contractor }
+    Rollup:
+      type: object
+      properties:
+        businesses: { type: array, items: { $ref: '#/components/schemas/RollupBusiness' } }
+        totals:
+          type: object
+          properties:
+            net_uzs: { type: integer }
+            inflow_30d_uzs: { type: integer }
+            outflow_30d_uzs: { type: integer }
+            receivable_uzs: { type: integer }
+            payable_uzs: { type: integer }
+            headcount: { type: integer }
+        window_days: { type: integer, example: 30 }
+    ModuleKey: { type: string, enum: [money, debts, people, suppliers, warehouse, schedules] }
+    ModulesState:
+      type: object
+      properties:
+        modules:
+          type: array
+          items: { type: object, properties: { key: { $ref: '#/components/schemas/ModuleKey' }, enabled: { type: boolean } } }
+        presets:
+          type: array
+          items: { type: object, properties: { key: { type: string, enum: [shop, services, creator, cafe] }, modules: { type: array, items: { $ref: '#/components/schemas/ModuleKey' } } } }
+    WidgetSpec:
+      type: object
+      description: 'Допустимы только перечисленные поля; `metric` зависит от `source` (money: balance|income|expense; debts, suppliers: due|overdue; people: monthly_cost|headcount; warehouse: low_stock; schedules: upcoming)'
+      additionalProperties: false
+      required: [type, source, metric]
+      properties:
+        type: { type: string, enum: [metric, list, chart] }
+        source: { $ref: '#/components/schemas/ModuleKey' }
+        metric: { type: string }
+        period: { type: string, enum: [7d, 30d, 90d] }
+        title: { type: string, minLength: 1, maxLength: 60 }
+        limit: { type: integer, minimum: 1, maximum: 10 }
+        size: { type: string, enum: [s, m, l] }
+    Widget:
+      type: object
+      properties:
+        key: { type: string, enum: [money_summary, debts_due, people_cost, suppliers_due, stock_low, schedule_week] }
+        version: { type: integer }
+        spec: { $ref: '#/components/schemas/WidgetSpec' }
+        active: { type: boolean }
+        created_at: { type: string, format: date-time }
+    WidgetProposal:
+      type: object
+      properties:
+        id: { type: integer }
+        key: { type: string }
+        base_version: { type: integer }
+        spec: { $ref: '#/components/schemas/WidgetSpec' }
+        rationale: { type: string }
+        status: { type: string, enum: [pending, approved, rejected] }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+    BeginnerBudgetItem:
+      type: object
+      required: [name, kind, amount]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        kind: { type: string, enum: [one_off, monthly] }
+        amount: { type: integer, minimum: 0, maximum: 1000000000000 }
+    BeginnerBreakeven:
+      type: object
+      properties:
+        price: { type: [integer, 'null'] }
+        unit_cost: { type: [integer, 'null'] }
+        fixed_monthly: { type: [integer, 'null'] }
+    BeginnerPlanInput:
+      type: object
+      description: Любое подмножество полей; 400 с русским текстом при невалидном значении
+      properties:
+        budget_items: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/BeginnerBudgetItem' } }
+        breakeven: { $ref: '#/components/schemas/BeginnerBreakeven' }
+        checklist: { type: array, items: { type: string, enum: [budget, breakeven, form, register, bank, soliq] } }
+        regime: { type: string, enum: ['', self_employed, yatt, mchj] }
+    BeginnerPlan:
+      type: object
+      properties:
+        budget_items: { type: array, items: { $ref: '#/components/schemas/BeginnerBudgetItem' } }
+        totals: { type: object, properties: { one_off: { type: integer }, monthly: { type: integer } } }
+        breakeven: { $ref: '#/components/schemas/BeginnerBreakeven' }
+        breakeven_result:
+          type: object
+          description: 'Все поля null, если данных нет или маржа ≤ 0 (тогда `margin` задан)'
+          properties: { margin: { type: [integer, 'null'] }, units: { type: [integer, 'null'] }, revenue: { type: [integer, 'null'] } }
+        checklist: { type: array, items: { type: string } }
+        regime: { type: string }
+        updated_at: { type: string, format: date-time }
+        registration:
+          type: object
+          description: Справочник форм регистрации на языке `lang`
+          properties:
+            columns: { type: array, items: { type: string } }
+            forms: { type: array, items: { type: object, additionalProperties: true, required: [id], properties: { id: { type: string, enum: [self_employed, yatt, mchj] } } } }
+            disclaimer: { type: string }
+            sources_title: { type: string }
+            sources: { type: array, items: { type: object, additionalProperties: true } }
+    OwnerSplitInput:
+      type: object
+      required: [development_pct, owner_pct]
+      description: Целые 0…100, в сумме 100 (иначе 400)
+      properties:
+        development_pct: { type: integer, minimum: 0, maximum: 100 }
+        owner_pct: { type: integer, minimum: 0, maximum: 100 }
+    OwnerSplit:
+      type: object
+      description: 'Горизонт 30 дней, суммы в UZS. `development.amount` и `owner.amount` = null, если `uncomputable_reason` задан'
+      properties:
+        as_of: { type: string, format: date }
+        horizon_days: { type: integer }
+        balance: { type: integer }
+        tax_reserve: { type: integer }
+        envelopes: { type: integer }
+        net: { type: integer, description: balance − налоговый резерв − конверты }
+        shortfall: { type: integer }
+        afloat:
+          type: object
+          properties:
+            amount: { type: integer }
+            needed: { type: integer }
+            payroll: { type: integer }
+            obligations: { type: integer }
+            payroll_unconverted: { type: array, items: { type: string } }
+            items:
+              type: array
+              items:
+                type: object
+                properties: { kind: { type: string }, title: { type: string }, date: { type: string, format: date }, amount: { type: integer }, overdue: { type: boolean } }
+        development: { type: object, properties: { amount: { type: [integer, 'null'] }, pct: { type: integer } } }
+        owner: { type: object, properties: { amount: { type: [integer, 'null'] }, pct: { type: integer } } }
+        uncomputable_reason: { type: [string, 'null'], enum: [payroll_unconverted, null] }
+        configured: { type: boolean, description: Доли сохранены владельцем (иначе значения по умолчанию) }
+        owner_money:
+          type: object
+          properties: { draw_month: { type: integer }, contribution_month: { type: integer }, draw_30d: { type: integer }, contribution_30d: { type: integer } }
+    TodayItem:
+      type: object
+      properties:
+        date: { type: [string, 'null'], format: date, description: 'null у средних за период' }
+        title: { type: string, description: 'Название обязательства/заказа — как сохранено; для средних локализуется по `lang`' }
+        kind: { type: string, description: 'salary, rent, receivable, … для обязательств; daily_sales | daily_spend для средних' }
+        amount: { type: integer, description: 'UZS; расход отрицательный' }
+        source: { type: string, enum: [obligation, order, average] }
+        ref_id: { type: [integer, 'null'] }
+        days: { type: integer, description: Только для average }
+        per_day: { type: integer, description: Только для average }
+    TodayAnswer:
+      type: object
+      description: 'Окно (today, until] включительно; деньги — целые UZS. `balance + totals.inflow + totals.outflow = totals.end_balance`'
+      properties:
+        as_of: { type: string, format: date }
+        until: { type: string, format: date }
+        until_reason: { type: string, enum: [salary_rent, friday, param], description: 'salary_rent — ближайшая неоплаченная зарплата/аренда ≤ 90 дней; friday — ближайшая пятница; param — задано `until`' }
+        balance: { type: integer }
+        can_take: { type: integer, description: 'max(0, low.balance − tax_reserve)' }
+        verdict: { type: string, enum: [ok, tight, gap], description: 'gap — есть дыра; tight — can_take = 0 или < 10% оттока окна; иначе ok' }
+        low: { type: object, description: Минимум прогнозного баланса в окне, properties: { date: { type: string, format: date }, balance: { type: integer } } }
+        gap: { type: [object, 'null'], description: 'null, если low.balance ≥ 0', properties: { date: { type: string, format: date }, amount: { type: integer } } }
+        tax_reserve: { type: integer }
+        items: { type: array, items: { $ref: '#/components/schemas/TodayItem' }, description: 'По дате, средние в конце' }
+        totals: { type: object, properties: { inflow: { type: integer }, outflow: { type: integer }, end_balance: { type: integer } } }
 paths:
   /health/:
     get:
@@ -1166,7 +1403,7 @@ paths:
         '429': { $ref: '#/components/responses/Error' }
   /invites/{code}/accept/:
     post:
-      summary: Принять приглашение — членство создаётся, бизнес становится активным (уже участник: роль не меняется, использование не считается)
+      summary: 'Принять приглашение — членство создаётся, бизнес становится активным (уже участник: роль не меняется, использование не считается)'
       parameters: [{ name: code, in: path, required: true, schema: { type: string } }]
       responses:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Me' } } } }
@@ -2497,3 +2734,293 @@ paths:
         '200':
           description: '{user, memory[{id,scope,text}], business{name,inn,activity,plans,problems}|null}'
           content: { application/json: { schema: { type: object, additionalProperties: true } } }
+  # ---------- People ----------
+  /people/:
+    get:
+      summary: Люди бизнеса (сотрудники, подрядчики, покупатели, партнёры)
+      x-roles: [owner, accountant]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { people: { type: array, items: { $ref: '#/components/schemas/Person' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Добавить человека
+      description: '403 `demo_tenant` в демо-бизнесе; 400 `invalid_name` | `invalid_kind` | `invalid_pay_type` | `invalid_currency` | `invalid_pay_amount` | `invalid_date`; 404 «Точка не найдена»'
+      x-roles: [owner, accountant]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PersonInput' } } }
+      responses:
+        '201': { description: Создано, content: { application/json: { schema: { $ref: '#/components/schemas/Person' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /people/summary/:
+    get:
+      summary: Сводка по людям — штат, фонд оплаты, по точкам, текучесть за месяц
+      x-roles: [owner, accountant]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/PeopleSummary' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+  /people/locations/:
+    get:
+      summary: Точки (локации)
+      x-roles: [owner, accountant]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { locations: { type: array, items: { $ref: '#/components/schemas/Location' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Добавить точку
+      description: '403 `demo_tenant` в демо-бизнесе; 400 `invalid_name` | `invalid_address`'
+      x-roles: [owner, accountant]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LocationInput' } } }
+      responses:
+        '201': { description: Создано, content: { application/json: { schema: { $ref: '#/components/schemas/Location' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /people/locations/{id}/:
+    patch:
+      summary: Изменить точку
+      description: '403 `demo_tenant` в демо-бизнесе; 404 «Точка не найдена»'
+      x-roles: [owner, accountant]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LocationInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Location' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Удалить точку
+      description: 403 `demo_tenant` в демо-бизнесе
+      x-roles: [owner, accountant]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { $ref: '#/components/responses/NoContent' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /people/{id}/:
+    patch:
+      summary: Изменить человека
+      description: '403 `demo_tenant` в демо-бизнесе; 404 «Человек не найден»'
+      x-roles: [owner, accountant]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PersonInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Person' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Удалить человека
+      description: 403 `demo_tenant` в демо-бизнесе
+      x-roles: [owner, accountant]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '204': { $ref: '#/components/responses/NoContent' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  # ---------- Rollup ----------
+  /rollup/:
+    get:
+      summary: Сводка по всем бизнесам пользователя (только где он owner/accountant; seller-бизнесы не входят)
+      description: Не требует активного бизнеса; деньги — в UZS, окно 30 дней
+      x-roles: []
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Rollup' } } } }
+  # ---------- Modules & widgets ----------
+  /modules/:
+    get:
+      summary: Модули бизнеса и пресеты
+      x-roles: [owner]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ModulesState' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    put:
+      summary: Включить / выключить модули
+      description: '400 «Нужен объект modules», неизвестный модуль, не-булево значение, `money: false` («Деньги» отключить нельзя»); 403 `demo_tenant` в демо-бизнесе'
+      x-roles: [owner]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [modules], properties: { modules: { type: object, additionalProperties: { type: boolean }, propertyNames: { $ref: '#/components/schemas/ModuleKey' } } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ModulesState' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /modules/preset/:
+    post:
+      summary: Применить пресет модулей
+      description: '400 «Неизвестный пресет»; 403 `demo_tenant` в демо-бизнесе'
+      x-roles: [owner]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [preset], properties: { preset: { type: string, enum: [shop, services, creator, cafe] } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ModulesState' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /widgets/:
+    get:
+      summary: Активные виджеты включённых модулей (системные создаются при первом обращении, версия 1)
+      x-roles: [owner]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { widgets: { type: array, items: { $ref: '#/components/schemas/Widget' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+  /widgets/usage/:
+    post:
+      summary: Записать событие использования виджета
+      description: '400 «Неизвестный виджет» / «Неизвестное действие»; 403 `demo_tenant` в демо-бизнесе; 429 — лимит 120 запросов'
+      x-roles: [owner]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [key, action], properties: { key: { type: string, enum: [money_summary, debts_due, people_cost, suppliers_due, stock_low, schedule_week] }, action: { type: string, enum: [view, open, dismiss, resize] } } } } }
+      responses:
+        '201': { description: Записано, content: { application/json: { schema: { $ref: '#/components/schemas/Ok' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /widgets/proposals/:
+    get:
+      summary: Предложения по виджетам (последние 50)
+      x-roles: [owner]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { proposals: { type: array, items: { $ref: '#/components/schemas/WidgetProposal' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Сгенерировать предложения по статистике использования
+      description: 403 `demo_tenant` в демо-бизнесе
+      x-roles: [owner]
+      responses:
+        '201': { description: Создано, content: { application/json: { schema: { type: object, properties: { created: { type: array, items: { $ref: '#/components/schemas/WidgetProposal' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+  /widgets/proposals/{id}/approve/:
+    post:
+      summary: Принять предложение — публикуется новая версия виджета
+      description: '404 «Предложение не найдено»; 409 «Предложение уже обработано» / «Виджет изменился после предложения»; 403 `demo_tenant` в демо-бизнесе'
+      x-roles: [owner]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/WidgetProposal' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /widgets/proposals/{id}/reject/:
+    post:
+      summary: Отклонить предложение
+      description: '404 «Предложение не найдено»; 409 «Предложение уже обработано»; 403 `demo_tenant` в демо-бизнесе'
+      x-roles: [owner]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/WidgetProposal' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /widgets/{key}/versions/:
+    get:
+      summary: История версий виджета (новые первыми)
+      description: 404 «Виджет не найден»
+      x-roles: [owner]
+      parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { versions: { type: array, items: { $ref: '#/components/schemas/Widget' } } } } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /widgets/{key}/rollback/:
+    post:
+      summary: Откатить виджет к версии (публикуется как новая версия)
+      description: '400 «Нужен номер версии»; 404 «Версия не найдена»; 403 `demo_tenant` в демо-бизнесе'
+      x-roles: [owner]
+      parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [version], properties: { version: { type: integer } } } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Widget' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  # ---------- Beginner ----------
+  /beginner/plan/:
+    get:
+      summary: 'План старта — бюджет, безубыточность, чек-лист, форма регистрации и справочник'
+      description: Язык справочника — `?lang=`, затем `Accept-Language` (ru|uz|en)
+      x-roles: [owner, accountant]
+      parameters: [{ $ref: '#/components/parameters/Lang' }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/BeginnerPlan' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+    put:
+      summary: Сохранить части плана
+      description: 403 `demo_tenant` в демо-бизнесе; 400 с русским текстом при невалидных `budget_items` / `breakeven` / `checklist` / `regime`
+      x-roles: [owner, accountant]
+      parameters: [{ $ref: '#/components/parameters/Lang' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/BeginnerPlanInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/BeginnerPlan' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+  /beginner/plan/pdf/:
+    get:
+      summary: План старта в PDF
+      description: 'Файл `oydin-start-plan.pdf`; язык — `?lang=` / `Accept-Language`'
+      x-roles: [owner, accountant]
+      parameters: [{ $ref: '#/components/parameters/Lang' }]
+      responses:
+        '200': { description: PDF, content: { application/pdf: { schema: { type: string, format: binary } } } }
+        '403': { $ref: '#/components/responses/Error' }
+  # ---------- Owner money split ----------
+  /planning/afford/:
+    post:
+      summary: Алиас `/decisions/afford/` — «Могу ли я позволить?»
+      description: 400 «Дата не дальше 90 дней»; 503 `no_rate`
+      x-roles: [owner, accountant]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AffordInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AffordResult' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /planning/split/:
+    get:
+      summary: Деньги владельца — сколько можно вывести и вложить в развитие после обязательств на 30 дней
+      description: 503 `no_rate`
+      x-roles: [owner, accountant]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OwnerSplit' } } } }
+        '403': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+    put:
+      summary: Сохранить доли «развитию» / «себе» и вернуть пересчитанный расчёт
+      description: 'Только owner (accountant → 403 `forbidden`); 403 `demo_tenant` в демо-бизнесе; 400 если доли не целые 0…100 или не в сумме 100; 503 `no_rate`'
+      x-roles: [owner]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/OwnerSplitInput' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/OwnerSplit' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /planning/today/:
+    get:
+      summary: «Сколько можно забрать или потратить сегодня, чтобы к дате хватило на зарплату и аренду?»
+      description: 'Язык средних — `?lang=` / `Accept-Language`. 400 `invalid_until` — `until` не дата или не в (сегодня, сегодня+90]; seller → 403 `forbidden`; 401 без сессии; 503 `no_rate`'
+      x-roles: [owner, accountant]
+      parameters:
+        - { name: until, in: query, schema: { type: string, format: date }, description: 'По умолчанию — срок ближайшей зарплаты/аренды, иначе пятница' }
+        - { $ref: '#/components/parameters/Lang' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TodayAnswer' } } } }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
