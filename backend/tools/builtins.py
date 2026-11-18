@@ -87,6 +87,15 @@ T = {
 }
 
 
+def _uz(text):
+    return re.sub(r"([oOgG])'", "\\1\u02bb", text).replace("'", "\u02bc")
+
+
+T = {k: (ru, _uz(uz), en) for k, (ru, uz, en) in T.items()}
+KNOWN = {_uz(x) for texts in T.values() for x in texts}
+LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"')
+
+
 def tr(key, lang):
     return T[key][LANGS.index(lang) if lang in LANGS else 0]
 
@@ -112,16 +121,18 @@ def spec(lang, title, inputs, outputs, note=None):
 
 
 def _month(business):
+    if business is None:
+        return {"revenue": 0, "expenses": 0}
     now = fin.today()
     return fin.period_totals(business, now - timedelta(days=29), now)
 
 
 def build(kind, business, lang="ru"):
-    """{title, kind, spec} для встроенного вида; KeyError для неизвестного."""
+    """{title, kind, spec} для встроенного вида; KeyError для неизвестного. business=None — только структура и тексты, без запросов к данным."""
     title = tr(kind, lang)
     if kind == "what_if_gap":
         month = _month(business)
-        balance = sum(a["balance_uzs"] for a in fin.list_accounts(business))
+        balance = 0 if business is None else sum(a["balance_uzs"] for a in fin.list_accounts(business))
         body = spec(lang, title, [
             ("MoneyField", "balance", "balance", balance),
             ("MoneyField", "income", "income30", month["revenue"]),
@@ -170,7 +181,7 @@ def build(kind, business, lang="ru"):
             ("overpay", "amount * rate / 1200 * (months + 1) / 2", "money"),
         ], note="loan_note")
     elif kind == "envelope_plan_fact":
-        envs = fin.envelopes(business, fin.today())
+        envs = [] if business is None else fin.envelopes(business, fin.today())
         env = envs[0] if envs else None
         if env:
             days = max(1, (date.fromisoformat(env["due_date"]) - fin.today()).days)
@@ -187,7 +198,7 @@ def build(kind, business, lang="ru"):
     elif kind == "receivables_aging":
         from planning.services import debtors
         buckets = [0, 0, 0, 0]
-        for d in debtors(business):
+        for d in ([] if business is None else debtors(business)):
             days = d["overdue_days"]
             buckets[0 if days <= 30 else 1 if days <= 60 else 2 if days <= 90 else 3] += d["balance"]
         body = spec(lang, title, [
@@ -201,6 +212,58 @@ def build(kind, business, lang="ru"):
     else:
         raise KeyError(kind)
     return {"title": title, "kind": kind, "spec": body}
+
+
+def _titles(kind):
+    return {_uz(x) for x in T[kind]}
+
+
+def _title_suffix(title, kind):
+    """Часть названия после шаблонного заголовка ('' или ': конверт'); None, если название переименовано."""
+    title = _uz(title)
+    for known in _titles(kind):
+        if title == known:
+            return ""
+        if title.startswith(known + ": "):
+            return title[len(known):]
+    return None
+
+
+def localize(title, kind, stored_spec, lang, template_spec):
+    """(title, spec) шаблонного инструмента на языке lang; пользовательские, ИИ-инструменты и переименованные названия не меняются.
+
+    template_spec — spec шаблона этого вида на языке lang: строки шаблона на разных языках совпадают по структуре,
+    подменяются только известные тексты шаблонов (метки, единицы, примечание, заголовок)."""
+    if kind not in KINDS:
+        return title, stored_spec
+    suffix = _title_suffix(title, kind)
+    new_title = title if suffix is None else tr(kind, lang) + suffix
+    target = template_spec.splitlines()
+    lines = stored_spec.splitlines()
+    if len(target) != len(lines):
+        return new_title, stored_spec
+    out = []
+    for line, ref in zip(lines, target):
+        have, want = LITERAL.findall(line), LITERAL.findall(ref)
+        if len(have) != len(want):
+            out.append(line)
+            continue
+        chunks, pos = [], 0
+        for m, w in zip(LITERAL.finditer(line), want):
+            chunks.append(line[pos:m.start()])
+            text = json.loads(m.group(0))
+            tail = _title_suffix(text, kind) if line.startswith("calc =") else None
+            if m.group(1) == w:
+                chunks.append(m.group(0))
+            elif tail is not None:
+                chunks.append(s(tr(kind, lang) + tail))
+            elif _uz(text) in KNOWN:
+                chunks.append('"' + w + '"')
+            else:
+                chunks.append(m.group(0))
+            pos = m.end()
+        out.append("".join(chunks) + line[pos:])
+    return new_title, "\n".join(out)
 
 
 def infer_kind(prompt):
