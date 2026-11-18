@@ -1,6 +1,6 @@
 name: Deploy
 
-# Автодеплой на https://oydin.sayfi.uz после зелёного CI на main.
+# Автодеплой на https://oydin.space после зелёного CI на main.
 # Ручной запуск с sha = откат/выкат уже собранного образа (сборка пропускается).
 on:
   workflow_run:
@@ -34,12 +34,12 @@ jobs:
     timeout-minutes: 30
     environment:
       name: production
-      url: https://oydin.sayfi.uz
+      url: https://oydin.space
     permissions:
       contents: read
       packages: write
     env:
-      PUBLIC_URL: https://oydin.sayfi.uz
+      PUBLIC_URL: https://oydin.space
       SHA: ${{ inputs.sha || github.event.workflow_run.head_sha }}
     steps:
       - name: Validate sha

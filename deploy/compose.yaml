@@ -10,8 +10,9 @@ services:
       - "443:443/udp"
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:?нужен .env}
-      BUGSINK_HOST: ${BUGSINK_HOST:-bugsink.oydin.sayfi.uz}
-      DOCS_HOST: ${DOCS_HOST:-docs.oydin.sayfi.uz}
+      BUGSINK_HOST: ${BUGSINK_HOST:-bugsink.oydin.space}
+      DOCS_HOST: ${DOCS_HOST:-docs.oydin.space}
+      OLD_HOST: ${OLD_HOST:-oydin.sayfi.uz}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -67,7 +68,7 @@ services:
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:-1}
       EMAIL_USE_SSL: ${EMAIL_USE_SSL:-0}
-      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Oydin <noreply@oydin.sayfi.uz>}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Oydin <noreply@oydin.space>}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
@@ -79,9 +80,18 @@ services:
       CLICK_MERCHANT_ID: ${CLICK_MERCHANT_ID:-}
       CLICK_MERCHANT_USER_ID: ${CLICK_MERCHANT_USER_ID:-}
       CLICK_SECRET_KEY: ${CLICK_SECRET_KEY:-}
+      VAULT_ADDR: ${VAULT_ADDR:-}
+      VAULT_TOKEN: ${VAULT_TOKEN:-}
+      # 1 = без Vault секреты не пишутся (нет отката на Fernet). Включать после инициализации Vault: deploy/vault/README.md.
+      VAULT_REQUIRED: ${VAULT_REQUIRED:-0}
+      # 0 = старые Fernet-значения больше не читаются (после vault_reencrypt с нулём остатка).
+      VAULT_LEGACY_READ: ${VAULT_LEGACY_READ:-1}
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - default
+      - vault
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health/', timeout=4).status == 200 else 1)"]
       interval: 15s
@@ -100,6 +110,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    networks:
+      - default
     restart: unless-stopped
   # Рассылки бота: утренняя сводка, предупреждения о разрыве, недельный дайджест, напоминания.
   botjobs:
@@ -114,6 +126,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    networks:
+      - default
     restart: unless-stopped
   web:
     image: oydin-web:latest
@@ -127,14 +141,14 @@ services:
       start_period: 20s
     restart: unless-stopped
   # Самохостный трекер ошибок (Sentry-совместимый), SQLite в томе bugsink_data.
-  # Первый DSN: войти на https://bugsink.oydin.sayfi.uz, создать проект, DSN в SENTRY_DSN (.env), затем docker compose up -d api.
+  # Первый DSN: войти на https://bugsink.oydin.space, создать проект, DSN в SENTRY_DSN (.env), затем docker compose up -d api.
   bugsink:
     image: bugsink/bugsink:2.6.3
     environment:
       SECRET_KEY: ${BUGSINK_SECRET_KEY:?нужен .env}
       CREATE_SUPERUSER: ${BUGSINK_ADMIN_EMAIL:?нужен .env}:${BUGSINK_ADMIN_PASSWORD:?нужен .env}
       PORT: "8000"
-      BASE_URL: https://${BUGSINK_HOST:-bugsink.oydin.sayfi.uz}
+      BASE_URL: https://${BUGSINK_HOST:-bugsink.oydin.space}
       BEHIND_HTTPS_PROXY: "true"
       SITE_TITLE: Oydin errors
     volumes:
@@ -146,8 +160,37 @@ services:
       retries: 5
       start_period: 60s
     restart: unless-stopped
+  # Самохостный HashiCorp Vault: Transit-ключ oydin-creds шифрует пароли Didox и секреты коннекторов.
+  # Сеть vault internal: порт наружу не публикуется, выхода в интернет нет. После каждого рестарта хранилище запечатано,
+  # его распечатывает оператор (deploy/vault/README.md). Здоровье = процесс отвечает (запечатанный и неинициализированный тоже ок).
+  vault:
+    image: hashicorp/vault:2.1.2
+    command: ["server"]
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_ADDR: http://127.0.0.1:8200
+    volumes:
+      - ./vault/vault.hcl:/vault/config/vault.hcl:ro
+      - ./vault/oydin-app.hcl:/vault/policies/oydin-app.hcl:ro
+      - vault_data:/vault/file
+      - vault_logs:/vault/logs
+    networks:
+      - vault
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8200/v1/sys/health?sealedcode=200&uninitcode=200&standbyok=true"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 volumes:
   pgdata:
   caddy_data:
   caddy_config:
   bugsink_data:
+  vault_data:
+  vault_logs:
+networks:
+  vault:
+    internal: true

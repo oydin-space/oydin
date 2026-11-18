@@ -11,5 +11,5 @@ add() { # имя значение; пустое значение считает�
   printf '%s=%s\n' "$1" "$2" >> .env
 }
 add BUGSINK_SECRET_KEY "$(openssl rand -hex 32)"
-add BUGSINK_ADMIN_EMAIL "admin@oydin.sayfi.uz"
+add BUGSINK_ADMIN_EMAIL "admin@oydin.space"
 add BUGSINK_ADMIN_PASSWORD "$(openssl rand -hex 16)"

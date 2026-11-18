@@ -42,3 +42,12 @@
 	}
 	file_server
 }
+
+# Старый домен: постоянный редирект на новый хост с тем же путём
+{$OLD_HOST} {
+	redir https://{$PUBLIC_HOST}{uri} permanent
+}
+
+docs.{$OLD_HOST} {
+	redir https://{$DOCS_HOST}{uri} permanent
+}
