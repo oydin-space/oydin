@@ -163,7 +163,11 @@ LANGFUSE_SECRET_KEY = env("LANGFUSE_SECRET_KEY", default="")
 LANGFUSE_BASE_URL = env("LANGFUSE_BASE_URL", default="https://cloud.langfuse.com")
 # Ошибки уходят в self-hosted Bugsink (Sentry-совместимый); без DSN SDK не импортируется.
 SENTRY_DSN = env("SENTRY_DSN", default="")
-SENTRY_SCRUB_KEYS = {"auth_secret", "init_data", "password", "code", "token", "secret"}
+SENTRY_SCRUB_KEYS = {
+    "auth_secret", "init_data", "password", "code", "token", "secret",
+    "id_token", "access_token", "refresh_token", "client_secret",
+    "tax_id", "pinfl", "phone", "email",
+}
 
 
 def _scrub_qs(text, sep="&"):
@@ -177,59 +181,76 @@ def _scrub(value):
         return {k: "[Filtered]" if str(k).lower() in SENTRY_SCRUB_KEYS else _scrub(v) for k, v in value.items()}
     if isinstance(value, list):
         return [_scrub(v) for v in value]
-    return value
+    return _mask_text(value)
 
 
-_LONG_ID = re.compile(r"(?<=/)\d{9,14}(?=/|\?|#|$)")
+_BOT_TOKEN = re.compile(r"bot\d+:[A-Za-z0-9_-]+")
+_LONG_ID = re.compile(r"(?<=/)\d{9,14}(?=[/?#&\s\"']|$)")
+_SECRET_PARAM = re.compile(
+    r"(?i)(?<![A-Za-z0-9_])(" + "|".join(sorted(map(re.escape, SENTRY_SCRUB_KEYS), key=len, reverse=True)) + r")=[^&#;\s\"']*"
+)
 
 
-def _mask_ids(url):
-    return _LONG_ID.sub("[id]", url) if isinstance(url, str) else url
+def _mask_text(text):
+    """Токен бота, длинные ID (ИНН/ПИНФЛ/chat_id) и секретные параметры query/fragment в любой строке."""
+    if not isinstance(text, str):
+        return text
+    text = _BOT_TOKEN.sub("bot[Filtered]", text)
+    text = _LONG_ID.sub("[id]", text)
+    return _SECRET_PARAM.sub(r"\1=[Filtered]", text)
+
+
+def _mask_dict(data):
+    if isinstance(data, dict):
+        for k, v in data.items():
+            data[k] = _scrub(v) if isinstance(v, (dict, list)) else _mask_text(v)
+            if str(k).lower() in SENTRY_SCRUB_KEYS:
+                data[k] = "[Filtered]"
 
 
 def sentry_before_breadcrumb(crumb, hint):
-    data = crumb.get("data")
-    if isinstance(data, dict):
-        for k in ("url", "http.url", "from", "to"):
-            if k in data:
-                data[k] = _mask_ids(data[k])
+    _mask_dict(crumb.get("data"))
     if "message" in crumb:
-        crumb["message"] = _MASK_TEXT(crumb["message"])
+        crumb["message"] = _mask_text(crumb["message"])
     return crumb
-
-
-def _MASK_TEXT(text):
-    return re.sub(r"(?<=/)\d{9,14}(?=[/?#\s\"']|$)", "[id]", text) if isinstance(text, str) else text
 
 
 def sentry_before_send_transaction(event, hint):
     if "transaction" in event:
-        event["transaction"] = _mask_ids(event["transaction"])
-    request = event.get("request")
-    if isinstance(request, dict) and "url" in request:
-        request["url"] = _mask_ids(request["url"])
+        event["transaction"] = _mask_text(event["transaction"])
     for span in event.get("spans") or []:
-        for k in ("description",):
-            if k in span:
-                span[k] = _MASK_TEXT(span[k])
-        data = span.get("data")
-        if isinstance(data, dict):
-            for k in ("url", "http.url"):
-                if k in data:
-                    data[k] = _mask_ids(data[k])
+        if "description" in span:
+            span["description"] = _mask_text(span["description"])
+        _mask_dict(span.get("data"))
     return sentry_before_send(event, hint)
 
 
 def sentry_before_send(event, hint):
     request = event.get("request")
     if isinstance(request, dict):
+        if "url" in request:
+            request["url"] = _mask_text(request["url"])
         for key in ("data", "query_string", "cookies"):
             if key in request:
                 val = request[key]
                 if isinstance(val, str):
-                    request[key] = _scrub_qs(val, ";" if key == "cookies" else "&")
+                    request[key] = _scrub_qs(_mask_text(val), ";" if key == "cookies" else "&")
                 else:
                     request[key] = _scrub(val)
+    if "message" in event:
+        event["message"] = _mask_text(event["message"])
+    logentry = event.get("logentry")
+    if isinstance(logentry, dict):
+        for k in ("message", "formatted"):
+            if k in logentry:
+                logentry[k] = _mask_text(logentry[k])
+        if "params" in logentry:
+            logentry["params"] = _scrub(logentry["params"])
+    for exc in (event.get("exception") or {}).get("values") or []:
+        if "value" in exc:
+            exc["value"] = _mask_text(exc["value"])
+    for crumb in (event.get("breadcrumbs") or {}).get("values") or []:
+        sentry_before_breadcrumb(crumb, {})
     return event
 
 
@@ -241,9 +262,13 @@ if SENTRY_DSN:
         dsn=SENTRY_DSN,
         send_default_pii=False,
         include_local_variables=False,  # переменные кадров (plain, headers, kwargs) с секретами в Bugsink не уходят
+        max_request_body_size="never",  # тела запросов (ИНН, телефоны, initData) не отправляются
         event_scrubber=EventScrubber(
             recursive=True,
-            denylist=DEFAULT_DENYLIST + ["plain", "plaintext", "payload", "data", "headers", "kwargs", "user_key", "password_enc", "auth_secret_enc"],
+            denylist=DEFAULT_DENYLIST + [
+                "plain", "plaintext", "payload", "data", "headers", "kwargs", "user_key", "password_enc", "auth_secret_enc",
+                "id_token", "access_token", "refresh_token", "client_secret", "tax_id", "pinfl", "phone", "email",
+            ],
         ),
         before_send=sentry_before_send,
         before_send_transaction=sentry_before_send_transaction,

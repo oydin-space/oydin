@@ -2,6 +2,7 @@ import base64
 import binascii
 import json
 import re
+import time
 
 from django.conf import settings
 from django.core.cache import cache
@@ -30,12 +31,14 @@ IMAGE_URL = re.compile(r"data:image/(?:jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,
 
 
 def throttle(user, kind, limit):
-    key = f"ai:{kind}:{user.id}"
-    cache.add(key, 0, 60)
+    # Фиксированное окно: ключ привязан к номеру окна, поэтому запросы при блокировке её не продлевают.
+    window = 60
+    key = f"ai:{kind}:{user.id}:{int(time.time() // window)}"
+    cache.add(key, 0, window)
     try:
         count = cache.incr(key)
     except ValueError:
-        cache.set(key, 1, 60)
+        cache.set(key, 1, window)
         count = 1
     if count > limit:
         raise ApiError(429, "Слишком много запросов, подождите минуту")
