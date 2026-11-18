@@ -130,6 +130,28 @@ class LinkTests(Base):
         self.press(777, data)  # одноразовый
         self.assertEqual(TelegramLink.objects.count(), 1)
 
+    def test_confirm_bound_to_initiating_chat_and_sender(self):
+        code = self.start()
+        services.handle_update(msg(777, f"/start {code}"))
+        data = self.sent()[-1]["reply_markup"]["inline_keyboard"][0][0]["callback_data"]
+        self.press(888, data)  # другой чат
+        services.handle_update({"callback_query": {"id": "q", "from": {"id": 999}, "data": data,
+                                                   "message": {"message_id": 3, "chat": {"id": 777}}}})  # другой отправитель
+        self.assertFalse(TelegramLink.objects.exists())
+        self.assertTrue(LinkCode.objects.exists())
+        self.press(777, data)
+        self.assertEqual(TelegramLink.objects.get().chat_id, 777)
+
+    def test_confirm_consumes_code_under_row_lock(self):
+        code = self.start()
+        services.handle_update(msg(777, f"/start {code}"))
+        data = self.sent()[-1]["reply_markup"]["inline_keyboard"][0][0]["callback_data"]
+        from django.db.models.query import QuerySet
+
+        with mock.patch.object(QuerySet, "select_for_update", autospec=True, side_effect=QuerySet.select_for_update) as lock:
+            self.press(777, data)
+        self.assertTrue(lock.called)
+
     def test_start_refused_when_chat_linked_to_other_user(self):
         other = User.objects.create(username="other")
         TelegramLink.objects.create(user=other, chat_id=777)
@@ -253,6 +275,18 @@ class JobTests(JobBase):
             self.assertFalse(jobs._deliver(self.link, self.business, "gap", "k", "x", refresh=True))
         self.assertEqual(self.sent(), [])
 
+    def test_inactive_user_gets_no_notifications(self):
+        self.prefs(daily_brief=True)
+        User.objects.filter(pk=self.user.pk).update(is_active=False)
+        self.assertEqual(jobs.run_tick(timezone.now().astimezone(TZ).replace(hour=12)), 0)
+
+    def test_deliver_refresh_uses_observed_timestamp(self):
+        row = SentNotification.objects.create(user=self.user, business=self.business, kind="gap", key="k")
+        observed = row.sent_at
+        SentNotification.objects.filter(pk=row.pk).update(sent_at=observed + timedelta(seconds=5))  # другой воркер уже обновил
+        self.assertFalse(jobs._deliver(self.link, self.business, "gap", "k", "x", refresh=True, observed=observed))
+        self.assertEqual(self.sent(), [])
+
     def test_brief_sent_once_per_day(self):
         self.prefs(daily_brief=True)
         now = timezone.now().astimezone(TZ).replace(hour=12)
@@ -348,6 +382,14 @@ class MessageTests(Base):
         self.assertEqual(tx.status, "confirmed")
         self.assertIn("Записано", self.last_text())
 
+    def test_owner_confirm_merges_transfers(self):
+        services.handle_update(msg(500, "заплатил 200 тыс за аренду"))
+        tx = Transaction.objects.get()
+        with mock.patch("bot.services.confirm_draft", return_value=tx) as confirm:
+            services.handle_update({"callback_query": {"id": "q", "from": {"id": 500}, "data": f"ok:{tx.id}",
+                                                       "message": {"message_id": 9, "chat": {"id": 500}}}})
+        self.assertIs(confirm.call_args.kwargs["merge"], True)
+
     def test_confirm_emits_event(self):
         services.handle_update(msg(500, "заплатил 200 тыс за аренду"))
         tx = Transaction.objects.get()
@@ -370,6 +412,18 @@ class MessageTests(Base):
         dl.assert_not_called()
         self.assertFalse(Transaction.objects.exists())
         self.assertIn("5", self.last_text())
+
+    def test_disabled_user_cannot_confirm_or_brief(self):
+        services.handle_update(msg(500, "заплатил 200 тыс за аренду"))
+        tx = Transaction.objects.get()
+        User.objects.filter(pk=self.user.pk).update(is_active=False)
+        before = len(self.call.call_args_list)
+        services.handle_update(msg(500, "/brief"))
+        services.handle_update({"callback_query": {"id": "q", "from": {"id": 500}, "data": f"ok:{tx.id}",
+                                                   "message": {"message_id": 9, "chat": {"id": 500}}}})
+        tx.refresh_from_db()
+        self.assertEqual(tx.status, "draft")
+        self.assertFalse([c for c in self.call.call_args_list[before:] if c.args[0] == "sendMessage"])
 
     def test_inactive_user_ignored(self):
         User.objects.filter(pk=self.user.pk).update(is_active=False)

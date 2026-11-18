@@ -48,6 +48,11 @@ def bind(user, chat_id, username="", lang="ru"):
     return link
 
 
+def usable_user(user):
+    """Бот работает только для активных не-staff пользователей."""
+    return user.is_active and not (user.is_staff or user.is_superuser)
+
+
 def pending_code(code_hash, prefix=False):
     """Живой код привязки по полному хешу или его префиксу; просроченный удаляется."""
     rows = LinkCode.objects.filter(code_hash__startswith=code_hash) if prefix else LinkCode.objects.filter(code_hash=code_hash)
@@ -107,6 +112,8 @@ def handle_command(chat_id, sender, link, text):
     if command == "/unlink":
         link.delete()
         return say(chat_id, texts.tr("unlinked", lang))
+    if not usable_user(link.user):
+        return
     if command == "/brief":
         from . import jobs
 
@@ -130,10 +137,11 @@ def handle_start(chat_id, sender, link, code):
     username = sender.get("username") or ""
     if code:
         row = pending_code(_hash(code))
-        if row is None or not row.user.is_active:
+        if row is None or not usable_user(row.user):
             return say(chat_id, texts.tr("bad_code", lang))
         if link and link.user_id != row.user_id:
             return say(chat_id, texts.tr("linked_other", lang))
+        LinkCode.objects.filter(pk=row.pk).update(chat_id=chat_id, sender_id=sender.get("id"))
         membership = active_membership(row.user)
         who = row.user.email or row.user.get_full_name() or row.user.get_username()
         return say(chat_id, texts.tr("confirm_bind", lang, who=who, business=membership.business.name if membership else "—"),
@@ -141,7 +149,7 @@ def handle_start(chat_id, sender, link, code):
     if link:
         return say(chat_id, texts.tr("welcome", lang))
     profile = Profile.objects.filter(telegram_id=sender.get("id")).select_related("user").first() if sender.get("id") else None
-    if profile and profile.user.is_active and not (profile.user.is_staff or profile.user.is_superuser):
+    if profile and usable_user(profile.user):
         new = bind(profile.user, chat_id, username, lang)
         return say(chat_id, texts.tr("linked", new.lang) + "\n\n" + texts.tr("welcome", new.lang))
     return say(chat_id, texts.tr("need_link", lang))
@@ -153,10 +161,16 @@ def confirm_bind(query, chat_id, value):
     sender = query.get("from") or {}
     lang = _lang_of(sender)
     existing = TelegramLink.objects.filter(chat_id=chat_id).first()
-    row = pending_code(value, prefix=True) if len(value) == BIND_PREFIX else None
-    if row is None or not row.user.is_active or (existing and existing.user_id != row.user_id):
-        return client.call("answerCallbackQuery", {**answer, "text": texts.tr("bad_code", lang)})
-    new = bind(row.user, chat_id, sender.get("username") or "", lang)
+    with transaction.atomic():
+        # блокировка строки кода: из двух одновременных подтверждений привяжется только одно
+        row = LinkCode.objects.select_for_update().filter(code_hash__startswith=value).first() if len(value) == BIND_PREFIX else None
+        if row is not None and row.expired():
+            row.delete()
+            row = None
+        if (row is None or not usable_user(row.user) or (row.chat_id, row.sender_id) != (chat_id, sender.get("id"))
+                or (existing and existing.user_id != row.user_id)):
+            return client.call("answerCallbackQuery", {**answer, "text": texts.tr("bad_code", lang)})
+        new = bind(row.user, chat_id, sender.get("username") or "", lang)
     client.call("answerCallbackQuery", answer)
     return say(chat_id, texts.tr("linked", new.lang) + "\n\n" + texts.tr("welcome", new.lang))
 
@@ -181,7 +195,7 @@ def _llm_draft(business, text, image=None):
 
 def handle_content(link, chat_id, text="", photo=None, size=0):
     lang = link.lang
-    if not link.user.is_active:
+    if not usable_user(link.user):
         return
     membership = active_membership(link.user)
     if membership is None:
@@ -229,7 +243,7 @@ def handle_callback(query):
     answer = {"callback_query_id": query.get("id")}
     if action == "bind" and chat_id and (query.get("from") or {}).get("id") is not None:
         return confirm_bind(query, chat_id, value)
-    if link is None or (query.get("from") or {}).get("id") is None:
+    if link is None or not usable_user(link.user) or (query.get("from") or {}).get("id") is None:
         return client.call("answerCallbackQuery", answer)
     lang = link.lang
     if action == "lang" and value in texts.LANGS:
@@ -245,7 +259,7 @@ def handle_callback(query):
     if tx is None:
         return client.call("answerCallbackQuery", {**answer, "text": texts.tr("gone", lang)})
     if action == "ok":
-        confirm_draft(tx)
+        confirm_draft(tx, merge=membership.role != SELLER)
         done = texts.tr("confirmed", lang)
     else:
         tx.delete()

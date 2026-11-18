@@ -24,6 +24,8 @@ class LinkCode(models.Model):
     code_hash = models.CharField(max_length=64, unique=True)
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
+    chat_id = models.BigIntegerField(null=True, blank=True)  # чат и отправитель, открывшие ссылку: подтвердить может только он
+    sender_id = models.BigIntegerField(null=True, blank=True)
 
     def expired(self):
         return self.expires_at <= timezone.now()

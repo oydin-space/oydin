@@ -13,6 +13,7 @@ from finance.models import Obligation
 from planning.models import TaxReminder
 
 from . import client, texts
+from .services import usable_user
 from .models import NotificationSettings, SentNotification, TelegramLink
 
 log = logging.getLogger(__name__)
@@ -42,15 +43,15 @@ def weekly_text(business, lang):
     return texts.build_weekly(lang, data["revenue"], data["expenses"], top)
 
 
-def _deliver(link, business, kind, key, text, *, refresh=False):
-    """Шлёт один раз на (kind, key); refresh — повторная отправка обновляет метку времени. Возвращает, ушло ли."""
+def _deliver(link, business, kind, key, text, *, refresh=False, observed=None):
+    """Шлёт один раз на (kind, key); refresh — повторная отправка обновляет метку времени; observed — метка, которую видел вызывающий. Возвращает, ушло ли."""
     now = timezone.now()
     row = SentNotification.objects.filter(user=link.user, business=business, kind=kind, key=key).first()
     if row and not refresh:
         return False
     if row:
         # claim: сдвигаем метку только если её никто не успел поменять
-        if SentNotification.objects.filter(pk=row.pk, sent_at=row.sent_at).update(sent_at=now) != 1:
+        if SentNotification.objects.filter(pk=row.pk, sent_at=observed or row.sent_at).update(sent_at=now) != 1:
             return False
     else:
         try:
@@ -58,7 +59,7 @@ def _deliver(link, business, kind, key, text, *, refresh=False):
                 row = SentNotification.objects.create(user=link.user, business=business, kind=kind, key=key, sent_at=now)
         except IntegrityError:
             return False
-    previous = row.sent_at if row.sent_at != now else None
+    previous = observed or row.sent_at if row.sent_at != now else None
     try:
         client.call("sendMessage", {"chat_id": link.chat_id, "text": text})
     except client.BotError as exc:
@@ -86,6 +87,8 @@ def run_tick(now=None):
 
 
 def _tick_link(link, now):
+    if not usable_user(link.user):
+        return 0
     membership = active_membership(link.user)
     if membership is None or membership.role not in FINANCE_READERS:
         return 0
@@ -101,7 +104,8 @@ def _tick_link(link, now):
             key = gap.date.isoformat()
             row = SentNotification.objects.filter(user=link.user, business=business, kind="gap_alert", key=key).first()
             if row is None or now - timezone.localtime(row.sent_at) >= GAP_RESEND:
-                sent += _deliver(link, business, "gap_alert", key, text, refresh=True)
+                sent += _deliver(link, business, "gap_alert", key, text, refresh=True,
+                                  observed=row.sent_at if row else None)
     if prefs.weekly_digest and day.weekday() == 0 and now.hour >= prefs.brief_hour:
         year, week, _ = day.isocalendar()
         sent += _deliver(link, business, "weekly_digest", f"{year}-W{week:02d}", weekly_text(business, lang))
