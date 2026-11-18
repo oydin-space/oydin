@@ -1,7 +1,6 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
@@ -31,7 +30,7 @@ export function PeopleView() {
       <PageHeader title={t("people.title")} hint={t("people.hint")} actions={<Button icon={Plus} onClick={() => setPanel({ person: null })}>{t("people.add")}</Button>} />
       <Text variant="secondary" tone="muted">
         {t("people.obligationsNote")}{" "}
-        <Link href="/app/calendar" className="font-medium text-foreground underline underline-offset-2">
+        <Link href="/app/calendar" className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-2">
           {t("people.obligationsLink")}
         </Link>
       </Text>
@@ -42,10 +41,7 @@ export function PeopleView() {
       ) : (
         <>
           {paid.length === 0 ? (
-            <div className="flex flex-col items-center gap-3">
-              <Image src="/brand/empty.png" alt="" width={160} height={160} className="h-auto w-40" />
-              <EmptyState title={t("people.empty.title")} hint={t("people.empty.hint")} action={<Button icon={Plus} onClick={() => setPanel({ person: null })}>{t("people.add")}</Button>} className="w-full" />
-            </div>
+            <EmptyState title={t("people.empty.title")} hint={t("people.empty.hint")} />
           ) : (
             <PersonList people={paid} onOpen={(person) => setPanel({ person })} />
           )}
