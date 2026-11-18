@@ -11,11 +11,21 @@ from accounts.consent import set_consent
 from accounts.models import Business, Membership, Profile
 from finance import services as svc
 from finance.models import Account, Currency, Envelope, ExchangeRate, Obligation, Order, OrderItem, Product, Transaction
+from people.models import Person
+from planning.models import Commitment
 
 DEMO_USERNAME = "demo"
 HISTORY_DAYS = 90
 TARGET_GAP = 3_000_000
 SUPPLIER_STEP = 15
+PEOPLE = [  # (имя, должность, оклад в месяц, дней в штате); сумма окладов = 18_000_000
+    ("Малика Юсупова", "Печатник", 4_000_000, 700),
+    ("Жасур Каримов", "Дизайнер", 3_500_000, 520),
+    ("Нодира Рахимова", "Менеджер по заказам", 3_000_000, 400),
+    ("Азиз Турсунов", "Вышивальщик", 3_000_000, 300),
+    ("Дильшод Алиев", "Курьер", 2_500_000, 200),
+    ("Севара Хасанова", "Упаковщик", 2_000_000, 90),
+]
 
 
 def next_friday(today):
@@ -163,10 +173,28 @@ def seed_demo():
 
     by_title = {o.title: o for o in obligations if o.status == "planned"}
     rent, salary, tax = by_title["Аренда помещения"], by_title["Зарплата сотрудникам"], by_title["Налог (оборотный)"]
+    advance = by_title["Аванс"]
     Envelope.objects.bulk_create([
         Envelope(business=business, title="Аренда", target=rent.amount, saved=2_500_000, due_date=rent.due_date),
         Envelope(business=business, title="Зарплата", target=salary.amount, saved=4_000_000, due_date=salary.due_date),
         Envelope(business=business, title="Налог", target=tax.amount, saved=tax.amount, due_date=tax.due_date),
+    ])
+
+    # Команда: ежемесячные оклады дают ровно 18 млн = зарплата 15 млн + аванс 3 млн из обязательств.
+    Person.objects.bulk_create([
+        Person(business=business, name=name, kind=Person.Kind.STAFF, pay_type=Person.PayType.MONTHLY, pay_amount=pay,
+               role_title=role, started_on=today - timedelta(days=days))
+        for name, role, pay, days in PEOPLE
+    ])
+    # Платежи пятницы для карточки «Платежи на неделе»: зеркало обязательств, прогноз их не читает (только Obligation).
+    Commitment.objects.bulk_create([
+        Commitment(business=business, account=bank, title=title, direction="out", category=category, amount=amount,
+                   frequency=Commitment.Frequency.MONTHLY, next_date=due)
+        for title, category, amount, due in (
+            ("Аренда помещения", "Аренда", rent.amount, rent.due_date),
+            ("Зарплата сотрудникам", "Зарплата", salary.amount, salary.due_date),
+            ("Аванс", "Зарплата", advance.amount, advance.due_date),
+        )
     ])
     seed_second_business(user, today)
     return user

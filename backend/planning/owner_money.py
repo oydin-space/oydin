@@ -63,6 +63,13 @@ def owner_flows(business, now):
     }
 
 
+MIRROR_DAYS = 3
+
+
+def _salary_like(c):
+    return c.category.strip().lower() in ("зарплата", "salary")
+
+
 def committed(business, now, payroll, drop_salary):
     """Исходящие на 30 дней: обязательства (кроме полученных к оплате и оплаченных), повторяющиеся платежи, зарплата."""
     end = now + timedelta(days=HORIZON_DAYS)
@@ -72,8 +79,17 @@ def committed(business, now, payroll, drop_salary):
         obligations = obligations.exclude(kind=Obligation.Kind.SALARY)
     items = [{"kind": "obligation", "title": o.title, "date": o.due_date.isoformat(), "amount": o.amount,
               "overdue": o.due_date < now} for o in obligations]
+    # Повторяющийся платёж-«зеркало» обязательства (та же сумма, срок ±3 дня) не считается второй раз; каждое обязательство гасит одно вхождение.
+    unmatched = [o for o in obligations if o.kind != Obligation.Kind.SALARY or not drop_salary]
     for c in Commitment.objects.filter(business=business, direction="out", active=True, next_date__lte=end):
-        for day, amount in svc.occurrences(max(c.next_date, now), c.amount, c.frequency, end):
+        if drop_salary and _salary_like(c):  # зарплата берётся из people.Person
+            continue
+        for n, (day, amount) in enumerate(svc.occurrences(max(c.next_date, now), c.amount, c.frequency, end)):
+            due = c.next_date if n == 0 else day  # просроченное первое вхождение сверяем по исходной дате, показываем сегодняшней
+            twin = next((o for o in unmatched if o.amount == amount and abs((o.due_date - due).days) <= MIRROR_DAYS), None)
+            if twin:
+                unmatched.remove(twin)
+                continue
             items.append({"kind": "commitment", "title": c.title, "date": day.isoformat(), "amount": amount, "overdue": False})
     items.sort(key=lambda i: (i["date"], i["title"]))
     return items

@@ -150,3 +150,37 @@ class AffordReserveTests(PlanningCase):
     def test_bad_reserve_rejected(self):
         self.assertEqual(self.post(amount=1000, reserve=-5).status_code, 400)
         self.assertEqual(self.post(amount=1000, reserve="много").status_code, 400)
+
+
+class MirrorCommitmentTests(PlanningCase):
+    def commitment(self, title, category, amount, days):
+        Commitment.objects.create(business=self.business, account=self.account, title=title, direction="out", category=category,
+                                  amount=amount, frequency="monthly", next_date=TODAY + timedelta(days=days))
+
+    def test_commitment_mirroring_obligation_counted_once(self):
+        Obligation.objects.create(business=self.business, title="Аренда", kind="rent", amount=600_000, due_date=TODAY + timedelta(days=3))
+        self.commitment("Аренда помещения", "Аренда", 600_000, 4)
+        self.assertEqual(len(owner_money.committed(self.business, TODAY, [], False)), 1)
+        self.assertEqual(sum(i["amount"] for i in owner_money.committed(self.business, TODAY, [], False)), 600_000)
+
+    def test_different_amount_or_far_date_still_counted(self):
+        Obligation.objects.create(business=self.business, title="Аренда", kind="rent", amount=600_000, due_date=TODAY + timedelta(days=3))
+        self.commitment("Другое", "Прочее", 500_000, 3)
+        self.commitment("Аренда помещения", "Аренда", 600_000, 10)
+        self.assertEqual(len(owner_money.committed(self.business, TODAY, [], False)), 3)
+
+    def test_salary_commitment_dropped_with_payroll(self):
+        self.commitment("Зарплата сотрудникам", "Зарплата", 1_500_000, 2)
+        self.assertEqual(len(owner_money.committed(self.business, TODAY, [], True)), 0)
+        self.assertEqual(len(owner_money.committed(self.business, TODAY, [], False)), 1)
+
+    def test_overdue_mirror_counted_once(self):
+        Obligation.objects.create(business=self.business, title="Аренда", kind="rent", amount=600_000, due_date=TODAY - timedelta(days=10))
+        self.commitment("Аренда помещения", "Аренда", 600_000, -10)
+        items = owner_money.committed(self.business, TODAY, [], False)
+        # просроченное вхождение склеено с обязательством; остаётся только следующий месяц
+        self.assertEqual([i["kind"] for i in items if i["date"] <= TODAY.isoformat()], ["obligation"])
+
+    def test_supplier_advance_not_treated_as_salary(self):
+        self.commitment("Аванс поставщику", "Поставщик", 400_000, 2)
+        self.assertEqual(len(owner_money.committed(self.business, TODAY, [], True)), 1)

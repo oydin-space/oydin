@@ -13,6 +13,13 @@ def obligation(business, title, kind, amount, days, status="planned"):
                                      due_date=TODAY + timedelta(days=days), status=status)
 
 
+def weekday(days):
+    """Смещение ≥ days, попадающее на будний день (выходные сдвигаются вперёд, на понедельник)."""
+    while (TODAY + timedelta(days=days)).weekday() >= 5:
+        days += 1
+    return days
+
+
 class TodayTests(PlanningCase):
     def get(self, query=""):
         return self.client.get(URL + query)
@@ -27,10 +34,10 @@ class TodayTests(PlanningCase):
         self.fund(50_000_000)
         obligation(self.business, "Налог", "tax", 1_000_000, 1)
         obligation(self.business, "Оплачено", "rent", 1_000_000, 2, status="paid")
-        obligation(self.business, "Аренда", "rent", 5_000_000, 4)
+        obligation(self.business, "Аренда", "rent", 5_000_000, weekday(4))
         obligation(self.business, "Зарплата", "salary", 9_000_000, 9)
         body = self.get().json()
-        self.assertEqual(body["until"], (TODAY + timedelta(days=4)).isoformat())
+        self.assertEqual(body["until"], (TODAY + timedelta(days=weekday(4))).isoformat())
         self.assertEqual(body["until_reason"], "salary_rent")
         self.assertEqual(body["as_of"], TODAY.isoformat())
         self.assertEqual({i["kind"] for i in body["items"]}, {"tax", "rent"})
@@ -83,7 +90,7 @@ class TodayTests(PlanningCase):
 
     def test_ok_when_money_is_enough(self):
         self.fund(100_000_000)
-        obligation(self.business, "Аренда", "rent", 5_000_000, 3)
+        obligation(self.business, "Аренда", "rent", 5_000_000, weekday(3))
         body = self.get().json()
         self.assertEqual(body["verdict"], "ok")
         self.assertIsNone(body["gap"])
@@ -92,7 +99,7 @@ class TodayTests(PlanningCase):
 
     def test_tight_when_nothing_spare(self):
         self.fund(5_000_000)
-        obligation(self.business, "Аренда", "rent", 5_000_000, 3)
+        obligation(self.business, "Аренда", "rent", 5_000_000, weekday(3))
         body = self.get().json()
         self.assertEqual(body["verdict"], "tight")
         self.assertEqual(body["can_take"], 0)
@@ -113,3 +120,11 @@ class TodayTests(PlanningCase):
         self.assertEqual(body["items"], [])
         self.assertEqual(body["until_reason"], "friday")
         self.assertEqual(body["balance"], 10_000_000)
+
+    def test_no_lang_uses_accept_language(self):
+        self.fund(10_000_000)
+        tx(self.business, self.account, 3_000_000, "in", TODAY - timedelta(days=5))
+        until = (TODAY + timedelta(days=3)).isoformat()
+        res = self.client.get(f"{URL}?until={until}", HTTP_ACCEPT_LANGUAGE="ru-RU,ru;q=0.9,en;q=0.8")
+        titles = {i["kind"]: i["title"] for i in res.json()["items"]}
+        self.assertEqual(titles["daily_sales"], "Средние продажи (30 дней) × 3 дн.")
