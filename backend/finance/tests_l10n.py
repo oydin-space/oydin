@@ -23,7 +23,7 @@ class TextHelpersTests(SimpleTestCase):
 
     def test_date_per_language(self):
         self.assertEqual(date_text(date(2026, 12, 10), "ru"), "10 декабря")
-        self.assertEqual(date_text(date(2026, 12, 10), "uz"), "10 dekabr")
+        self.assertEqual(date_text(date(2026, 12, 10), "uz"), "10-dekabr")
         self.assertEqual(date_text(date(2026, 12, 10), "en"), "December 10")
 
     def test_gap_reason_localized(self):

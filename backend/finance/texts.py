@@ -27,7 +27,9 @@ def money(amount, lang="ru"):
 
 def date_text(day, lang="ru"):
     month = MONTHS[lang][day.month - 1]
-    return f"{month} {day.day}" if lang == "en" else f"{day.day} {month}"
+    if lang == "en":
+        return f"{month} {day.day}"
+    return f"{day.day}-{month}" if lang == "uz" else f"{day.day} {month}"
 
 
 T = {
