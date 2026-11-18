@@ -4,20 +4,19 @@ import Link from "next/link"
 import { Icon } from "@/components/ui"
 import { haptic } from "@/lib/telegram"
 import { cn } from "@/lib/utils"
-import { DockMic } from "./dock-mic"
 import { MORE_ICON, isActive, type NavEntry } from "./nav"
 import { useCoreT } from "./use-core-t"
 
 const tabClass = (active: boolean) =>
   cn("focus-ring press flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 rounded-pill text-caption font-medium", active ? "text-foreground" : "text-muted-foreground")
 
-const pill = (active: boolean) => cn("motion-fast flex h-7 w-12 items-center justify-center rounded-pill transition-colors", active ? "bg-butter text-butter-ink" : "bg-transparent")
+const pill = (active: boolean) => cn("motion-fast flex h-8 w-14 items-center justify-center rounded-pill transition-colors", active ? "bg-brand text-[#3b342a]" : "bg-transparent")
 
 /**
- * Floating liquid-glass dock: Home · Operations · [mic] · Assistant · More. Overlays the app column (absolute),
+ * Floating liquid-glass dock: Oydin · Pulse · Profile (opens the More sheet). Overlays the app column (absolute),
  * so `main` pads for it only while `hidden` is false. The mic protrudes ~1/3 above the glass.
  */
-export function BottomNav({ items, pathname, moreActive, onMore, hidden, onEntrySaved }: { items: readonly NavEntry[]; pathname: string; moreActive: boolean; onMore: () => void; hidden: boolean; onEntrySaved: () => void }) {
+export function BottomNav({ items, pathname, moreActive, onMore, hidden }: { items: readonly NavEntry[]; pathname: string; moreActive: boolean; onMore: () => void; hidden: boolean }) {
   const t = useCoreT()
   const tab = (e: NavEntry) => {
     const active = isActive(pathname, e.href)
@@ -41,15 +40,13 @@ export function BottomNav({ items, pathname, moreActive, onMore, hidden, onEntry
       className="shell-float pointer-events-none absolute inset-x-0 bottom-0 z-20 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom),var(--tg-bottom))] md:hidden"
     >
       <ul className="glass-liquid pointer-events-auto relative mx-auto flex max-w-md items-center rounded-[2rem] px-2">
-        {items.filter((e) => e.dock !== "right").map(tab)}
-        <DockMic onEntrySaved={onEntrySaved} />
-        {items.filter((e) => e.dock === "right").map(tab)}
+        {items.map(tab)}
         <li className="flex flex-1">
           <button type="button" aria-haspopup="dialog" aria-current={moreActive ? "page" : undefined} onClick={onMore} className={tabClass(moreActive)}>
             <span className={pill(moreActive)}>
               <Icon icon={MORE_ICON} size={24} />
             </span>
-            {t("core.nav.more")}
+            {t("core.nav.profile")}
           </button>
         </li>
       </ul>

@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Check, StickyNote } from "lucide-react";
-import { Button, Icon, Input, MoneyInput, SegmentedControl, Select, VoiceButton, type VoiceState } from "@/components/ui";
+import { Button, Icon, Input, MoneyInput, SegmentedControl, Select, VoiceButton } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { api } from "@/lib/api";
 import { accountLabel, defaultAccountId, readLast, rememberLast } from "@/lib/offline/labels";
 import { enqueueOperation } from "@/lib/offline/sync";
 import type { Account } from "@/lib/types";
-import { recordVoice, voiceSupported } from "@/lib/voice";
+import { useVoiceRecorder, voiceFileName } from "@/lib/use-voice-recorder";
 import { CategoryPicker } from "./category-picker";
 import { useOfflineT } from "./use-offline-t";
 
@@ -28,8 +28,6 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-const noopSubscribe = () => () => undefined;
-
 export function QuickEntryForm({ accounts, online }: { accounts: Account[]; online: boolean }) {
   const t = useOfflineT();
   const { locale } = useI18n();
@@ -40,9 +38,6 @@ export function QuickEntryForm({ accounts, online }: { accounts: Account[]; onli
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState<{ amount?: string; account?: string; category?: string }>({});
   const [saving, setSaving] = useState(false);
-  const [voice, setVoice] = useState<VoiceState>("idle");
-  const stopRef = useRef<AbortController | null>(null);
-  const canVoice = useSyncExternalStore(noopSubscribe, voiceSupported, () => false);
 
   // Последняя использованная категория подставляется после монтирования (localStorage недоступен на сервере).
   const [lastApplied, setLastApplied] = useState(false);
@@ -85,16 +80,10 @@ export function QuickEntryForm({ accounts, online }: { accounts: Account[]; onli
     }
   }
 
-  async function onVoice() {
-    if (voice === "recording") return stopRef.current?.abort();
-    const ctl = new AbortController();
-    stopRef.current = ctl;
-    setVoice("recording");
-    try {
-      const blob = await recordVoice(ctl.signal);
-      setVoice("processing");
+  const { state: voice, supported: canVoice, toggle: onVoice } = useVoiceRecorder(
+    async (blob) => {
       const body = new FormData();
-      body.append("audio", blob, "voice");
+      body.append("audio", blob, voiceFileName(blob));
       const res = await api<{ text: string; draft: VoiceDraft | null }>("/ai/voice/", { method: "POST", body });
       const d = res.draft;
       if (d?.amount) {
@@ -109,12 +98,9 @@ export function QuickEntryForm({ accounts, online }: { accounts: Account[]; onli
       } else {
         setNote(res.text);
       }
-    } catch (e) {
-      toast.error(e instanceof DOMException && e.name === "NotAllowedError" ? t("offline.voiceDenied") : t("offline.voiceFailed"));
-    } finally {
-      setVoice("idle");
-    }
-  }
+    },
+    (kind) => toast.error(kind === "denied" ? t("offline.voiceDenied") : kind === "unavailable" ? t("offline.voiceUnavailable") : t("offline.voiceFailed")),
+  );
 
   const autoVoice = useRef(false);
   useEffect(() => {

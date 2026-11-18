@@ -35,35 +35,27 @@ function safeReason(pulse: PulseData, t: CoreT, locale: FormatLocale): string | 
 }
 
 export function PulseHeroSkeleton() {
-  return (
-    <div className="flex items-center gap-4" aria-hidden="true">
-      <Skeleton className="size-[72px] rounded-pill" />
-      <div className="flex flex-1 flex-col gap-2">
-        <Skeleton className="h-5 w-20" />
-        <Skeleton className="h-9 w-3/4" />
-      </div>
-    </div>
-  )
+  return <Skeleton className="h-[148px] w-full rounded-[28px]" aria-hidden="true" />
 }
 
-/** Above the fold: safe-to-spend number and a one-line status. */
+/** Safe-to-spend as one big friendly number, with the score ring and a plain status. */
 export function PulseHero({ pulse }: { pulse: PulseData }) {
   const t = useCoreT()
   const { locale } = useI18n()
   const reason = pulse.safe_to_spend > 0 ? null : safeReason(pulse, t, locale)
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4 rounded-[28px] border border-border bg-card p-5 md:p-6">
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+        <Badge className="self-start" icon={<Icon icon={TONE_ICON[pulse.tone as keyof typeof TONE_ICON] ?? ShieldCheck} size={16} />} tone={TONE[pulse.tone as keyof typeof TONE] ?? "neutral"}>{t(`core.dash.tone.${pulse.tone}` as CoreKey)}</Badge>
+        <Text variant="secondary" className="mt-1 text-foreground/70">{t("core.dash.safe")}</Text>
+        <AmountText value={pulse.safe_to_spend} className="text-[34px] font-bold leading-none md:text-[44px]" />
+        {reason ? <Text variant="caption" tone="muted" className="mt-1">{reason}</Text> : null}
+      </div>
       <div className="flex shrink-0 flex-col items-center gap-1">
         <ProgressRing value={pulse.score / 100} label={t("core.dash.pulseLabel", { score: String(pulse.score) })} size={72}>
           <Text variant="body" weight="bold">{pulse.score}</Text>
         </ProgressRing>
         <Text variant="caption" tone="muted" weight="semibold" aria-hidden="true">{t("core.homep.pulse")}</Text>
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-        <Badge className="self-start" icon={<Icon icon={TONE_ICON[pulse.tone as keyof typeof TONE_ICON] ?? ShieldCheck} size={16} />} tone={TONE[pulse.tone as keyof typeof TONE] ?? "neutral"}>{t(`core.dash.tone.${pulse.tone}` as CoreKey)}</Badge>
-        <Text variant="secondary" className="text-foreground/80">{t("core.dash.safe")}</Text>
-        <AmountText value={pulse.safe_to_spend} className="text-page font-semibold" />
-        {reason ? <Text variant="caption" tone="muted">{reason}</Text> : null}
       </div>
     </div>
   )

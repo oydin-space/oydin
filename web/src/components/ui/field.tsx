@@ -88,14 +88,17 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <FieldShell id={id} label={label} hint={hint} error={error} required={required} className={className}>
       <div className="relative flex items-center">
-        {leading ? <span className="pointer-events-none absolute left-3 text-muted-foreground">{leading}</span> : null}
+        {leading ? (
+          <span className={cn("pointer-events-none absolute left-3 text-body text-muted-foreground", typeof leading === "string" && "tabular-nums")}>{leading}</span>
+        ) : null}
         <input
           ref={ref}
           id={id}
           required={required}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy(id, error, hint)}
-          className={cn(controlClass, leading && "pl-10", trailing && "pr-14")}
+          className={cn(controlClass, typeof leading !== "string" && leading && "pl-10", trailing && "pr-14")}
+          style={typeof leading === "string" ? { paddingLeft: `calc(1.25rem + ${[...leading].length}ch)` } : undefined}
           {...props}
         />
         {trailing ? <span className="absolute right-3 text-small text-muted-foreground">{trailing}</span> : null}

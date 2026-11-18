@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import { useI18n } from "@/i18n/provider";
 import { api, ApiError, post } from "@/lib/api";
 import type { AiReplyWithUi } from "@/lib/tools-api";
+import { peopleApi, personFromDraft, type PersonDraft } from "@/lib/people-api";
 import type { ChatTurn, Transaction, TransactionInput, VoiceReply } from "@/lib/types";
 import type { ChatMessage } from "@/lib/use-chat";
 
@@ -21,6 +22,8 @@ export interface UiChat {
   sendVoice: (audio: Blob, listening: string) => Promise<void>;
   saveDraft: (id: string, input: TransactionInput) => Promise<boolean>;
   dismissDraft: (id: string) => void;
+  confirmPerson: (id: string, draft: PersonDraft) => Promise<void>;
+  dismissPerson: (id: string) => void;
   rate: (id: string, traceId: string, value: 0 | 1) => Promise<void>;
 }
 
@@ -69,7 +72,10 @@ function store(scope: string, update: (all: UiMessage[]) => UiMessage[]) {
     // картинки тяжёлые для sessionStorage; «сохраняется» после перезагрузки — снова черновик
     const lean = next
       .filter((m) => !m.pending)
-      .map(({ images: _images, ...m }) => (m.draftState === "saving" ? { ...m, draftState: "pending" as const, draftCheck: true } : m));
+      .map(({ images: _images, ...m }) => {
+        const fixed = m.personDraftState === "saving" ? { ...m, personDraftState: "pending" as const } : m;
+        return fixed.draftState === "saving" ? { ...fixed, draftState: "pending" as const, draftCheck: true } : fixed;
+      });
     sessionStorage.setItem(STORAGE + scope, JSON.stringify(lean));
   } catch {
     /* переполнение или приватный режим — остаётся память вкладки */
@@ -146,6 +152,8 @@ export function useUiChat(scope: string): UiChat {
           chart: r.ui ? null : r.chart,
           draft: r.draft,
           draftState: r.draft ? "pending" : undefined,
+          personDraft: r.person_draft ?? null,
+          personDraftState: r.person_draft ? "pending" : undefined,
           suggestions: r.suggestions,
           traceId: r.trace_id,
           tools: r.tools_used,
@@ -202,6 +210,23 @@ export function useUiChat(scope: string): UiChat {
 
   const dismissDraft = useCallback((id: string) => patch(id, { draftState: "dismissed" }), [patch]);
 
+  /** Единственный путь создания человека из чата: клик пользователя и обычный POST /api/people/ (роли и демо проверяет API). */
+  const confirmPerson = useCallback(
+    async (id: string, draft: PersonDraft) => {
+      patch(id, { personDraftState: "saving" });
+      try {
+        await peopleApi.create(personFromDraft(draft));
+        patch(id, { personDraftState: "saved" });
+      } catch (e) {
+        patch(id, { personDraftState: "pending" });
+        throw e;
+      }
+    },
+    [patch],
+  );
+
+  const dismissPerson = useCallback((id: string) => patch(id, { personDraftState: "dismissed" }), [patch]);
+
   const rate = useCallback(
     async (id: string, traceId: string, value: 0 | 1) => {
       patch(id, { feedback: value });
@@ -210,5 +235,5 @@ export function useUiChat(scope: string): UiChat {
     [patch],
   );
 
-  return { messages, busy, block, send, sendVoice, saveDraft, dismissDraft, rate };
+  return { messages, busy, block, send, sendVoice, saveDraft, dismissDraft, confirmPerson, dismissPerson, rate };
 }

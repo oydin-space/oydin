@@ -11,7 +11,7 @@ import { periodRange, usePeriod } from "@/lib/period"
 import type { SavedTool } from "@/lib/tools-api"
 import type { Account, Insight, Transaction } from "@/lib/types"
 import { useApi } from "@/lib/use-api"
-import { ListenBrief } from "@/components/brief/listen-brief"
+import { MorningBrief } from "@/components/brief/morning-brief"
 import { UpcomingCard } from "@/components/brief/upcoming-card"
 import { useBriefData } from "@/components/brief/use-brief-data"
 import { BriefCards, BriefCardsSkeleton } from "./brief-cards"
@@ -67,8 +67,8 @@ export function Dashboard() {
   else
     body = (
       <div className="flex flex-col gap-4">
+        <MorningBrief pulse={pulse.data!} payments={brief.payments} debtors={brief.debtors} />
         <PulseHero pulse={pulse.data!} />
-        <ListenBrief pulse={pulse.data!} payments={brief.payments} debtors={brief.debtors} />
         <QuickAdd onEntry={(direction) => open({ values: { direction } })} />
         <BriefCards pulse={pulse.data!} tools={pinned} />
         <div className="mt-2 flex flex-col gap-6">

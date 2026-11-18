@@ -1,17 +1,19 @@
 "use client";
 
 import { ArrowLeft, Check, Plus, Store } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { BusinessSwitcher, Badge, Button, Icon, Input, ListGroup, ListRow, Sheet } from "@/components/ui";
+import { BusinessSwitcher, Badge, Button, Icon, Input, ListGroup, ListRow, Sheet, Tooltip } from "@/components/ui";
 import { useT } from "@/i18n";
-import { createBusiness, errorText, setSegment, switchBusiness, type Segment } from "@/lib/auth-api";
+import { createBusiness, errorText, logout, setSegment, switchBusiness, type Segment } from "@/lib/auth-api";
 import { roleLabel } from "./roles";
 import { SegmentSelect } from "./segment-select";
 
 /** Кнопка в шапке/боковой панели + лист со списком бизнесов и формой «Новый бизнес» (один лист, два состояния). */
-export function BusinessSwitcherMenu({ className }: { className?: string }) {
+export function BusinessSwitcherMenu({ className, compact }: { className?: string; compact?: boolean }) {
   const t = useT();
+  const router = useRouter();
   const { user, applyMe, refresh } = useSession();
   const strings = {
     title: t("biz.switch.title"),
@@ -19,6 +21,7 @@ export function BusinessSwitcherMenu({ className }: { className?: string }) {
     current: t("biz.switch.current"),
     demo: t("biz.switch.demo"),
     newBusiness: t("biz.switch.new"),
+    addOwn: t("biz.switch.addOwn"),
     newTitle: t("biz.switch.newTitle"),
     name: t("biz.switch.name"),
     create: t("biz.switch.create"),
@@ -36,6 +39,17 @@ export function BusinessSwitcherMenu({ className }: { className?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (!user?.business) return null;
+  const isDemo = !!user.businesses.find((b) => b.id === user.active_business_id)?.is_demo;
+
+  /** В демо новый бизнес создать нельзя: завершаем демо-сессию и ведём на регистрацию. */
+  async function leaveDemo() {
+    setBusy(true);
+    try {
+      await logout();
+    } finally {
+      router.replace("/login");
+    }
+  }
 
   const close = (v: boolean) => {
     setOpen(v);
@@ -82,7 +96,15 @@ export function BusinessSwitcherMenu({ className }: { className?: string }) {
 
   return (
     <>
+      {compact ? (
+        <Tooltip content={user.business.name}>
+          <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-label={user.business.name} className="state-layer focus-ring mx-auto grid size-11 place-items-center rounded-control bg-muted text-body font-semibold">
+            {user.business.name.trim().charAt(0).toUpperCase()}
+          </button>
+        </Tooltip>
+      ) : (
       <BusinessSwitcher name={user.business.name} role={roleLabel(t, user.role)} onClick={() => setOpen(true)} className={className} />
+      )}
       <Sheet open={open} onOpenChange={close} title={creating ? strings.newTitle : strings.title} description={creating ? undefined : strings.description}>
         {creating ? (
           <form onSubmit={create} noValidate className="flex flex-col gap-4">
@@ -107,7 +129,7 @@ export function BusinessSwitcherMenu({ className }: { className?: string }) {
               ))}
             </ListGroup>
             {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
-            <Button variant="secondary" icon={Plus} block onClick={() => setCreating(true)}>{strings.newBusiness}</Button>
+            <Button variant="secondary" icon={Plus} block loading={busy && isDemo} onClick={() => (isDemo ? void leaveDemo() : setCreating(true))}>{isDemo ? strings.addOwn : strings.newBusiness}</Button>
           </div>
         )}
       </Sheet>

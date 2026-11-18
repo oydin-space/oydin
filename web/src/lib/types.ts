@@ -1,3 +1,4 @@
+import type { PersonDraft } from "./people-api";
 // Типы 1:1 с docs/openapi.yaml (components.schemas). Менять только вместе с контрактом.
 export type Tone = "calm" | "watch" | "risk";
 export type TaxRegime = "unknown" | "turnover" | "simplified_vat" | "general";
@@ -172,6 +173,7 @@ export interface AiReply {
   suggestions: string[];
   chart?: Chart | null;
   draft?: TransactionInput | null;
+  person_draft?: PersonDraft | null;
   trace_id: string | null;
   tools_used?: string[];
   fallback?: boolean;

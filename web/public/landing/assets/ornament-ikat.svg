@@ -1,11 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 100 130" fill="none" stroke-linejoin="round">
-<g stroke="#D99A00" stroke-width="2">
-<path d="M50 4 94 40 50 76 6 40Z" fill="#FFD62C" fill-opacity=".3"/>
-<path d="M50 16 78 40 50 64 22 40Z" fill="#FFD62C" fill-opacity=".35"/>
-<path d="M50 28 62 40 50 52 38 40Z" fill="#D99A00" fill-opacity=".5"/>
-<path d="M6 40 0 40M94 40 100 40M50 4 50 0M50 76 50 82" />
-<path d="M0 94 8 88 16 94 24 88 32 94 40 88 48 94 56 88 64 94 72 88 80 94 88 88 96 94 100 91" stroke-width="2.4"/>
-<path d="M0 104 8 98 16 104 24 98 32 104 40 98 48 104 56 98 64 104 72 98 80 104 88 98 96 104 100 101" stroke-opacity=".6"/>
-<path d="M0 114 8 108 16 114 24 108 32 114 40 108 48 114 56 108 64 114 72 108 80 114 88 108 96 114 100 111" stroke-opacity=".35"/>
-<path d="M0 124 100 124" stroke-dasharray="3 5" stroke-opacity=".6"/>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none" stroke="#D99A00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M60 10L110 60L60 110L10 60Z"/>
+<path d="M60 34L86 60L60 86L34 60Z" fill="#FFD62C" fill-opacity=".3"/>
+<path d="M0 60H10M110 60H120M60 0V10M60 110V120"/>
+<circle cx="60" cy="60" r="6" fill="#FFD62C" fill-opacity=".55"/>
+</svg>

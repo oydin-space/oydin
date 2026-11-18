@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { StickToBottom } from "use-stick-to-bottom";
@@ -13,7 +13,7 @@ import { useApi } from "@/lib/use-api";
 import type { Account } from "@/lib/types";
 import { createTool } from "@/lib/tools-api";
 import { takePendingAttachment } from "@/lib/pending-attachment";
-import { recordVoice, voiceSupported } from "@/lib/voice";
+import { useVoiceRecorder } from "@/lib/use-voice-recorder";
 import { AnswerChart } from "./answer-chart";
 import { BuildUiSheet } from "./build-ui-sheet";
 import { TypingBubble } from "./chat-message";
@@ -21,6 +21,7 @@ import { fileToDataUrl, pickImage } from "./image-attach";
 import { Logo } from "@/components/brand/logo";
 import { useChatT } from "./chat-t";
 import { DraftCard } from "./draft-card";
+import { PersonDraftCard } from "./person-draft-card";
 import { GenerativeUI } from "./generative-ui";
 import { RichText } from "./rich-text";
 import { useUiChat, type UiChat, type UiMessage } from "./use-ui-chat";
@@ -39,13 +40,28 @@ const CHIP_ROW =
   "flex min-w-0 gap-2 overflow-x-auto px-2 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-24px),transparent)]";
 
 /** /app/chat: помощник с генеративным UI, голосом, оценкой ответов и сохранением калькуляторов. */
-export function ChatView() {
+export function ChatView({ lead }: { lead?: ReactNode } = {}) {
   const t = useChatT();
   const { user } = useSession();
   const chat = useUiChat(`${user?.id ?? "anon"}:${user?.active_business_id ?? ""}`);
   const accounts = useApi<{ items: Account[] }>(user?.role === "seller" ? null : "/accounts/");
   const [buildOpen, setBuildOpen] = useState(false);
   const [inject, setInject] = useState<{ items: string[] }>();
+  const dictateDone = useRef<(() => void) | null>(null);
+  const voice = useVoiceRecorder(
+    async (blob) => {
+      dictateDone.current?.();
+      await chat.sendVoice(blob, t("chat.ui.listening"));
+    },
+    (kind) => {
+      dictateDone.current?.();
+      toast.error(kind === "denied" ? t("chat.ui.micDenied") : t("chat.ui.micFailed"));
+    },
+  );
+  const voiceState = useRef(voice.state);
+  useEffect(() => {
+    voiceState.current = voice.state;
+  });
 
   const attachFile = useCallback(
     async (file: File) => {
@@ -79,22 +95,21 @@ export function ChatView() {
     last?.role === "assistant" && last.suggestions?.length ? last.suggestions : chat.messages.length ? [] : STARTERS.map((k) => t(k))
   ).filter((s) => !TAX_CHIP.test(s));
 
-  const onDictate = voiceSupported()
-    ? async (stop: AbortSignal) => {
-        try {
-          const blob = await recordVoice(stop);
-          if (blob.size) void chat.sendVoice(blob, t("chat.ui.listening"));
-        } catch (e) {
-          toast.error(e instanceof DOMException && e.name === "NotAllowedError" ? t("chat.ui.micDenied") : t("chat.ui.micFailed"));
-        }
-        return undefined;
+  const onDictate = voice.supported
+    ? (stop: AbortSignal) => {
+        const { promise, resolve } = Promise.withResolvers<undefined>();
+        dictateDone.current = () => resolve(undefined);
+        // Второй тап в PromptBar = abort: останавливаем запись, только если она ещё идёт.
+        stop.addEventListener("abort", () => voiceState.current === "recording" && void voice.toggle(), { once: true });
+        void voice.toggle();
+        return promise;
       }
     : undefined;
 
   const consentOff = chat.block === "consent";
 
   return (
-    <div data-fill className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col">
+    <div data-fill className="mx-auto flex h-full min-h-0 w-full max-w-[720px] flex-col">
       <h1 className="sr-only">{t("chat.title" as never)}</h1>
       {consentOff ? (
         <StatusBanner
@@ -111,7 +126,8 @@ export function ChatView() {
       ) : null}
       <StickToBottom className="relative min-h-0 flex-1" resize="smooth" initial="instant">
         <StickToBottom.Content className="flex min-h-full flex-col gap-3 py-3">
-          {!chat.messages.length ? (
+          {lead}
+          {!chat.messages.length && !lead ? (
             <div className="flex flex-col items-center gap-1 px-4 pt-2 text-center">
               <Logo size={40} />
               <Text weight="semibold">{t("chat.ui.empty")}</Text>
@@ -185,7 +201,7 @@ function Message({ message: m, accounts, chat }: { message: UiMessage; accounts:
   if (m.role === "user") {
     return (
       <motion.div className="flex origin-bottom-right justify-end pr-2" {...pop}>
-        <div className="tail-r flex max-w-[82%] flex-col gap-2 rounded-[1.25rem] bg-lavender px-3.5 py-2">
+        <div className="tail-r flex max-w-[82%] flex-col gap-2 rounded-[1.25rem] bg-brand px-3.5 py-2 text-[#3b342a]">
           {m.images?.length ? (
             <div className="flex flex-wrap gap-2">
               {m.images.map((src, i) => (
@@ -217,9 +233,10 @@ function Message({ message: m, accounts, chat }: { message: UiMessage; accounts:
   };
   return (
     <motion.div className="flex origin-bottom-left flex-col gap-2 pl-2 sm:max-w-[92%]" {...pop}>
-      <div className="tail-l rounded-[1.25rem] bg-secondary px-3.5 py-2.5">
+      <div className="tail-l rounded-[1.25rem] border border-border bg-card px-3.5 py-2.5 shadow-sm">
         <RichText>{m.content}</RichText>
         {m.chart && !m.ui ? <AnswerChart chart={m.chart} /> : null}
+        {m.personDraft ? <PersonDraftCard draft={m.personDraft} state={m.personDraftState ?? "pending"} onConfirm={() => chat.confirmPerson(m.id, m.personDraft!)} onDismiss={() => chat.dismissPerson(m.id)} /> : null}
         {m.draft ? <DraftCard message={m} accounts={accounts} onSave={(i) => chat.saveDraft(m.id, i)} onDismiss={() => chat.dismissDraft(m.id)} /> : null}
       </div>
       {m.ui ? <GenerativeUI key={m.ui} spec={m.ui} onAsk={(p) => void chat.send(p)} /> : null}

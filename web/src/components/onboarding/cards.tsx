@@ -169,8 +169,8 @@ export function NameCard({ state, onSubmit }: { state: OnboardingState; onSubmit
 export function ContactCard({ state, onSubmit, onSkip }: { state: OnboardingState; onSubmit: Submit; onSkip: () => Promise<void> }) {
   const t = useT();
   const p = state.prefill;
-  const [phone, setPhone] = useState(p?.phone.replace(/^\+998/, "") ?? "");
-  const [telegram, setTelegram] = useState(p?.telegram ?? "");
+  const [phone, setPhone] = useState(p?.phone.replace(/\D/g, "").replace(/^998/, "").slice(0, 9) ?? "");
+  const [telegram, setTelegram] = useState(p?.telegram.replace(/^@/, "") ?? "");
   const [email, setEmail] = useState(p?.email ?? "");
   const [channel, setChannel] = useState<(typeof CHANNELS)[number]>(p?.channel ?? "app");
   const { busy, error, run } = useAction();
@@ -180,11 +180,29 @@ export function ContactCard({ state, onSubmit, onSkip }: { state: OnboardingStat
         className="flex flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault();
-          void run(() => onSubmit({ phone, telegram, email, channel }));
+          void run(() => onSubmit({ phone: phone ? `+998${phone}` : "", telegram, email, channel }));
         }}
       >
-        <Input label={t("onboarding.contact.phone")} leading="+998" inputMode="tel" autoComplete="tel-national" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <Input label={t("onboarding.contact.telegram")} leading="@" autoCapitalize="none" value={telegram} onChange={(e) => setTelegram(e.target.value)} />
+        <Input
+          label={t("onboarding.contact.phone")}
+          leading="+998"
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel-national"
+          placeholder="90 123 45 67"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").replace(/^998(?=\d{9})/, "").slice(0, 9))}
+        />
+        <Input
+          label={t("onboarding.contact.telegram")}
+          leading="@"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="username"
+          value={telegram}
+          onChange={(e) => setTelegram(e.target.value.replace(/^(https?:\/\/)?t\.me\//, "").replace(/[^A-Za-z0-9_]/g, "").slice(0, 32))}
+        />
         <Input label={t("onboarding.contact.email")} type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!p?.email} />
         <ChipGroup
           label={t("onboarding.contact.channel")}
@@ -217,6 +235,8 @@ function CompanyCard({ result, onConfirm, onReject }: { result: LookupResult; on
         ["onboarding.business.director", c.director],
         ["onboarding.business.address", c.address],
         ["onboarding.business.activity", [c.oked, c.activity].filter(Boolean).join(" · ")],
+        ["onboarding.business.vat", c.vat_payer == null ? "" : t(c.vat_payer ? "onboarding.business.yes" : "onboarding.business.no")],
+        ["onboarding.business.selfEmployed", c.self_employed ? t("onboarding.business.yes") : ""],
       ]
     : [];
   return (

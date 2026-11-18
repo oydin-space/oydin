@@ -57,6 +57,9 @@ export interface CompanyCandidate {
   director: string;
   oked: string;
   activity: string;
+  /** null — источник не сообщает (только Didox знает НДС и самозанятость). */
+  vat_payer?: boolean | null;
+  self_employed?: boolean | null;
 }
 
 export interface LookupResult {

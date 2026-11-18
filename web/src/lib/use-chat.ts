@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { haptic } from "./telegram";
 import { ApiError, api, post } from "./api";
+import type { PersonDraft } from "./people-api";
 import type { AiReply, Chart, ChatTurn, Transaction, TransactionInput, VoiceReply } from "./types";
 
 export interface ChatMessage {
@@ -12,6 +13,8 @@ export interface ChatMessage {
   chart?: Chart | null;
   draft?: TransactionInput | null;
   draftState?: "pending" | "saving" | "saved" | "dismissed";
+  personDraft?: PersonDraft | null;
+  personDraftState?: "pending" | "saving" | "saved" | "dismissed";
   suggestions?: string[];
   traceId?: string | null;
   tools?: string[];

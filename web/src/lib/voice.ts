@@ -1,10 +1,19 @@
+import { ApiError } from "./api";
+
 // Запись голоса: MediaRecorder; автоостановка по паузе в речи или по сигналу stop (повторный тап по микрофону).
 const MAX_MS = 55_000; // контракт: ≤ 60 с
 const SILENCE_MS = 1800;
 const SPEECH_LEVEL = 0.035;
 
+// Safari (iOS и macOS) пишет только audio/mp4; Chrome/Firefox — webm/opus. Порядок зависит от движка.
+function isSafari(): boolean {
+  return typeof navigator !== "undefined" && /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent);
+}
+
 function pickMime(): string | undefined {
-  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  const candidates = isSafari()
+    ? ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"]
+    : ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
   return candidates.find((m) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m));
 }
 
@@ -12,28 +21,54 @@ export function voiceSupported(): boolean {
   return typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== "undefined";
 }
 
+export type VoiceErrorKind = "denied" | "unavailable" | "failed";
+
+/** Почему не вышло: нет доступа к микрофону / сервер не распознаёт (ключ ИИ, лимит, формат) / запись сломалась. */
+export function voiceErrorKind(e: unknown): VoiceErrorKind {
+  if (e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError" || e.name === "NotFoundError")) return "denied";
+  if (e instanceof ApiError) return "unavailable";
+  return "failed";
+}
+
 export async function recordVoice(stop: AbortSignal): Promise<Blob> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const release = () => stream.getTracks().forEach((t) => t.stop());
+  let rec: MediaRecorder;
   const mime = pickMime();
-  const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  try {
+    rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+  } catch (e) {
+    release();
+    throw e;
+  }
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
 
-  const ctx = new AudioContext();
-  const analyser = ctx.createAnalyser();
-  analyser.fftSize = 512;
-  ctx.createMediaStreamSource(stream).connect(analyser);
-  const buf = new Uint8Array(analyser.fftSize);
+  // Автостоп по тишине — удобство; если AudioContext недоступен (старый iOS), запись всё равно идёт, стоп по тапу.
+  let ctx: AudioContext | null = null;
+  let analyser: AnalyserNode | null = null;
+  try {
+    ctx = new AudioContext();
+    void ctx.resume();
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 512;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+  } catch {
+    analyser = null;
+  }
+  const buf = new Uint8Array(512);
 
   return new Promise<Blob>((resolve, reject) => {
     let heardSpeech = false;
     let lastVoice = performance.now();
     const started = lastVoice;
     const timer = setInterval(() => {
-      analyser.getByteTimeDomainData(buf);
-      let peak = 0;
-      for (const v of buf) peak = Math.max(peak, Math.abs(v - 128) / 128);
       const now = performance.now();
+      let peak = 0;
+      if (analyser) {
+        analyser.getByteTimeDomainData(buf);
+        for (const v of buf) peak = Math.max(peak, Math.abs(v - 128) / 128);
+      }
       if (peak > SPEECH_LEVEL) {
         heardSpeech = true;
         lastVoice = now;
@@ -43,8 +78,8 @@ export async function recordVoice(stop: AbortSignal): Promise<Blob> {
 
     const cleanup = () => {
       clearInterval(timer);
-      stream.getTracks().forEach((t) => t.stop());
-      void ctx.close();
+      release();
+      void ctx?.close();
     };
     const finish = () => rec.state !== "inactive" && rec.stop();
     rec.onstop = () => {
@@ -56,6 +91,7 @@ export async function recordVoice(stop: AbortSignal): Promise<Blob> {
       reject(new Error("voice_record_failed"));
     };
     stop.addEventListener("abort", finish, { once: true });
-    rec.start();
+    rec.start(1000);
+    if (stop.aborted) finish();
   });
 }
