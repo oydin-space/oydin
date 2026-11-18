@@ -57,13 +57,8 @@ export function DateField({ id, value, onValueChange, min, max, disabled, invali
     const next = { ...parts, [key]: digits };
     setParts(next);
     const iso = join(next);
-    if (iso) {
-      setSeen(iso);
-      onValueChange(iso);
-    } else if (!next.d && !next.m && !next.y) {
-      setSeen("");
-      onValueChange("");
-    }
+    setSeen(iso);
+    onValueChange(iso);
   };
 
   const segment = "w-full bg-transparent text-center outline-none tabular-nums placeholder:text-muted-foreground";

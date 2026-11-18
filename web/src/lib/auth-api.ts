@@ -1,4 +1,5 @@
 // Вызовы входа, бизнесов и команды (docs/openapi.yaml v0.3). Всё идёт через единый api()/post().
+import { clearChats } from "@/components/chat/use-ui-chat";
 import { api, ApiError, post } from "@/lib/api";
 import { clearAccounts } from "@/lib/offline/reference";
 import { removeMeSnapshot, writeMeSnapshot } from "@/lib/offline/scope";
@@ -27,13 +28,14 @@ const browserStorage = () => (typeof localStorage === "undefined" ? null : local
 const signedIn = (me: Me) => (writeMeSnapshot(browserStorage(), me), me);
 export const verifyEmailCode = (email: string, code: string) => post<Me>("/auth/email/verify/", { email, code }).then(signedIn);
 /** Демо-вход требует принятых условий: бэкенд отвечает 400 `consent_required` без `terms_version`. */
-export const demoLogin = () => post<Me>("/auth/demo/", { terms_version: TERMS_VERSION }).then(signedIn);
+export const demoLogin = () => (clearChats(), post<Me>("/auth/demo/", { terms_version: TERMS_VERSION }).then(signedIn));
 export const fetchMe = () => api<Me>("/auth/me/");
 /** Выход чистит локальное в finally: офлайн-выход тоже стирает снимок, кэш счетов и закэшированные страницы /app/*. Несинхронизированные записи остаются, но чужим пользователям не видны (скоуп). */
 export const logout = async () => {
   try {
     await post<void>("/auth/logout/");
   } finally {
+    clearChats();
     removeMeSnapshot(browserStorage());
     clearAccounts();
     await clearCachedPages();

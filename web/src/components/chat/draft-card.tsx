@@ -23,7 +23,7 @@ export function DraftCard({
   onSave,
   onDismiss,
 }: {
-  message: ChatMessage;
+  message: ChatMessage & { draftCheck?: boolean };
   accounts: Account[];
   onSave: (input: TransactionInput) => Promise<boolean>;
   onDismiss: () => void;
@@ -32,7 +32,8 @@ export function DraftCard({
   const ct = useChatT();
   const draft = message.draft!;
   const state = message.draftState ?? "pending";
-  const [purpose, setPurpose] = useState<Purpose>(draft.purpose && draft.purpose !== "unclear" ? draft.purpose : "business");
+  const [purpose, setPurpose] = useState<Purpose>(draft.purpose === "business" || draft.purpose === "personal" ? draft.purpose : "business");
+  const check = message.draftCheck === true && state === "pending";
   const account = accounts.find((a) => a.id === draft.account_id);
   const isOut = draft.direction === "out";
 
@@ -109,7 +110,7 @@ export function DraftCard({
             <button
               type="button"
               onClick={save}
-              disabled={state === "saving"}
+              disabled={state === "saving" || check}
               className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-ink px-5 py-2 text-sm font-semibold text-card shadow-[0_3px_0_0_rgb(0_0_0/0.35)] transition active:translate-y-0.5 active:shadow-none disabled:opacity-60"
             >
               {state === "saving" ? <Icon icon={Loader2} size={16} className="animate-spin" /> : <Icon icon={Check} size={16} />} {ct("chatfix.draft.confirm")}
@@ -120,6 +121,7 @@ export function DraftCard({
           </>
         )}
       </div>
+      {check ? <p className="mt-2 text-xs text-ink/70">{ct("chatfix.draft.check")}</p> : null}
     </div>
   );
 }

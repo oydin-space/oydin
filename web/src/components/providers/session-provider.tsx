@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { api, ApiError, post } from "@/lib/api";
+import { clearChats } from "@/components/chat/use-ui-chat";
 import { flushStashedConsent } from "@/lib/auth-api";
 import type { User } from "@/lib/types";
 import { useTelegram } from "./telegram-provider";
@@ -109,6 +110,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             if (r.offline && !cancelled) setOffline(true);
           } catch (e) {
             if (!(e instanceof ApiError) || e.status !== 401) throw e;
+            clearChats();
             router.replace(`/login?next=${encodeURIComponent(path)}`);
             return;
           }

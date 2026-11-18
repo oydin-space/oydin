@@ -18,7 +18,8 @@ async function loadPlans(locale: Locale): Promise<Plan[]> {
 
 /** 1:1 port of the moonin.ai landing: static markup + its original CSS/JS from /landing. */
 export async function LandingPage({ locale }: { locale: Locale }) {
-  const html = localize(shell, locale).replace(PRICING_MARKER, renderPricing(await loadPlans(locale), locale))
+  const pricing = renderPricing(await loadPlans(locale), locale)
+  const html = localize(shell, locale).replace(PRICING_MARKER, () => pricing)
   return (
     <>
       <div className="page-shell" dangerouslySetInnerHTML={{ __html: html }} />

@@ -8,7 +8,7 @@ import type { ChatTurn, Transaction, TransactionInput, VoiceReply } from "@/lib/
 import type { ChatMessage } from "@/lib/use-chat";
 
 /** Сообщение экрана /app/chat: как в доке, плюс OpenUI-разметка ответа. */
-export type UiMessage = ChatMessage & { ui?: string | null; pending?: boolean; images?: string[] };
+export type UiMessage = ChatMessage & { ui?: string | null; pending?: boolean; images?: string[]; draftCheck?: boolean };
 
 /** Блокирующее состояние: нет согласия на ИИ или роль без доступа. */
 export type ChatBlock = "consent" | "forbidden" | null;
@@ -34,13 +34,27 @@ let seq = 0;
 const cache = new Map<string, UiMessage[]>();
 const listeners = new Set<() => void>();
 
+/** Выход/смена аккаунта: стираем переписку в памяти и sessionStorage. */
+export function clearChats() {
+  cache.clear();
+  try {
+    for (const key of Object.keys(sessionStorage)) if (key.startsWith(STORAGE)) sessionStorage.removeItem(key);
+  } catch {
+    /* приватный режим */
+  }
+  listeners.forEach((l) => l());
+}
+
 function load(scope: string): UiMessage[] {
   const hit = cache.get(scope);
   if (hit) return hit;
   let saved: UiMessage[] = EMPTY;
   try {
     const raw = sessionStorage.getItem(STORAGE + scope);
-    if (raw) saved = JSON.parse(raw) as UiMessage[];
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw);
+      saved = Array.isArray(parsed) ? (parsed as UiMessage[]) : EMPTY;
+    }
   } catch {
     saved = EMPTY;
   }
@@ -55,7 +69,7 @@ function store(scope: string, update: (all: UiMessage[]) => UiMessage[]) {
     // картинки тяжёлые для sessionStorage; «сохраняется» после перезагрузки — снова черновик
     const lean = next
       .filter((m) => !m.pending)
-      .map(({ images: _images, ...m }) => (m.draftState === "saving" ? { ...m, draftState: "pending" as const } : m));
+      .map(({ images: _images, ...m }) => (m.draftState === "saving" ? { ...m, draftState: "pending" as const, draftCheck: true } : m));
     sessionStorage.setItem(STORAGE + scope, JSON.stringify(lean));
   } catch {
     /* переполнение или приватный режим — остаётся память вкладки */
