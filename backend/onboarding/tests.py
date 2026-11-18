@@ -2,6 +2,7 @@ import json
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from accounts.consent import set_consent
@@ -59,6 +60,7 @@ def make_user(username, email=""):
 
 class Base(TestCase):
     def setUp(self):
+        cache.clear()
         self.user = make_user("newbie", "new@example.com")
         self.client.force_login(self.user)
 
@@ -238,3 +240,35 @@ class AgentTests(Base):
         with patch.object(llm, "is_configured", return_value=True), patch.object(llm, "complete", side_effect=llm.AiUnavailable("x")):
             r = post(self.client, "/api/onboarding/message/", {"text": "Ali", "step": "name"}).json()
         self.assertEqual(r["say_key"], "onboarding.agent.saved")
+
+
+class HardeningTests(Base):
+    def test_lookup_forbidden_for_demo(self):
+        biz = Business.objects.create(name="D", is_demo=True)
+        Membership.objects.create(user=self.user, business=biz, role="owner")
+        Profile.objects.filter(user=self.user).update(business=biz)
+        self.assertEqual(post(self.client, "/api/onboarding/lookup/", {"query": "203366731"}).status_code, 403)
+
+    def test_pinfl_key_is_hmac(self):
+        import hashlib
+
+        plain = hashlib.sha256(b"pinfl:12345678901234").hexdigest()
+        self.assertNotEqual(registry.lookup_key("pinfl", "12345678901234"), plain)
+        with override_settings(SECRET_KEY="other"):
+            other = registry.lookup_key("pinfl", "12345678901234")
+        self.assertNotEqual(other, registry.lookup_key("pinfl", "12345678901234"))
+
+    @override_settings(AI_CHAT_PER_MINUTE=2)
+    def test_message_throttled(self):
+        statuses = [post(self.client, "/api/onboarding/message/", {"text": "hi", "step": "name"}).status_code for _ in range(3)]
+        self.assertEqual(statuses[-1], 429)
+        self.assertNotIn(429, statuses[:2])
+
+    def test_rate_limit_counts_before_fetch(self):
+        with patch.object(registry, "fetch", side_effect=registry.SourceError("x")) as f:
+            for _ in range(registry.RATE_LIMIT_PER_HOUR):
+                registry.lookup(self.user, "Текстиль Принт")
+            calls = f.call_count
+            with self.assertRaises(registry.RateLimited):
+                registry.lookup(self.user, "Текстиль Принт")
+            self.assertEqual(f.call_count, calls)

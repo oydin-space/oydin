@@ -3,6 +3,8 @@
 from accounts.access import active_membership
 from accounts.http import ApiError, api_view, json_response, parse_json
 from ai import memory
+from ai.views import throttle
+from django.conf import settings
 
 from . import agent, flow, registry
 
@@ -24,6 +26,8 @@ def lookup(request):
     query = body.get("query")
     if not isinstance(query, str):
         raise ApiError(400, "invalid_query")
+    if flow.is_demo(request.user):
+        raise ApiError(403, "forbidden")
     try:
         row = registry.lookup(request.user, query)
     except registry.RateLimited:
@@ -41,6 +45,7 @@ def message(request):
         raise ApiError(400, "invalid_text")
     if flow.is_demo(request.user):
         raise ApiError(400, "demo_business")
+    throttle(request.user, "onboarding", settings.AI_CHAT_PER_MINUTE)
     step = body.get("step") or flow.session_for(request.user).current_step
     if step not in flow.STEPS:
         raise ApiError(400, "invalid_step")

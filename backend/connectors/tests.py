@@ -11,6 +11,18 @@ from .models import Connector
 from .services import connector_tools
 
 PUBLIC = mock.patch("publicapi.ssrf.resolve", return_value=["93.184.216.34"])
+
+
+def stream(*responses):
+    """Подмена httpx.stream: отдаёт готовые ответы по очереди как контекстные менеджеры."""
+    cms = []
+    for r in responses:
+        cm = mock.MagicMock()
+        cm.__enter__.return_value = r
+        cms.append(cm)
+    return mock.patch("httpx.stream", side_effect=cms)
+
+
 REST = {
     "kind": "rest", "name": "Stock", "description": "Stock level", "method": "get",
     "url": "https://api.example.com/items/{sku}", "auth_header": "X-Api-Key", "auth_secret": "s3cret",
@@ -77,7 +89,7 @@ class ConnectorsApiTests(TestCase):
     def test_rest_test_endpoint(self):
         cid = self.create().json()["id"]
         resp = httpx.Response(200, json={"qty": 4})
-        with PUBLIC, mock.patch("httpx.request", return_value=resp) as req:
+        with PUBLIC, stream(resp) as req:
             r = jpost(self.client, f"/api/connectors/{cid}/test/", {"args": {"sku": "a b", "wh": "1"}})
         self.assertEqual(r.json()["result"], {"status": 200, "body": {"qty": 4}})
         args, kwargs = req.call_args
@@ -109,8 +121,8 @@ class ConnectorsApiTests(TestCase):
         cid = self.create().json()["id"]
         specs = connector_tools(self.business)
         self.assertEqual(specs[0]["parameters"]["required"], ["sku"])
-        with mock.patch.object(rest_client, "call", side_effect=rest_client.CallError("Timeout")):
-            self.assertEqual(specs[0]["call"]({"sku": "1"}), {"error": "Timeout"})
+        with mock.patch.object(rest_client, "call", side_effect=rest_client.CallError("timeout")):
+            self.assertEqual(specs[0]["call"]({"sku": "1"}), {"error": "timeout"})
         Connector.objects.filter(id=cid).update(enabled=False)
         self.assertEqual(connector_tools(self.business), [])
 
@@ -124,7 +136,91 @@ class McpClientTests(TestCase):
             200, headers={"content-type": "text/event-stream"},
             text='event: message\ndata: {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"hi"}]}}\n\n',
         )
-        with PUBLIC, mock.patch("httpx.post", side_effect=[init, note, sse]) as post:
+        with PUBLIC, stream(init, note, sse) as post:
             out = mcp_client.call_tool(c, "t", {"a": 1})
         self.assertEqual(out, {"is_error": False, "text": "hi"})
         self.assertEqual(post.call_args.kwargs["headers"]["Mcp-Session-Id"], "S1")
+
+
+class SecurityTests(TestCase):
+    def setUp(self):
+        self.owner, self.business, _ = make_user("conn_sec")
+        Membership.objects.update_or_create(user=self.owner, business=self.business, defaults={"role": "owner"})
+        self.client.force_login(self.owner)
+
+    def create(self, **extra):
+        with PUBLIC:
+            return jpost(self.client, "/api/connectors/", {**REST, **extra})
+
+    def test_demo_business_forbidden(self):
+        cid = self.create().json()["id"]
+        self.business.is_demo = True
+        self.business.save()
+        self.assertEqual(self.create().status_code, 403)
+        r = self.client.patch(f"/api/connectors/{cid}/", {"enabled": False}, content_type="application/json")
+        self.assertEqual((r.status_code, r.json()["error"]), (403, "forbidden"))
+        self.assertEqual(self.client.delete(f"/api/connectors/{cid}/").status_code, 403)
+        self.assertEqual(jpost(self.client, f"/api/connectors/{cid}/test/", {}).status_code, 403)
+        self.assertEqual(self.client.get("/api/connectors/").status_code, 200)
+
+    def test_header_denylist(self):
+        for name in ("Host", "content-length", "Transfer-Encoding", "Connection", "Upgrade", "TE", "Trailer", "Keep-Alive", "Proxy-Authorization"):
+            r = self.create(auth_header=name)
+            self.assertEqual((r.status_code, r.json()["error"]), (400, "invalid_header"), name)
+
+    def test_port_rejected(self):
+        r = self.create(url="https://api.example.com:8443/items/{sku}")
+        self.assertEqual((r.status_code, r.json()["error"]), (400, "bad_port"))
+        self.assertEqual(self.create(url="https://api.example.com:443/items/{sku}").status_code, 201)
+
+    def test_oversize_response_aborted(self):
+        c = Connector(kind="rest", method="GET", url="https://api.example.com/x")
+        big = httpx.Response(200, content=b"a" * (rest_client.MAX_BYTES + 1))
+        with PUBLIC, stream(big):
+            with self.assertRaises(rest_client.CallError) as ctx:
+                rest_client.call(c, {})
+        self.assertEqual(str(ctx.exception), "response_too_large")
+
+    def test_deadline_enforced(self):
+        c = Connector(kind="rest", method="GET", url="https://api.example.com/x")
+        slow = httpx.Response(200, content=b"abc")
+        with PUBLIC, stream(slow), mock.patch("time.monotonic", side_effect=[0, 100]):
+            with self.assertRaises(rest_client.CallError) as ctx:
+                rest_client.call(c, {})
+        self.assertEqual(str(ctx.exception), "timeout")
+
+    def test_error_is_generic_code(self):
+        cid = self.create().json()["id"]
+        with PUBLIC, mock.patch("httpx.stream", side_effect=httpx.ConnectError("boom internal")):
+            r = jpost(self.client, f"/api/connectors/{cid}/test/", {"args": {"sku": "1"}})
+        self.assertEqual(r.json()["error"], "network_error")
+
+    def test_test_endpoint_throttled(self):
+        cid = self.create().json()["id"]
+        codes = [jpost(self.client, f"/api/connectors/{cid}/test/", {"args": {}}).status_code for _ in range(8)]
+        self.assertEqual(codes[:6], [200] * 6)
+        self.assertEqual(codes[-1], 429)
+
+    def test_patch_url_clears_tools_cache(self):
+        with PUBLIC:
+            cid = jpost(self.client, "/api/connectors/", {"kind": "mcp", "name": "CRM", "url": "https://mcp.example.com/mcp"}).json()["id"]
+        Connector.objects.filter(id=cid).update(tools_cache=[{"name": "t"}])
+        with PUBLIC:
+            self.client.patch(f"/api/connectors/{cid}/", {"name": "CRM2"}, content_type="application/json")
+            self.assertEqual(len(Connector.objects.get(id=cid).tools_cache), 1)
+            self.client.patch(f"/api/connectors/{cid}/", {"url": "https://other.example.com/mcp"}, content_type="application/json")
+        self.assertEqual(Connector.objects.get(id=cid).tools_cache, [])
+
+    def test_mcp_tools_capped_and_typed(self):
+        c = Connector(kind="mcp", url="https://mcp.example.com/mcp")
+        tools = ["junk", 5] + [{"name": f"t{i}"} for i in range(80)]
+        with mock.patch.object(mcp_client, "_session", return_value=None), mock.patch.object(
+            mcp_client, "_rpc", return_value=({"tools": tools}, None)
+        ):
+            out = mcp_client.list_tools(c)
+        self.assertEqual(len(out), 48)
+        with mock.patch.object(mcp_client, "_session", return_value=None), mock.patch.object(
+            mcp_client, "_rpc", return_value=({"tools": "x"}, None)
+        ):
+            with self.assertRaises(rest_client.CallError):
+                mcp_client.list_tools(c)

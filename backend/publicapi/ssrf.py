@@ -13,8 +13,11 @@ def resolve(host, port):
     return [info[4][0] for info in socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)]
 
 
-def check_url(url):
-    """Бросает UnsafeUrl, если url нельзя безопасно вызывать с сервера."""
+def check_url(url, *, default_port_only=False):
+    """Бросает UnsafeUrl, если url нельзя безопасно вызывать с сервера.
+
+    default_port_only: разрешён только порт 443 (явно или по умолчанию).
+    """
     parts = urlsplit(url)
     if parts.scheme != "https":
         raise UnsafeUrl("only_https")
@@ -25,6 +28,8 @@ def check_url(url):
         port = parts.port or 443
     except ValueError:
         raise UnsafeUrl("bad_url") from None
+    if default_port_only and port != 443:
+        raise UnsafeUrl("bad_port")
     try:
         addresses = resolve(host, port)
     except OSError:

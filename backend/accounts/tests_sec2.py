@@ -73,3 +73,13 @@ class WidgetHardeningTests(TestCase):
     def test_future_rejected(self):
         r = self.post(widget_payload(id=803, auth_date=int(time.time()) + 120))
         self.assertEqual((r.status_code, r.json()), (400, {"error": "expired"}))
+
+
+class SentryScrubTests(TestCase):
+    def test_before_send_filters_secrets(self):
+        from config.settings import sentry_before_send
+
+        event = {"request": {"data": {"auth_secret": "x", "nested": {"Token": "y", "ok": 1}, "code": "1"}}}
+        out = sentry_before_send(event, {})["request"]["data"]
+        self.assertEqual((out["auth_secret"], out["code"], out["nested"]["Token"]), ("[Filtered]",) * 3)
+        self.assertEqual(out["nested"]["ok"], 1)

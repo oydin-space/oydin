@@ -119,3 +119,55 @@ class ClickTests(TestCase):
         self.assertEqual(self.call("complete", self.data(True, error="-5017"))["error"], -9)
         self.assertEqual(Payment.objects.get().status, "cancelled")
         self.assertFalse(Subscription.objects.exists())
+
+
+class BillingHardeningTests(ClickTests):
+    # наследует setUp/data/call; унаследованные тесты не дублируем
+
+    def test_complete_requires_same_trans_id(self):
+        self.call("prepare", self.data())
+        self.assertEqual(self.call("complete", self.data(True, click_trans_id="1234"))["error"], -6)
+        self.assertFalse(Subscription.objects.exists())
+
+    def test_prepare_does_not_overwrite_trans_id(self):
+        self.call("prepare", self.data())
+        self.assertEqual(self.call("prepare", self.data(click_trans_id="1234"))["error"], -8)
+        self.assertEqual(Payment.objects.get().click_trans_id, "9001")
+        self.assertEqual(self.call("prepare", self.data())["error"], 0)
+
+    def test_expired_pending_rejected(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        Payment.objects.filter(pk=self.payment.pk).update(created_at=timezone.now() - timedelta(hours=2))
+        self.assertEqual(self.call("prepare", self.data())["error"], -5)
+
+    def test_cancel_reverts_pending_subscription(self):
+        Subscription.objects.create(business=self.business, plan=self.payment.plan, status="pending")
+        self.call("prepare", self.data())
+        self.assertEqual(self.call("complete", self.data(True, error="-5017"))["error"], -9)
+        self.assertFalse(Subscription.objects.exists())
+
+
+class CheckoutHardeningTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
+    @override_settings(**CLICK)
+    def test_demo_forbidden(self):
+        user, business, _ = make_user("bill_demo")
+        business.is_demo = True
+        business.save()
+        Membership.objects.update_or_create(user=user, business=business, defaults={"role": "owner"})
+        self.client.force_login(user)
+        self.assertEqual(jpost(self.client, "/api/billing/checkout/", {"plan": "pro"}).status_code, 403)
+
+    @override_settings(**CLICK)
+    def test_throttled(self):
+        user, business, _ = make_user("bill_thr")
+        Membership.objects.update_or_create(user=user, business=business, defaults={"role": "owner"})
+        self.client.force_login(user)
+        codes = [jpost(self.client, "/api/billing/checkout/", {"plan": "pro"}).status_code for _ in range(11)]
+        self.assertEqual(codes[-1], 429)
+        self.assertNotIn(429, codes[:10])

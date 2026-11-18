@@ -6,6 +6,7 @@ from django.utils import timezone
 from accounts.access import OWNER, require_role
 from accounts.http import ApiError, api_view, json_response, parse_json
 from accounts.models import Business
+from ai.views import throttle
 from publicapi import ssrf
 
 from . import crypto, mcp_client, rest_client
@@ -13,6 +14,13 @@ from .models import Connector
 
 MAX_CONNECTORS = 20
 MAX_SCHEMA = 8000
+TEST_PER_MINUTE = 6
+FORBIDDEN_HEADERS = {"host", "content-length", "transfer-encoding", "connection", "upgrade", "te", "trailer", "keep-alive"}
+
+
+def forbid_demo(request):
+    if request.business.is_demo:
+        raise ApiError(403, "forbidden")
 
 
 def serialize(c):
@@ -38,7 +46,7 @@ def clean_url(value, kind):
     value = value.strip()
     probe = rest_client.PLACEHOLDER.sub("x", value) if kind == Connector.Kind.REST else value
     try:
-        ssrf.check_url(probe)
+        ssrf.check_url(probe, default_port_only=True)
     except ssrf.UnsafeUrl as exc:
         raise ApiError(400, str(exc)) from None
     return value
@@ -59,6 +67,8 @@ def clean_header(body):
     header = text(body, "auth_header", max_len=60)
     if header and not all(ch.isalnum() or ch in "-_" for ch in header):
         raise ApiError(400, "invalid_auth_header")
+    if header.lower() in FORBIDDEN_HEADERS or header.lower().startswith("proxy-"):
+        raise ApiError(400, "invalid_header")
     return header
 
 
@@ -107,6 +117,7 @@ def apply(c, body, *, creating):
 def connectors(request):
     if request.method == "GET":
         return json_response([serialize(c) for c in Connector.objects.filter(business=request.business)])
+    forbid_demo(request)
     body = parse_json(request)
     c = Connector(business=request.business, created_by=request.user)
     apply(c, body, creating=True)
@@ -121,12 +132,17 @@ def connectors(request):
 @api_view("GET", "PATCH", "DELETE")
 @require_role(OWNER)
 def connector_detail(request, id):
+    if request.method != "GET":
+        forbid_demo(request)
     c = own(request, id)
     if request.method == "DELETE":
         c.delete()
         return json_response({"ok": True})
     if request.method == "PATCH":
+        old_url = c.url
         apply(c, parse_json(request), creating=False)
+        if c.url != old_url:
+            c.tools_cache = []
         c.save()
     return json_response(serialize(c))
 
@@ -135,6 +151,8 @@ def connector_detail(request, id):
 @require_role(OWNER)
 def connector_test(request, id):
     """MCP: подключается и обновляет список инструментов. REST: вызывает обработчик с переданными args."""
+    forbid_demo(request)
+    throttle(request.user, "connector_test", TEST_PER_MINUTE)
     c = own(request, id)
     body = parse_json(request, required=False)
     result = None
@@ -148,7 +166,7 @@ def connector_test(request, id):
             result = rest_client.call(c, args)
         c.last_test_ok, c.last_test_error = True, ""
     except rest_client.CallError as exc:
-        c.last_test_ok, c.last_test_error = False, str(exc)[:200]
+        c.last_test_ok, c.last_test_error = False, str(exc)[:60]
     c.last_test_at = timezone.now()
     c.save(update_fields=["tools_cache", "last_test_ok", "last_test_error", "last_test_at"])
     return json_response({"ok": c.last_test_ok, "error": c.last_test_error, "result": result, "connector": serialize(c)})

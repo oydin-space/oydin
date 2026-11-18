@@ -2,14 +2,10 @@
 
 import json
 
-import httpx
-
-from publicapi import ssrf
-
 from . import crypto
-from .rest_client import MAX_RESPONSE, CallError
+from .rest_client import MAX_RESPONSE, CallError, fetch
 
-TIMEOUT = 15
+MAX_TOOLS = 50
 PROTOCOL = "2025-03-26"
 
 
@@ -52,15 +48,7 @@ def _parse(resp, request_id):
 
 
 def _post(connector, payload, session_id=None):
-    try:
-        ssrf.check_url(connector.url)
-        return httpx.post(
-            connector.url, json=payload, headers=_headers(connector, session_id), timeout=TIMEOUT, follow_redirects=False
-        )
-    except ssrf.UnsafeUrl as exc:
-        raise CallError(str(exc)) from None
-    except httpx.HTTPError as exc:
-        raise CallError(type(exc).__name__) from None
+    return fetch("POST", connector.url, headers=_headers(connector, session_id), json=payload)
 
 
 def _rpc(connector, method, params, session_id, request_id):
@@ -70,8 +58,9 @@ def _rpc(connector, method, params, session_id, request_id):
     msg = _parse(resp, request_id)
     if "error" in msg:
         err = msg["error"]
-        raise CallError(str(err.get("message", "rpc_error") if isinstance(err, dict) else err)[:200])
-    return msg.get("result") or {}, resp
+        raise CallError("rpc_error")
+    result = msg.get("result")
+    return (result if isinstance(result, dict) else {}), resp
 
 
 def _session(connector):
@@ -91,7 +80,10 @@ def list_tools(connector):
     session_id = _session(connector)
     result, _ = _rpc(connector, "tools/list", {}, session_id, 2)
     tools = []
-    for t in result.get("tools", []):
+    raw = result.get("tools", [])
+    if not isinstance(raw, list):
+        raise CallError("bad_response")
+    for t in raw[:MAX_TOOLS]:
         if isinstance(t, dict) and isinstance(t.get("name"), str):
             tools.append({
                 "name": t["name"],
@@ -104,5 +96,7 @@ def list_tools(connector):
 def call_tool(connector, name, args):
     session_id = _session(connector)
     result, _ = _rpc(connector, "tools/call", {"name": name, "arguments": args or {}}, session_id, 2)
-    text = "\n".join(c.get("text", "") for c in result.get("content", []) if isinstance(c, dict) and c.get("type") == "text")
+    content = result.get("content", [])
+    content = content if isinstance(content, list) else []
+    text = "\n".join(str(c.get("text", "")) for c in content if isinstance(c, dict) and c.get("type") == "text")
     return {"is_error": bool(result.get("isError")), "text": text[:MAX_RESPONSE]}

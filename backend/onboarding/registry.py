@@ -1,10 +1,11 @@
 """Поиск компании по ИНН/ПИНФЛ/названию: официальный партнёрский API (Didox), затем скрапинг orginfo.uz.
 
 Любой сбой источника превращается в статус ``unavailable`` — онбординг продолжается ручным вводом.
-ПИНФЛ не сохраняется: в журнале только sha256-ключ.
+ПИНФЛ не сохраняется: в журнале только HMAC-SHA256-ключ.
 """
 
 import hashlib
+import hmac
 import html
 import json
 import logging
@@ -15,6 +16,7 @@ import urllib.request
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 
 from .models import RegistryLookup
@@ -56,7 +58,7 @@ def classify(query):
 
 
 def lookup_key(kind, value):
-    return hashlib.sha256(f"{kind}:{value.lower()}".encode()).hexdigest()
+    return hmac.new(settings.SECRET_KEY.encode(), f"{kind}:{value.lower()}".encode(), hashlib.sha256).hexdigest()
 
 
 def fetch(url, headers=None):
@@ -216,8 +218,14 @@ def lookup(user, query):
     kind, value = classify(query)
     if not kind:
         return None
-    since = timezone.now() - timedelta(hours=1)
-    if RegistryLookup.objects.filter(user=user, created_at__gte=since).count() >= RATE_LIMIT_PER_HOUR:
+    limit_key = f"registry:lookup:{user.pk}"
+    cache.add(limit_key, 0, 3600)
+    try:
+        count = cache.incr(limit_key)
+    except ValueError:
+        cache.set(limit_key, 1, 3600)
+        count = 1
+    if count > RATE_LIMIT_PER_HOUR:
         raise RateLimited()
     key = lookup_key(kind, value)
     cached = (

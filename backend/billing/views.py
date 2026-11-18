@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from accounts.access import OWNER, require_role
+from ai.views import throttle
 from accounts.http import ApiError, api_view, json_response, parse_json
 from planning.texts import resolve_lang
 
@@ -14,6 +15,8 @@ from . import click
 from .models import Payment, Plan, Subscription
 
 PERIOD = timedelta(days=30)
+PAYMENT_TTL = timedelta(hours=1)
+CHECKOUT_PER_MINUTE = 10
 
 
 def pick(value, lang):
@@ -56,6 +59,9 @@ def subscription(request):
 @api_view("POST")
 @require_role(OWNER)
 def checkout(request):
+    if request.business.is_demo:
+        raise ApiError(403, "forbidden")
+    throttle(request.user, "checkout", CHECKOUT_PER_MINUTE)
     body = parse_json(request)
     plan = Plan.objects.filter(code=str(body.get("plan", "")), is_active=True).first()
     if plan is None:
@@ -111,8 +117,13 @@ def prepare(request):
             return reply(data, click.ALREADY_PAID)
         if payment.status == Payment.Status.CANCELLED:
             return reply(data, click.CANCELLED)
+        click_trans_id = str(data.get("click_trans_id", ""))
+        if payment.status == Payment.Status.PENDING and payment.created_at < timezone.now() - PAYMENT_TTL:
+            return reply(data, click.ORDER_NOT_FOUND)
+        if payment.click_trans_id and payment.click_trans_id != click_trans_id:
+            return reply(data, click.BAD_REQUEST)
         payment.status = Payment.Status.PREPARED
-        payment.click_trans_id = str(data.get("click_trans_id", ""))
+        payment.click_trans_id = click_trans_id
         payment.click_paydoc_id = str(data.get("click_paydoc_id", ""))
         payment.save()
         return reply(data, click.OK, merchant_prepare_id=payment.pk)
@@ -133,11 +144,16 @@ def complete(request):
             return reply(data, click.ALREADY_PAID)
         if payment.status == Payment.Status.CANCELLED:
             return reply(data, click.CANCELLED)
+        if payment.click_trans_id != str(data.get("click_trans_id", "")):
+            return reply(data, click.TRANSACTION_NOT_FOUND)
         if code:
             return reply(data, code)
         if str(data.get("error", "0")) != "0":
             payment.status = Payment.Status.CANCELLED
             payment.save()
+            Subscription.objects.filter(
+                business=payment.business, plan=payment.plan, status=Subscription.Status.PENDING
+            ).delete()
             return reply(data, click.CANCELLED)
         now = timezone.now()
         payment.status, payment.paid_at = Payment.Status.PAID, now

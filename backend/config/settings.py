@@ -156,12 +156,33 @@ LANGFUSE_SECRET_KEY = env("LANGFUSE_SECRET_KEY", default="")
 LANGFUSE_BASE_URL = env("LANGFUSE_BASE_URL", default="https://cloud.langfuse.com")
 # Ошибки уходят в self-hosted Bugsink (Sentry-совместимый); без DSN SDK не импортируется.
 SENTRY_DSN = env("SENTRY_DSN", default="")
+SENTRY_SCRUB_KEYS = {"auth_secret", "init_data", "password", "code", "token", "secret"}
+
+
+def _scrub(value):
+    if isinstance(value, dict):
+        return {k: "[Filtered]" if str(k).lower() in SENTRY_SCRUB_KEYS else _scrub(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_scrub(v) for v in value]
+    return value
+
+
+def sentry_before_send(event, hint):
+    request = event.get("request")
+    if isinstance(request, dict):
+        for key in ("data", "query_string", "cookies"):
+            if key in request:
+                request[key] = _scrub(request[key])
+    return event
+
+
 if SENTRY_DSN:
     import sentry_sdk
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         send_default_pii=False,
+        before_send=sentry_before_send,
         traces_sample_rate=0.1,
         environment="development" if DEBUG else "production",
     )

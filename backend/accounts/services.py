@@ -139,5 +139,10 @@ def demo_user():
     if user is None:
         from finance.seed import seed_demo
 
-        user = seed_demo()
+        return seed_demo()
+    # Демо-профиль мог быть переключён на чужой бизнес — каждый вход возвращает к демо-бизнесу.
+    membership = Membership.objects.filter(user=user, business__is_demo=True).order_by("business_id").first()
+    if membership is not None and user.profile.business_id != membership.business_id:
+        user.profile.business_id = membership.business_id
+        user.profile.save(update_fields=["business"])
     return user

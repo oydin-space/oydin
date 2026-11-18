@@ -114,6 +114,33 @@ class InviteLinkTests(TestCase):
         self.assertEqual(Invite.objects.get(code=code).uses, 0)
 
 
+class DemoAcceptTests(TestCase):
+    def test_demo_user_cannot_accept(self):
+        from accounts.services import DEMO_USERNAME
+        from django.contrib.auth import get_user_model
+
+        owner, business = make_member("inv_own")
+        demo = get_user_model().objects.create(username=DEMO_USERNAME)
+        invite = Invite.objects.create(
+            business=business, code="c" * 20, role="seller", created_by=owner, expires_at=timezone.now() + timedelta(days=1)
+        )
+        self.client.force_login(demo)
+        r = jpost(self.client, f"/api/invites/{invite.code}/accept/", {})
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(Membership.objects.filter(user=demo, business=business).exists())
+
+    def test_demo_user_login_resets_business(self):
+        from accounts.models import Business, Profile
+        from accounts.services import demo_user
+        from finance.seed import seed_demo
+
+        user = seed_demo()
+        other = Business.objects.create(name="X")
+        Membership.objects.create(user=user, business=other, role="owner")
+        Profile.objects.filter(user=user).update(business=other)
+        self.assertTrue(demo_user().profile.business.is_demo)
+
+
 class MemberPermissionTests(TestCase):
     def setUp(self):
         self.owner, self.biz = make_member("own", role="owner")

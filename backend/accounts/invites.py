@@ -11,7 +11,7 @@ from django.utils import timezone
 from .access import OWNER, get_profile
 from .http import ApiError, api_view, json_response, parse_json
 from .models import Invite, Membership
-from .services import serialize_user
+from .services import DEMO_USERNAME, serialize_user
 from .views import _membership_in
 
 INVITE_ROLES = {Membership.Role.ACCOUNTANT, Membership.Role.SELLER}
@@ -73,7 +73,7 @@ def invites(request, business_id):
         raise ApiError(403, "forbidden")
     body = parse_json(request)
     role = body.get("role")
-    if role not in INVITE_ROLES:
+    if not isinstance(role, str) or role not in INVITE_ROLES:
         raise ApiError(400, "invalid_role")
     hours = _int(body, "expires_in_hours", DEFAULT_HOURS, MIN_HOURS, MAX_HOURS)
     max_uses = _int(body, "max_uses", 1, 1, MAX_USES_LIMIT)
@@ -102,12 +102,10 @@ def _gone(invite):
         raise ApiError(410, f"invite_{status}")
 
 
-def _client_ip(request):
-    return request.META.get("REMOTE_ADDR", "")
-
-
 @api_view("GET", auth=False)
 def invite_preview(request, code):
+    from .views import _client_ip  # lazy: views imports this module's neighbours
+
     _throttle(f"invite:preview:{_client_ip(request)}", PREVIEW_LIMIT_PER_MINUTE, 60)
     invite = Invite.objects.select_related("business").filter(code=code).first()
     if invite is None:
@@ -123,6 +121,8 @@ def invite_preview(request, code):
 @api_view("POST", business=False)
 @transaction.atomic
 def invite_accept(request, code):
+    if request.user.username == DEMO_USERNAME:
+        raise ApiError(403, "forbidden")
     invite = Invite.objects.select_for_update().select_related("business").filter(code=code).first()
     if invite is None:
         raise ApiError(404, "not_found")
