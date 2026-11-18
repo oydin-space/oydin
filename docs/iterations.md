@@ -21,3 +21,11 @@ Running log of iterations, bug fixes, new features and research. Newest at the b
 - Second security review (gpt-6-astra) on the previous fix wave, 6 majors fixed: seller-safe transfer merge, same-currency merge, `/sync/` user check, atomic chat-bound Telegram link codes, usable-user gate for bot commands and jobs, offline flush invalidation on session change, atomic tool cap.
 - Gates: backend 417 tests, tsc, eslint, 45 web tests, next build.
 - Open: Uzbek typographic apostrophes in landing copy and legal text keep U+2018/U+2019; desktop (1280) review in progress.
+
+## Iteration 3 — cash-gap focus, oydin.space (2026-11-18)
+- **Scope**: product refocused on cash gaps. Home answers «Сколько я могу забрать или потратить сегодня, чтобы в пятницу хватило на зарплату и аренду?» via `GET /api/planning/today/` (can_take, gap date and amount, breakdown of obligations, order payments, 30-day averages, tax reserve). Commits `850b12b`, `5f1f53a`, `ef30bfa`.
+- **Demo**: Print Lab Tashkent — salary 15M + advance 3M + rent 6M on Friday, B2B order remainder 8M due five days later → Friday shortfall 3M (synthetic seed).
+- **HR**: reduced to salaries and advances (UI only; people backend, locations and staff insights kept server-side).
+- **Docs**: `docs/product.md` rewritten, `docs/scenarios.md` (10 business scenarios, what is and is not modelled), OpenAPI covers today/people/modules/rollup/beginner.
+- **Infra**: domain oydin.space with oydin.sayfi.uz 301; Vault restart-loop on mlock fixed with memlock ulimit (`86d9b60`); prod was briefly 502 during the vault failure, restored on previous images.
+- **Gates**: backend tests OK (clean worktree), migrations clean, tsc, eslint, 45 web tests, build.

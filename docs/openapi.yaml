@@ -1086,6 +1086,7 @@ components:
           properties: { draw_month: { type: integer }, contribution_month: { type: integer }, draw_30d: { type: integer }, contribution_30d: { type: integer } }
     TodayItem:
       type: object
+      required: [date, title, kind, amount, source, ref_id]
       properties:
         date: { type: [string, 'null'], format: date, description: 'null у средних за период' }
         title: { type: string, description: 'Название обязательства/заказа — как сохранено; для средних локализуется по `lang`' }
@@ -1097,6 +1098,7 @@ components:
         per_day: { type: integer, description: Только для average }
     TodayAnswer:
       type: object
+      required: [as_of, until, until_reason, balance, can_take, verdict, low, gap, tax_reserve, items, totals]
       description: 'Окно (today, until] включительно; деньги — целые UZS. `balance + totals.inflow + totals.outflow = totals.end_balance`'
       properties:
         as_of: { type: string, format: date }
@@ -1106,10 +1108,10 @@ components:
         can_take: { type: integer, description: 'max(0, low.balance − tax_reserve)' }
         verdict: { type: string, enum: [ok, tight, gap], description: 'gap — есть дыра; tight — can_take = 0 или < 10% оттока окна; иначе ok' }
         low: { type: object, description: Минимум прогнозного баланса в окне, properties: { date: { type: string, format: date }, balance: { type: integer } } }
-        gap: { type: [object, 'null'], description: 'null, если low.balance ≥ 0', properties: { date: { type: string, format: date }, amount: { type: integer } } }
+        gap: { type: [object, 'null'], description: 'null, если прогнозный баланс в окне не уходит ниже 0; иначе date — день минимального баланса (= low.date), amount = −low.balance', properties: { date: { type: string, format: date }, amount: { type: integer } }, required: [date, amount] }
         tax_reserve: { type: integer }
         items: { type: array, items: { $ref: '#/components/schemas/TodayItem' }, description: 'По дате, средние в конце' }
-        totals: { type: object, properties: { inflow: { type: integer }, outflow: { type: integer }, end_balance: { type: integer } } }
+        totals: { type: object, required: [inflow, outflow, end_balance], properties: { inflow: { type: integer }, outflow: { type: integer }, end_balance: { type: integer } } }
 paths:
   /health/:
     get:
@@ -3013,7 +3015,7 @@ paths:
   /planning/today/:
     get:
       summary: «Сколько можно забрать или потратить сегодня, чтобы к дате хватило на зарплату и аренду?»
-      description: 'Язык средних — `?lang=` / `Accept-Language`. 400 `invalid_until` — `until` не дата или не в (сегодня, сегодня+90]; seller → 403 `forbidden`; 401 без сессии; 503 `no_rate`'
+      description: 'Язык названий средних — `?lang=` / `Accept-Language`. 400 `{error: invalid_until}` — `until` не дата или не в (сегодня, сегодня+90]; 401 без сессии; seller → 403 `forbidden`; 503 `rates_unavailable` (нет курса для валютного счёта)'
       x-roles: [owner, accountant]
       parameters:
         - { name: until, in: query, schema: { type: string, format: date }, description: 'По умолчанию — срок ближайшей зарплаты/аренды, иначе пятница' }
