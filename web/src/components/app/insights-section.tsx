@@ -6,8 +6,10 @@ import type { Insight } from "@/lib/types"
 
 const CONF = { high: "positive", medium: "caution", low: "negative" } as const
 
-export function InsightsSection({ items }: { items: Insight[] }) {
+export function InsightsSection({ items: all }: { items: Insight[] }) {
   const t = useCoreT()
+  // Staff cards are not about the cash-gap forecast; the backend still produces them.
+  const items = all.filter((i) => !i.id.startsWith("staff-"))
   if (!items.length) return null
   return (
     <Section icon="lightbulb" title={t("core.dash.insightsTitle")}>

@@ -58,7 +58,7 @@ const remove = (path: string) => api<void>(path, { method: "DELETE" });
 export const peopleApi = {
   list: () => api<{ people: Person[] }>("/people/").then((r) => r.people),
   create: (body: PersonInput) => post<Person>("/people/", body),
-  update: (id: number, body: PersonInput) => patch<Person>(`/people/${id}/`, body),
+  update: (id: number, body: Partial<PersonInput>) => patch<Person>(`/people/${id}/`, body),
   remove: (id: number) => remove(`/people/${id}/`),
   summary: () => api<PeopleSummary>("/people/summary/"),
   locations: () => api<{ locations: PeopleLocation[] }>("/people/locations/").then((r) => r.locations),

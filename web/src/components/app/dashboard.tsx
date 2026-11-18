@@ -14,11 +14,12 @@ import { useApi } from "@/lib/use-api"
 import { MorningBrief } from "@/components/brief/morning-brief"
 import { UpcomingCard } from "@/components/brief/upcoming-card"
 import { useBriefData } from "@/components/brief/use-brief-data"
+import { CashAnswer } from "./cash-answer"
 import { BriefCards, BriefCardsSkeleton } from "./brief-cards"
 import { FirstSteps } from "./first-steps"
 import { InsightsSection } from "./insights-section"
 import { PeriodButton } from "./period-picker"
-import { PulseDetails, PulseHero, PulseHeroSkeleton } from "./pulse-hero"
+import { PulseDetails, PulseHeroSkeleton } from "./pulse-hero"
 import { QuickAdd } from "./quick-add"
 
 export function Dashboard() {
@@ -67,8 +68,8 @@ export function Dashboard() {
   else
     body = (
       <div className="flex flex-col gap-4">
+        <CashAnswer />
         <MorningBrief pulse={pulse.data!} payments={brief.payments} debtors={brief.debtors} />
-        <PulseHero pulse={pulse.data!} />
         <QuickAdd onEntry={(direction) => open({ values: { direction } })} />
         <BriefCards pulse={pulse.data!} tools={pinned} />
         <div className="mt-2 flex flex-col gap-6">

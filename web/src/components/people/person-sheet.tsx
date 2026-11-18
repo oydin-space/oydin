@@ -1,56 +1,44 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Dialog, Input, Select, TaskSheet, Textarea, toast } from "@/components/ui";
+import { Button, Dialog, Input, Select, TaskSheet, toast } from "@/components/ui";
 import { useT } from "@/i18n";
-import { CURRENCIES, KINDS, PAY_TYPES, peopleApi, type PeopleLocation, type PersonInput, type Person, type PersonCurrency, type PayType, type PersonKind } from "@/lib/people-api";
+import { CURRENCIES, PAY_TYPES, peopleApi, personFromDraft, type Person, type PersonCurrency, type PayType } from "@/lib/people-api";
 import { peopleError } from "./format";
 
-const NO_LOCATION = "none";
+const PAID_TYPES = PAY_TYPES.filter((p) => p !== "none");
 const AMOUNT = /^\d+(\.\d{1,2})?$/;
 
 interface Draft {
   name: string;
-  kind: PersonKind;
   pay_type: PayType;
   pay_amount: string;
   currency: PersonCurrency;
-  location: string;
-  role_title: string;
   started_on: string;
   ended_on: string;
-  note: string;
 }
 
-const toDraft = (p: Person | null, kind: PersonKind): Draft => ({
+const toDraft = (p: Person | null): Draft => ({
   name: p?.name ?? "",
-  kind: p?.kind ?? kind,
   pay_type: p?.pay_type ?? "monthly",
   pay_amount: p?.pay_amount ?? "",
   currency: p?.currency ?? "UZS",
-  location: p?.location_id != null ? String(p.location_id) : NO_LOCATION,
-  role_title: p?.role_title ?? "",
   started_on: p?.started_on ?? "",
   ended_on: p?.ended_on ?? "",
-  note: p?.note ?? "",
 });
 
 /** Mount only while open so every opening starts from a fresh draft. */
 export function PersonSheet({
   person,
-  defaultKind,
-  locations,
   onClose,
   onChanged,
 }: {
   person: Person | null;
-  defaultKind: PersonKind;
-  locations: PeopleLocation[];
   onClose: () => void;
   onChanged: () => Promise<void>;
 }) {
   const t = useT();
-  const [draft, setDraft] = useState(() => toDraft(person, defaultKind));
+  const [draft, setDraft] = useState(() => toDraft(person));
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -60,11 +48,10 @@ export function PersonSheet({
     setDirty(true);
   };
 
-  const paid = draft.pay_type !== "none";
-  const amount = draft.pay_amount.trim().replace(",", ".");
+    const amount = draft.pay_amount.trim().replace(",", ".");
   const errors = {
     name: draft.name.trim() ? undefined : t("people.err.name"),
-    amount: paid && amount && !AMOUNT.test(amount) ? t("people.err.amount") : undefined,
+    amount: AMOUNT.test(amount) ? undefined : t("people.err.amount"),
     dates: draft.started_on && draft.ended_on && draft.ended_on < draft.started_on ? t("people.err.dates") : undefined,
   };
   const invalid = Boolean(errors.name || errors.amount || errors.dates);
@@ -88,19 +75,15 @@ export function PersonSheet({
 
   function submit() {
     if (invalid) return setShowErrors(true);
-    const body: PersonInput = {
+    const shown = {
       name: draft.name.trim(),
-      kind: draft.kind,
       pay_type: draft.pay_type,
-      pay_amount: paid && amount ? amount : null,
+      pay_amount: amount,
       currency: draft.currency,
-      location_id: draft.location === NO_LOCATION ? null : Number(draft.location),
-      role_title: draft.role_title.trim(),
       started_on: draft.started_on || null,
       ended_on: draft.ended_on || null,
-      note: draft.note.trim(),
     };
-    void run(() => (person ? peopleApi.update(person.id, body) : peopleApi.create(body)));
+    void run(() => (person ? peopleApi.update(person.id, shown) : peopleApi.create({ ...personFromDraft({ name: shown.name }), ...shown })));
   }
 
   function remove() {
@@ -137,19 +120,11 @@ export function PersonSheet({
         <div className="flex flex-col gap-4">
           <Input label={t("people.field.name")} value={draft.name} onChange={(e) => set("name", e.target.value)} error={showErrors ? errors.name : undefined} required autoComplete="off" />
           <Select
-            label={t("people.field.kind")}
-            value={draft.kind}
-            onValueChange={(v) => set("kind", v as PersonKind)}
-            options={KINDS.map((k) => ({ value: k, label: t(`people.kindOne.${k}`) }))}
-          />
-          <Input label={t("people.field.roleTitle")} value={draft.role_title} onChange={(e) => set("role_title", e.target.value)} />
-          <Select
             label={t("people.field.payType")}
             value={draft.pay_type}
             onValueChange={(v) => set("pay_type", v as PayType)}
-            options={PAY_TYPES.map((p) => ({ value: p, label: t(`people.pay.${p}`) }))}
+            options={PAID_TYPES.map((p) => ({ value: p, label: t(`people.pay.${p}`) }))}
           />
-          {paid ? (
             <div className="grid grid-cols-[1fr_8rem] gap-3">
               <Input
                 label={t("people.field.payAmount")}
@@ -165,18 +140,10 @@ export function PersonSheet({
                 options={CURRENCIES.map((c) => ({ value: c, label: c }))}
               />
             </div>
-          ) : null}
-          <Select
-            label={t("people.field.location")}
-            value={draft.location}
-            onValueChange={(v) => set("location", v)}
-            options={[{ value: NO_LOCATION, label: t("people.field.noLocation") }, ...locations.map((l) => ({ value: String(l.id), label: l.name }))]}
-          />
           <div className="grid grid-cols-2 gap-3">
             <Input type="date" label={t("people.field.startedOn")} value={draft.started_on} onChange={(e) => set("started_on", e.target.value)} />
             <Input type="date" label={t("people.field.endedOn")} value={draft.ended_on} onChange={(e) => set("ended_on", e.target.value)} error={showErrors ? errors.dates : undefined} />
           </div>
-          <Textarea label={t("people.field.note")} value={draft.note} onChange={(e) => set("note", e.target.value)} rows={3} />
           {error ? (
             <p role="alert" className="text-small text-danger">
               {error}

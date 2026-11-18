@@ -1,14 +1,11 @@
 "use client"
 
-import { CalendarClock, CheckCircle2, ShieldCheck, TriangleAlert, Eye } from "lucide-react"
-import { useCoreT, type CoreKey, type CoreT } from "@/components/app/use-core-t"
-import { AmountText, Badge, Icon, ProgressRing, Skeleton, StatTile, Text, type StatTileProps } from "@/components/ui"
+import { CalendarClock, CheckCircle2 } from "lucide-react"
+import { useCoreT, type CoreT } from "@/components/app/use-core-t"
+import { AmountText, Icon, Skeleton, StatTile, Text, type StatTileProps } from "@/components/ui"
 import { useI18n } from "@/i18n"
 import type { PulseData } from "@/lib/core-api"
 import { dayMonth, pct, softSum, type FormatLocale } from "@/lib/format"
-
-const TONE_ICON = { calm: ShieldCheck, watch: Eye, risk: TriangleAlert } as const
-const TONE = { calm: "positive", watch: "caution", risk: "negative" } as const
 
 
 /** One runway figure for the whole Home: with a gap it is "until the gap date", the same forecast the gap card uses. */
@@ -17,48 +14,8 @@ export function runwayText(pulse: PulseData, t: CoreT, locale: FormatLocale): st
   return pulse.gap ? t("core.homep.runwayGap", { count, date: dayMonth(pulse.gap.date, locale) }) : t("core.dash.runway", { count })
 }
 
-/** Why "safe to spend" is smaller than the balance (shown when it is 0). */
-function safeReason(pulse: PulseData, t: CoreT, locale: FormatLocale): string | null {
-  const amount = softSum(pulse.reserved_upcoming ?? pulse.balance, locale)
-  switch (pulse.safe_reason) {
-    case "gap":
-      return pulse.gap ? t("core.homep.safeGap", { amount, date: dayMonth(pulse.gap.date, locale) }) : null
-    case "reserved":
-      return t("core.homep.safeReserved", { amount })
-    case "tax":
-      return t("core.homep.safeTax")
-    case "empty":
-      return t("core.homep.safeEmpty")
-    default:
-      return null
-  }
-}
-
 export function PulseHeroSkeleton() {
   return <Skeleton className="h-[148px] w-full rounded-[28px]" aria-hidden="true" />
-}
-
-/** Safe-to-spend as one big friendly number, with the score ring and a plain status. */
-export function PulseHero({ pulse }: { pulse: PulseData }) {
-  const t = useCoreT()
-  const { locale } = useI18n()
-  const reason = pulse.safe_to_spend > 0 ? null : safeReason(pulse, t, locale)
-  return (
-    <div className="flex items-center gap-4 rounded-[28px] border border-border bg-card p-5 md:p-6">
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-        <Badge className="self-start" icon={<Icon icon={TONE_ICON[pulse.tone as keyof typeof TONE_ICON] ?? ShieldCheck} size={16} />} tone={TONE[pulse.tone as keyof typeof TONE] ?? "neutral"}>{t(`core.dash.tone.${pulse.tone}` as CoreKey)}</Badge>
-        <Text variant="secondary" className="mt-1 text-foreground/70">{t("core.dash.safe")}</Text>
-        <AmountText value={pulse.safe_to_spend} className="text-[34px] font-bold leading-none md:text-[44px]" />
-        {reason ? <Text variant="caption" tone="muted" className="mt-1">{reason}</Text> : null}
-      </div>
-      <div className="flex shrink-0 flex-col items-center gap-1">
-        <ProgressRing value={pulse.score / 100} label={t("core.dash.pulseLabel", { score: String(pulse.score) })} size={72}>
-          <Text variant="body" weight="bold">{pulse.score}</Text>
-        </ProgressRing>
-        <Text variant="caption" tone="muted" weight="semibold" aria-hidden="true">{t("core.homep.pulse")}</Text>
-      </div>
-    </div>
-  )
 }
 
 /** Below the fold: balance and other metrics. */
