@@ -25,7 +25,7 @@ export function LanguageSwitcher({ locale }: { locale: Locale }) {
   const control = (
     <SegmentedControl<Locale>
       label="Language"
-      className="w-auto shrink-0 p-0.5 [&_button]:min-h-8 [&_button]:min-w-9 [&_button]:px-2 [&_button]:text-[13px]"
+      className="w-auto shrink-0 p-0.5 [&_button]:min-h-11 [&_button]:min-w-11 [&_button]:px-2 [&_button]:text-[13px]"
       options={LOCALES.map((l) => ({ value: l, label: LOCALE_LABELS[l] }))}
       value={locale}
       onValueChange={(next) => {

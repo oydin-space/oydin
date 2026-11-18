@@ -16,7 +16,7 @@ function Section({ title, items, icon, tone }: { title: string; items: string[];
   if (items.length === 0) return null;
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <h3 className="text-caption font-semibold uppercase tracking-wide text-foreground/80">{title}</h3>
       <ul className="flex flex-col gap-1.5">
         {items.map((item) => (
           <li key={item} className="flex items-start gap-2 text-small">
@@ -42,6 +42,7 @@ export interface PlanCardProps {
 export function PlanCard({ plan, locale, tint, hideCta, className }: PlanCardProps) {
   const t = (key: Parameters<typeof billingText>[1]) => billingText(locale, key);
   const free = plan.price_uzs === 0;
+  const [amount, period] = priceLabel(locale, plan).split(" / ");
   return (
     <Card
       tint={tint}
@@ -52,7 +53,7 @@ export function PlanCard({ plan, locale, tint, hideCta, className }: PlanCardPro
       )}
     >
       {plan.popular ? (
-        <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-pill bg-brand px-3 py-1 text-caption font-semibold text-foreground shadow">
+        <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-pill bg-brand px-3 py-1 text-caption font-semibold text-[#3b342a] shadow">
           <Icon icon={Crown} size={16} />
           {t("billing.popular")}
         </span>
@@ -60,16 +61,19 @@ export function PlanCard({ plan, locale, tint, hideCta, className }: PlanCardPro
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-title font-semibold">{plan.name}</h2>
-          <p className={cn("mt-1 font-bold tracking-tight", plan.popular ? "text-hero" : "text-section")}>{priceLabel(locale, plan)}</p>
-          <p className="mt-1 text-small text-muted-foreground">{plan.tagline}</p>
+          <p className={cn("mt-1 font-bold tracking-tight", "whitespace-nowrap", plan.popular ? "text-hero" : "text-section")}>
+            {amount}
+            {period ? <span className="text-small font-medium text-foreground/80"> / {period}</span> : null}
+          </p>
+          <p className="mt-1 text-small text-foreground/80">{plan.tagline}</p>
         </div>
         <Icon icon={ICONS[plan.icon] ?? Sparkles} size={24} />
       </header>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={plan.image} alt="" width={1200} height={900} loading="lazy" className="aspect-[4/3] w-full rounded-control bg-card object-cover" />
       <Section title={t("billing.section.new")} items={plan.new_features} icon={Sparkles} />
-      <Section title={t("billing.section.missing")} items={plan.missing} icon={X} tone="text-muted-foreground" />
-      <Section title={t("billing.section.limits")} items={plan.limits} icon={Lock} tone="text-muted-foreground" />
+      <Section title={t("billing.section.missing")} items={plan.missing} icon={X} tone="text-foreground/80" />
+      <Section title={t("billing.section.limits")} items={plan.limits} icon={Lock} tone="text-foreground/80" />
       <Section title={t("billing.section.included")} items={plan.features} icon={Check} />
       {hideCta ? null : (
         <div className="mt-auto flex flex-col gap-2 pt-2">

@@ -29,7 +29,7 @@ export function ConsentNotice({ locale, value, onChange, disabled = false, compa
   const copy = legalContent[locale];
   const { t } = useAT();
   if (compact) {
-    const linkClass = "focus-ring underline underline-offset-2";
+    const linkClass = "focus-ring -my-3 inline-block py-3 underline underline-offset-2";
     return (
       <div lang={locale} className="space-y-1 text-small">
         <input type="hidden" name="legal_version" value={legalVersion} />

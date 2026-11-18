@@ -11,6 +11,7 @@ import { useLocale } from "@/i18n"
 import { cn } from "@/lib/utils"
 import { useCoreT } from "./use-core-t"
 
+const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"]
 const INTL: Record<string, string> = { ru: "ru-RU", uz: "uz-UZ", en: "en-US" }
 
 /**
@@ -21,7 +22,7 @@ export function TopBar({ flat }: { flat: boolean }) {
   const t = useCoreT()
   const { user } = useSession()
   const [locale] = useLocale()
-  const period = new Intl.DateTimeFormat(INTL[locale] ?? "ru-RU", { month: "long" }).format(new Date())
+  const period = locale === "uz" ? UZ_MONTHS[new Date().getMonth()] : new Intl.DateTimeFormat(INTL[locale] ?? "ru-RU", { month: "long" }).format(new Date())
 
   return (
     <header data-hidden={flat} className="shell-float-top pointer-events-none absolute inset-x-0 top-0 z-20 md:hidden">

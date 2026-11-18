@@ -142,15 +142,13 @@ export function OnboardingChat({ onUnavailable }: { onUnavailable: () => void })
       <header className="glass-liquid sticky top-0 z-20 px-4 pb-3 pt-[max(env(safe-area-inset-top),0.75rem)]">
         <div className="mx-auto flex w-full max-w-lg flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Logo size={32} />
-              <Text variant="caption" tone="muted">
-                {t(ACT_TWO.includes(step) ? "onboarding.act2" : "onboarding.act1")}
-              </Text>
-            </div>
-            <LanguageSwitcher />
+            <Logo size={32} />
+            {step === "consent" ? null : <LanguageSwitcher />}
           </div>
-          <ProgressBar value={(progress.done / Math.max(progress.total, 1)) * 100} label={t("onboarding.progress", progress)} />
+          <Text variant="caption" tone="muted">
+            {t(ACT_TWO.includes(step) ? "onboarding.act2" : "onboarding.act1")}
+          </Text>
+          <ProgressBar value={progress.done / Math.max(progress.total, 1)} label={t("onboarding.progress", { done: progress.done + 1, total: progress.total })} />
         </div>
       </header>
 

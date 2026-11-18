@@ -35,7 +35,7 @@ export function BriefCards({ pulse, tools }: { pulse: PulseData; tools: SavedToo
             <Icon icon={Sun} />
             <Text variant="secondary" weight="semibold" className="line-clamp-2">{pulse.headline}</Text>
           </div>
-          <Text variant="secondary" tone="muted">
+          <Text variant="secondary" className="text-foreground/80">
             {t("core.dash.balance")}: <AmountText value={pulse.balance} /> · {t("core.dash.runway", { count: pulse.runway_days })}
           </Text>
         </article>
@@ -45,7 +45,7 @@ export function BriefCards({ pulse, tools }: { pulse: PulseData; tools: SavedToo
             <Icon icon={Calculator} />
             <div className="flex min-w-0 flex-col">
               <Text variant="secondary" weight="semibold" className="line-clamp-2">{tool.title}</Text>
-              <Text variant="caption" tone="muted">{tb("biz.home.toolOpen")}</Text>
+              <Text variant="caption" className="text-foreground/80">{tb("biz.home.toolOpen")}</Text>
             </div>
           </Link>
         ))}

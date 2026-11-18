@@ -30,7 +30,7 @@ export function PulseHero({ pulse }: { pulse: PulseData }) {
       </ProgressRing>
       <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
         <Badge className="self-start" icon={<Icon icon={TONE_ICON[pulse.tone as keyof typeof TONE_ICON] ?? ShieldCheck} size={16} />} tone={TONE[pulse.tone as keyof typeof TONE] ?? "neutral"}>{t(`core.dash.tone.${pulse.tone}` as CoreKey)}</Badge>
-        <Text variant="secondary" tone="muted">{t("core.dash.safe")}</Text>
+        <Text variant="secondary" className="text-foreground/80">{t("core.dash.safe")}</Text>
         <AmountText value={pulse.safe_to_spend} className="text-page font-semibold" />
       </div>
     </div>
@@ -56,12 +56,12 @@ export function PulseDetails({ pulse }: { pulse: PulseData }) {
           <StatTile key={tile.label} {...tile} className={i === 0 || (i === tiles.length - 1 && i % 2 === 1) ? "col-span-2" : undefined} />
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 text-muted-foreground">
-        <Text variant="secondary" tone="muted" className="inline-flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1">
+        <Text variant="secondary" className="text-foreground/80 inline-flex items-center gap-1.5">
           <Icon icon={CalendarClock} size={16} />
           {t("core.dash.runway", { count: pulse.runway_days })}
         </Text>
-        <Text variant="secondary" tone="muted" className="inline-flex items-center gap-1.5">
+        <Text variant="secondary" className="text-foreground/80 inline-flex items-center gap-1.5">
           <Icon icon={CheckCircle2} size={16} />
           {t("core.dash.promises", { kept: String(pulse.promises.kept), total: String(pulse.promises.total) })}
         </Text>

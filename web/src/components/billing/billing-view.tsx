@@ -3,7 +3,7 @@
 import { CreditCard, ExternalLink, Info, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, ErrorState, PAGE_WIDTH, PageHeader, SkeletonCard, StatusBanner } from "@/components/ui";
 import { useT } from "@/i18n";
 import { ApiError } from "@/lib/api";
@@ -19,6 +19,12 @@ export function BillingView() {
   const { locale, state, retry } = usePlans();
   const [sub, setSub] = useState<Subscription | null>(null);
   const [pay, setPay] = useState<PayState>("idle");
+
+  const alertRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (pay === "unavailable") alertRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [pay]);
 
   useEffect(() => {
     fetchSubscription().then(setSub, () => setSub(null));
@@ -66,15 +72,9 @@ export function BillingView() {
       {plan ? (
         <>
           <h2 className="text-section font-semibold">{t("billing.summary")}</h2>
-          <PlanCard plan={plan} locale={locale} tint={planTint(index)} hideCta />
-          {free ? (
-            <StatusBanner kind="info" title={t("billing.freePlan")} />
-          ) : (
-            <Button block size="lg" icon={CreditCard} loading={pay === "paying"} onClick={startPayment}>
-              {pay === "paying" ? t("billing.paying") : t("billing.pay")}
-            </Button>
-          )}
+          <PlanCard plan={plan} locale={locale} tint={planTint(index)} hideCta className="md:max-w-md lg:[&_img]:!aspect-[16/6]" />
           {pay === "unavailable" ? (
+            <div ref={alertRef} role="alert">
             <StatusBanner
               kind="warning"
               title={t("billing.unavailable.title")}
@@ -86,7 +86,15 @@ export function BillingView() {
             >
               {t("billing.unavailable.text")}
             </StatusBanner>
+            </div>
           ) : null}
+          {free ? (
+            <StatusBanner kind="info" title={t("billing.freePlan")} />
+          ) : (
+            <Button block size="lg" icon={CreditCard} loading={pay === "paying"} onClick={startPayment}>
+              {pay === "paying" ? t("billing.paying") : t("billing.pay")}
+            </Button>
+          )}
           {pay === "forbidden" ? <StatusBanner kind="warning" title={t("billing.ownerOnly")} /> : null}
           {pay === "error" ? <StatusBanner kind="error" title={t("billing.payError")} /> : null}
           <Button asChild variant="ghost" block icon={Info}>

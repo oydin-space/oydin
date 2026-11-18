@@ -57,7 +57,7 @@ export function ChatView() {
   const consentOff = chat.block === "consent";
 
   return (
-    <div className="mx-auto box-border flex h-[calc(100dvh-var(--app-dock,5.5rem))] w-full max-w-3xl flex-col pt-[var(--app-top,3.5rem)]">
+    <div data-fill className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col">
       <h1 className="sr-only">{t("chat.title" as never)}</h1>
       {consentOff ? (
         <StatusBanner

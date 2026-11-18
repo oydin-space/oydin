@@ -421,10 +421,11 @@
   display: inline-grid;
   place-items: center;
   position: relative;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 8px;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  border-radius: 16px;
   background: transparent;
   color: color-mix(in srgb, var(--pb-ink) 60%, transparent);
   transition:
@@ -617,10 +618,11 @@
   position: relative;
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border-radius: 8px;
+  box-sizing: border-box;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  border-radius: 16px;
   background: color-mix(in srgb, var(--pb-ink) 12%, var(--pb-bg));
   color: color-mix(in srgb, var(--pb-ink) 55%, var(--pb-bg));
   transition:
@@ -684,4 +686,9 @@
 /* Плавающая кнопка OpenUI Inspect (dev-автомонтирование @openuidev/react-lang) — скрыта. */
 [data-openui-devtools-auto-mount] {
   display: none !important;
+}
+
+.prompt-bar__tool,
+.prompt-bar__send {
+  background-clip: content-box !important;
 }
