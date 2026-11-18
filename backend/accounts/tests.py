@@ -411,7 +411,7 @@ class EnsureAdminTests(TestCase):
         admin = User.objects.create_superuser("root", "r@o.uz", "pw")
         victim = User.objects.create(username="v")
         self.client.force_login(admin)
-        self.client.post("/admin/auth/user/", {"action": "deactivate_users", "_selected_action": [victim.id]})
+        self.client.post("/admin/auth/user/", {"action": "block_users", "_selected_action": [victim.id]})
         victim.refresh_from_db()
         self.assertFalse(victim.is_active)
 
