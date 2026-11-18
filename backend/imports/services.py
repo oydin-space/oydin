@@ -35,7 +35,7 @@ def parse_date(value):
 def parse_amount(value):
     """Сумма как Decimal (со знаком) или None. Понимает «1 500 000,50», «1,500,000.00», «(250)»."""
     text = re.sub(r"[\s\u00a0\u202f]", "", value or "")
-    text = re.sub(r"(?i)(сум|сўм|so'm|uzs)$", "", text)
+    text = re.sub(r"(?i)(сум|сўм|so'm|soʻm|uzs)$", "", text)
     negative = text.startswith("-") or (text.startswith("(") and text.endswith(")"))
     text = text.strip("-+()")
     if not re.fullmatch(r"[\d.,]+", text):

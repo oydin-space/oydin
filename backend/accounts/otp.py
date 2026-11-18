@@ -26,8 +26,8 @@ VERIFY_PER_IP_HOURLY = 30
 TEXTS = {
     "ru": ("Код входа в Oydin: {code}", "Ваш код входа в Oydin: {code}\n\nКод действует 10 минут. "
            "Если вы не запрашивали вход, просто проигнорируйте письмо."),
-    "uz": ("Oydin kirish kodi: {code}", "Oydin'ga kirish kodingiz: {code}\n\nKod 10 daqiqa amal qiladi. "
-           "Agar siz kirishni so'ramagan bo'lsangiz, xatni e'tiborsiz qoldiring."),
+    "uz": ("Oydin kirish kodi: {code}", "Oydinʼga kirish kodingiz: {code}\n\nKod 10 daqiqa amal qiladi. "
+           "Agar siz kirishni soʻramagan boʻlsangiz, xatni eʼtiborsiz qoldiring."),
     "en": ("Your Oydin sign-in code: {code}", "Your Oydin sign-in code is {code}\n\nThe code is valid for 10 minutes. "
            "If you did not request it, just ignore this email."),
 }

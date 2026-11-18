@@ -20,10 +20,10 @@ WORD_AMOUNT = re.compile(
 )
 IN_WORDS = re.compile(
     r"получил|получила|пришл|поступил|продал|выручк|предоплат|клиент\w*\s+(?:заплатил|оплатил|перевел|перевёл)"
-    r"|mijoz\w*\s.*(?:to'ladi|o'tkazdi|berdi)|tushdi|keldi|sotdim", re.I)
+    r"|mijoz\w*\s.*(?:to'ladi|toʻladi|o'tkazdi|oʻtkazdi|berdi)|tushdi|keldi|sotdim", re.I)
 OUT_WORDS = re.compile(
     r"заплатил|заплатила|оплатил|оплатила|потратил|потратила|купил|купила|отдал|отдала|выдал|выдала|списал|снял|перевёл|перевел"
-    r"|to'ladim|berdim|sotib oldim|o'tkazdim|sarfladim|xarajat", re.I)
+    r"|to'ladim|toʻladim|berdim|sotib oldim|o'tkazdim|oʻtkazdim|sarfladim|xarajat", re.I)
 PERSONAL = re.compile(r"личн|себе|семь|жене|мужу|дет[яи]м|кофе|обед|ужин|продукт|одежд|такси домой|подар|oilam|shaxsiy", re.I)
 ACCOUNT_KINDS = [
     (re.compile(r"налич|naqd", re.I), "cash"),
@@ -88,7 +88,7 @@ def _multiplier(word):
 
 def parse_amount(text):
     """Первая сумма в сумах: «4 млн», «1 млн 200 тысяч», «полтора миллиона», «yigirma ming»; None, если нет."""
-    text = re.sub("[’ʻ`‘]", "'", text)
+    text = re.sub("[’ʻʼ`‘]", "'", text)
     amount = None
     for match in WORD_AMOUNT.finditer(text):
         if match["half"]:

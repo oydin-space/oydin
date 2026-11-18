@@ -26,7 +26,7 @@ def money(amount, lang):
         k = round(n / 1000)
         text = {"ru": f"{k} тыс.", "uz": f"{k} ming", "en": f"{k}K"}[lang]
     else:
-        text = f"{n} " + {"ru": "сум", "uz": "so'm", "en": "UZS"}[lang]
+        text = f"{n} " + {"ru": "сум", "uz": "soʻm", "en": "UZS"}[lang]
     return ("−" if amount < 0 else "") + text
 
 
@@ -46,19 +46,19 @@ T = {
     },
     "yes": {
         "ru": "{what}: прогнозный остаток не опустится ниже {low} ({d}), запас {buf} цел.",
-        "uz": "{what}: prognoz qoldig'i {low} dan pasaymaydi ({d}), {buf} zaxira saqlanadi.",
+        "uz": "{what}: prognoz qoldigʻi {low} dan pasaymaydi ({d}), {buf} zaxira saqlanadi.",
         "en": "{what}: the forecast balance will not fall below {low} ({d}), the {buf} reserve stays intact.",
     },
     "later_date": {"ru": "Отложить на {n} дн.", "uz": "{n} kunga kechiktirish", "en": "Postpone by {n} days"},
     "smaller": {"ru": "Взять меньше: {a}", "uz": "Kamroq olish: {a}", "en": "Take less: {a}"},
     "split": {
         "ru": "Разделить: {a} сейчас и {b} через 30 дней",
-        "uz": "Bo'lib to'lash: hozir {a}, 30 kundan keyin {b}",
+        "uz": "Boʻlib toʻlash: hozir {a}, 30 kundan keyin {b}",
         "en": "Split: {a} now and {b} in 30 days",
     },
     "as1": {
         "ru": "Прогноз на 30 дней по средним поступлениям и расходам за последние 30 дней и плановым платежам",
-        "uz": "30 kunlik prognoz: so'nggi 30 kundagi o'rtacha tushum va xarajatlar hamda rejalashtirilgan to'lovlar asosida",
+        "uz": "30 kunlik prognoz: soʻnggi 30 kundagi oʻrtacha tushum va xarajatlar hamda rejalashtirilgan toʻlovlar asosida",
         "en": "30-day forecast based on average income and spending over the last 30 days plus planned payments",
     },
     "as2": {
@@ -69,7 +69,7 @@ T = {
     "as3": {"ru": "Покупка не записывается в учёт", "uz": "Xarid hisobga yozilmaydi", "en": "The purchase is not recorded in the books"},
     "debtor": {
         "ru": "Здравствуйте, {name}! Напоминаем о задолженности {a} (ближайший срок оплаты — {due}). Подскажите, пожалуйста, когда ждать оплату? Спасибо!",
-        "uz": "Assalomu alaykum, {name}! {a} miqdoridagi qarz haqida eslatamiz (eng yaqin to'lov muddati — {due}). Iltimos, to'lovni qachon kutish mumkinligini ayting. Rahmat!",
+        "uz": "Assalomu alaykum, {name}! {a} miqdoridagi qarz haqida eslatamiz (eng yaqin toʻlov muddati — {due}). Iltimos, toʻlovni qachon kutish mumkinligini ayting. Rahmat!",
         "en": "Hello, {name}! A friendly reminder about the outstanding {a} (nearest due date — {due}). Could you let us know when to expect the payment? Thank you!",
     },
 }
