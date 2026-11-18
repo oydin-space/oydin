@@ -1,7 +1,11 @@
+import base64
+import binascii
 import json
+import re
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import RequestDataTooBig
 from django.db import transaction
 from django.http import HttpResponse
 
@@ -20,6 +24,9 @@ ROLES = {"user", "assistant"}
 MAX_MESSAGES = 20
 MAX_CHARS = 4000
 MAX_AUDIO = 2 * 1024 * 1024
+MAX_IMAGES = 2
+MAX_IMAGE_BYTES = 4 * 1024 * 1024
+IMAGE_URL = re.compile(r"data:image/(?:jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})\Z")
 
 
 def throttle(user, kind, limit):
@@ -59,12 +66,37 @@ def check_messages(body):
     return clean
 
 
+def check_images(body):
+    """C2: до 2 data-URL (jpeg/png/webp), каждая ≤ 4 МБ после декодирования."""
+    images = body.get("images")
+    if images is None:
+        return []
+    if not isinstance(images, list) or len(images) > MAX_IMAGES:
+        raise ApiError(400, "invalid_image")
+    for url in images:
+        match = IMAGE_URL.match(url) if isinstance(url, str) else None
+        if not match or len(match.group(1)) > MAX_IMAGE_BYTES * 4 // 3 + 4:
+            raise ApiError(400, "invalid_image")
+        try:
+            size = len(base64.b64decode(match.group(1), validate=True))
+        except (binascii.Error, ValueError):
+            raise ApiError(400, "invalid_image")
+        if not 0 < size <= MAX_IMAGE_BYTES:
+            raise ApiError(400, "invalid_image")
+    return images
+
+
 @api_view("POST")
 def chat_view(request):
     require_ai(request)
-    messages = check_messages(parse_json(request))
+    try:
+        body = parse_json(request)
+    except RequestDataTooBig:  # тело больше DATA_UPLOAD_MAX_MEMORY_SIZE — это картинки
+        raise ApiError(400, "invalid_image") from None
+    messages = check_messages(body)
+    images = check_images(body)
     throttle(request.user, "chat", settings.AI_CHAT_PER_MINUTE)
-    reply = chat.answer(request.business, request.user, messages, request.role)
+    reply = chat.answer(request.business, request.user, messages, request.role, images)
     observability.flush()
     return json_response(reply)
 

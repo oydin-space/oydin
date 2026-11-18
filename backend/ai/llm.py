@@ -100,7 +100,8 @@ def _traceable(messages):
         if isinstance(content, list):
             content = [
                 {**part, "input_audio": {**part["input_audio"], "data": f"<{len(part['input_audio']['data'])} base64 chars>"}}
-                if part.get("type") == "input_audio" else part
+                if part.get("type") == "input_audio"
+                else {**part, "image_url": {"url": f"<{len(part['image_url']['url'])} base64 chars>"}} if part.get("type") == "image_url" else part
                 for part in content
             ]
         out.append({**m, "content": content})

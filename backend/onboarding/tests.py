@@ -107,7 +107,7 @@ class FlowTests(Base):
         self.assertEqual(membership.role, "owner")
         self.assertEqual(BusinessProfile.objects.get(business=membership.business).inn, "203366731")
         self.assertEqual(UserProfile.objects.get(user=self.user).phone, "+998901234567")
-        self.submit("activity", {"segment": "textile_print", "description": "Печать на футболках", "team_size": "2_5"})
+        self.submit("activity", {"activities": ["clothing", "other"], "other": "Печать на футболках", "team_size": "2_5"})
         self.submit("pains", {"tags": ["cash_gaps", "debts"]})
         self.submit("goals", {"tags": ["see_profit"]})
         self.submit("upload", {"source": "zero"})
@@ -122,7 +122,8 @@ class FlowTests(Base):
         self.assertIn("кассовые разрывы", texts)
         self.assertIn("+998901234567", texts)
         self.assertIn("08:30", texts)
-        self.assertEqual(ctx["business"]["activity"], "Печать на футболках")
+        self.assertEqual(ctx["business"]["activity"], "Одежда и текстиль, Печать на футболках")
+        self.assertEqual(membership.business.__class__.objects.get(pk=membership.business.pk).segment, "textile_print")
         self.assertIn("видеть реальную прибыль", ctx["business"]["plans"])
         self.assertEqual(self.client.get("/api/onboarding/context/").json()["business"]["inn"], "203366731")
 
@@ -139,6 +140,27 @@ class FlowTests(Base):
         self.assertEqual(self.submit("summary", {}).json()["error"], "business_required")
         self.assertEqual(self.submit("pains", {"tags": ["nope"]}).status_code, 400)
 
+    def test_activity_multi_and_other(self, _):
+        self.walk_owner()
+        data = self.submit("activity", {"activities": ["food", "beauty", "other"], "other": "  Цветы   на заказ "}).json()
+        self.assertEqual(data["answers"]["activity"]["other"], "Цветы на заказ")
+        business = Business.objects.get(memberships__user=self.user)
+        self.assertEqual(business.segment, "horeca")
+        self.assertEqual(BusinessProfile.objects.get(business=business).activity, "Еда и кафе, Красота, Цветы на заказ")
+        for bad_value in (
+            {"activities": ["nope"]},
+            {"activities": []},
+            {"activities": ["other"], "other": ""},
+            {"activities": ["other"], "other": "x" * 121},
+            {"activities": "retail"},
+        ):
+            r = self.submit("activity", bad_value)
+            self.assertEqual((r.status_code, r.json()["error"]), (400, "invalid_activities"), bad_value)
+
+    def test_activity_nul_rejected(self, _):
+        self.walk_owner()
+        self.assertEqual(self.submit("activity", {"activities": ["other"], "other": "a\x00b"}).status_code, 400)
+
     def test_member_skips_business_block(self, _):
         business = Business.objects.create(name="Shop")
         Membership.objects.create(user=self.user, business=business, role="seller")
@@ -152,7 +174,7 @@ class FlowTests(Base):
         self.submit("name", {"first_name": "Bek"})
         self.submit("business", {"name": "Coffee", "stage": "idea"})
         data = self.submit(
-            "activity", {"plan": {"price": 20000, "unit_cost": 8000, "units_per_month": 600, "fixed_costs_per_month": 3000000, "startup_costs": 21000000}}
+            "activity", {"activities": ["retail"], "plan": {"price": 20000, "unit_cost": 8000, "units_per_month": 600, "fixed_costs_per_month": 3000000, "startup_costs": 21000000}}
         ).json()
         plan = data["answers"]["activity"]["plan"]
         self.assertEqual(plan["breakeven_units"], 250)

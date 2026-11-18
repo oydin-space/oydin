@@ -51,6 +51,21 @@ GOALS = {
     "credit": "подготовиться к кредиту",
     "start": "запустить бизнес",
 }
+ACTIVITIES = {
+    "retail": ("Розничная торговля", "retail"),
+    "food": ("Еда и кафе", "horeca"),
+    "clothing": ("Одежда и текстиль", "textile_print"),
+    "printing": ("Печать и реклама", "textile_print"),
+    "services": ("Услуги", "services"),
+    "beauty": ("Красота", "services"),
+    "construction": ("Строительство и ремонт", "services"),
+    "wholesale": ("Оптовая торговля", "retail"),
+    "marketplace": ("Продавец на маркетплейсах (Uzum/Wildberries)", "marketplace_seller"),
+    "manufacturing": ("Производство", "other"),
+    "education": ("Образование", "services"),
+    "other": ("Другое", "other"),
+}
+ACTIVITY_OTHER_MAX = 120
 UPLOAD_SOURCES = {"import", "zero"}
 
 
@@ -327,24 +342,31 @@ def do_activity(session, user, value):
     business, _ = business_of(session, user)
     if business is None:
         bad("business_required")
-    segment = value.get("segment") or ""
-    if segment and segment not in SEGMENTS:
-        bad("invalid_segment")
-    description = text(value.get("description"), 300, "invalid_description")
+    codes = tags(value.get("activities"), ACTIVITIES, len(ACTIVITIES), "invalid_activities")
+    raw_other = value.get("other")
+    if isinstance(raw_other, str) and "\x00" in raw_other:
+        bad("invalid_activities")
+    other = text(raw_other, ACTIVITY_OTHER_MAX, "invalid_activities")
+    if "other" not in codes:
+        other = ""
+    elif not other and len(codes) == 1:
+        bad("invalid_activities")
+    if not codes:
+        bad("invalid_activities")
+    description = ", ".join([ACTIVITIES[c][0] for c in codes if c != "other"] + ([other] if other else []))
+    segment = ACTIVITIES[codes[0]][1]
     channels = tags(value.get("channels"), CHANNELS, len(CHANNELS), "invalid_channels")
     team = value.get("team_size") or ""
     if team and team not in TEAM:
         bad("invalid_team_size")
-    result = {"segment": segment, "description": description, "channels": channels, "team_size": team}
+    result = {"activities": codes, "other": other, "segment": segment, "description": description, "channels": channels, "team_size": team}
     if isinstance(value.get("plan"), dict):
         result["plan"] = plan_result(value["plan"])
-    if segment:
-        business.segment = segment
-        business.save(update_fields=["segment"])
+    business.segment = segment
+    business.save(update_fields=["segment"])
     bp = BusinessProfile.objects.get_or_create(business=business)[0]
-    if description:
-        bp.activity = description
-        bp.save(update_fields=["activity"])
+    bp.activity = description[:300]
+    bp.save(update_fields=["activity"])
     return result
 
 
