@@ -39,10 +39,9 @@ function Line({ label, hint, value, strong }: { label: string; hint?: string; va
 }
 
 /** The owner's main question and its one worked answer: how much is free to take until the salary/rent date. */
-export function CashAnswer() {
+export function CashAnswer({ until, onUntil }: { until: string | null; onUntil: (iso: string) => void }) {
   const t = useCoreT()
   const { locale } = useI18n()
-  const [until, setUntil] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const today = todayIso()
   const res = useApi<TodayAnswer>(`/planning/today/${until ? `?until=${until}` : ""}`)
@@ -52,7 +51,7 @@ export function CashAnswer() {
 
   let content: React.ReactNode
   if (res.error) content = <ErrorState message={res.error} onRetry={res.reload} retryLabel={t("core.retry")} />
-  else if (!a) content = <CashAnswerSkeleton />
+  else if (!a || res.loading) content = <CashAnswerSkeleton />
   else {
     const gap = a.verdict === "gap" && a.gap
     const hasLines = a.items.length > 0
@@ -96,7 +95,7 @@ export function CashAnswer() {
     )
   }
 
-  const shown = a?.until ?? until
+  const shown = until ?? a?.until
   return (
     <section className="flex flex-col gap-3 rounded-[28px] border border-border bg-card p-5 md:p-6">
       <h2 className="text-section font-semibold leading-snug">
@@ -111,7 +110,7 @@ export function CashAnswer() {
           min={addDays(today, 1)}
           max={addDays(today, MAX_DAYS)}
           value={shown ?? ""}
-          onChange={(e) => e.target.value && setUntil(e.target.value)}
+          onChange={(e) => { const v = e.target.value; if (v && v >= addDays(today, 1) && v <= addDays(today, MAX_DAYS)) onUntil(v) }}
           className="min-h-11 min-w-0 flex-1 bg-transparent text-right outline-none"
         />
       </label>

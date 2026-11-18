@@ -34,6 +34,8 @@ export function Dashboard() {
   const tools = useApi<SavedTool[]>("/tools/")
   const brief = useBriefData()
   const [sheet, setSheet] = useState<{ n: number; seed: EntrySeed } | null>(null)
+  const [cashUntil, setCashUntil] = useState<string | null>(null)
+  const [cashV, setCashV] = useState(0)
   const open = (seed: EntrySeed = {}) => setSheet((s) => ({ n: (s?.n ?? 0) + 1, seed }))
 
   const points = useMemo(() => {
@@ -47,6 +49,7 @@ export function Dashboard() {
     forecast.reload()
     recent.reload()
     tools.reload()
+    setCashV((n) => n + 1)
   }
   const accs = accounts.data?.items ?? []
   const ready = pulse.data && accounts.data && recent.data
@@ -68,7 +71,7 @@ export function Dashboard() {
   else
     body = (
       <div className="flex flex-col gap-4">
-        <CashAnswer />
+        <CashAnswer key={cashV} until={cashUntil} onUntil={setCashUntil} />
         <MorningBrief pulse={pulse.data!} payments={brief.payments} debtors={brief.debtors} />
         <QuickAdd onEntry={(direction) => open({ values: { direction } })} />
         <BriefCards pulse={pulse.data!} tools={pinned} />

@@ -55,7 +55,7 @@ def today_answer(business, until, reason, lang, now=None):
     negative = next((p for p in window if p.balance < 0), None)
     reserve = svc.tax_reserve_amount(business, b.today)
     can_take = max(0, low.balance - reserve)
-    gap = {"date": negative.date.isoformat(), "amount": -low.balance} if negative else None
+    gap = {"date": low.date.isoformat(), "amount": -low.balance} if negative else None
     if gap:
         verdict = "gap"
     elif can_take == 0 or can_take * 10 < -outflow:
