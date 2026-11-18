@@ -51,6 +51,5 @@
 
 docs.{$OLD_HOST} {
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
-	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	redir https://{$DOCS_HOST}{uri} permanent
 }
