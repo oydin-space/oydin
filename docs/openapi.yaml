@@ -2019,7 +2019,7 @@ paths:
   /sync/:
     post:
       summary: Пакетная офлайн-синхронизация (операции и сверки кассы)
-      description: 1–100 элементов, иначе 400. Повтор client_id → duplicate. Ошибки по элементам — в results[].error. Необязательный business_id (int) не совпал с текущим бизнесом → 409 `business_mismatch`, ничего не применяется.
+      description: 1–100 элементов, иначе 400. Повтор client_id → duplicate. Ошибки по элементам — в results[].error. Необязательный business_id (int) не совпал с текущим бизнесом → 409 `business_mismatch`; необязательный user_id (int) не совпал с текущим пользователем → 409 `user_mismatch`; в обоих случаях ничего не применяется.
       x-roles: [owner, accountant, seller]
       requestBody:
         required: true
@@ -2028,7 +2028,7 @@ paths:
             schema:
               type: object
               required: [items]
-              properties: { business_id: { type: integer }, items: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/SyncItem' } } }
+              properties: { business_id: { type: integer }, user_id: { type: integer }, items: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/SyncItem' } } }
       responses:
         '200':
           description: OK
