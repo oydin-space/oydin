@@ -1,13 +1,15 @@
 from unittest import mock
 
 import httpx
-from django.test import TestCase
+from django.core.cache import cache
+from django.test import TestCase, override_settings
 
 from accounts.models import Membership
+from finance.models import Account, Transaction
 from finance.tests import jpost, make_user
 
-from . import crypto, mcp_client, rest_client
-from .models import Connector
+from . import crypto, didox, mcp_client, rest_client, vault
+from .models import Connector, DidoxAccount
 from .services import connector_tools
 
 PUBLIC = mock.patch("publicapi.ssrf.resolve", return_value=["93.184.216.34"])
@@ -224,3 +226,259 @@ class SecurityTests(TestCase):
         ):
             with self.assertRaises(rest_client.CallError):
                 mcp_client.list_tools(c)
+
+
+# Записанные ответы Didox (формат из api-docs.didox.uz, данные обезличены).
+DIDOX_LOGIN = {"token": "11111111-2222-3333-4444-555555555555", "taxId": "300000001", "pinfl": None, "name": "OOO TEST SAVDO"}
+DIDOX_INFO = {
+    "tin": "300000001", "name": "OOO TEST SAVDO MCHJ", "shortName": "OOO TEST SAVDO", "regDate": "12.05.2019",
+    "na1Name": "Общество с ограниченной ответственностью", "statusName": "Действующий", "address": "Toshkent sh.",
+    "oked": "47190", "director": "ALIEV A.", "selfEmployment": False, "VATRegCode": "326010012345", "VATRegStatus": 20,
+}
+DIDOX_OUT = {"data": [
+    {"doc_id": "D-OUT-1", "name": "17", "doc_date": "2024-05-02", "doctype": "002", "doc_status": 3, "owner": 1,
+     "partnerCompany": "OOO MIJOZ", "total_delivery_sum_with_vat": "1120000.00"},
+], "total": 1, "next_page_url": None}
+DIDOX_IN = {"data": [
+    {"doc_id": "D-IN-1", "name": "A-5", "doc_date": "03.05.2024", "doctype": "002", "doc_status": 3, "owner": 0,
+     "partnerCompany": "OOO YETKAZUVCHI", "total_delivery_sum_with_vat": 560000},
+], "total": 1, "next_page_url": None}
+
+
+def reply(status, body):
+    return httpx.Response(status, json=body, request=httpx.Request("GET", "https://api-partners.didox.uz/x"))
+
+
+def didox_http(*responses):
+    return mock.patch("httpx.request", side_effect=list(responses))
+
+
+@override_settings(DIDOX_PARTNER_TOKEN="partner")
+class DidoxTests(TestCase):
+    def setUp(self):
+        self.owner, self.business, _ = make_user("didox_owner")
+        Membership.objects.update_or_create(user=self.owner, business=self.business, defaults={"role": "owner"})
+        self.client.force_login(self.owner)
+        Account.objects.create(business=self.business, name="Bank", kind="bank")
+
+    def connect(self):
+        with didox_http(reply(200, DIDOX_LOGIN)) as http:
+            r = self.client.put("/api/connectors/didox/", {"tax_id": "300000001", "password": "pa55"}, content_type="application/json")
+        return r, http
+
+    def test_info_parses_vat_and_self_employment(self):
+        with didox_http(reply(200, DIDOX_INFO)) as http:
+            card = didox.taxpayer("key", "300000001")
+        headers = http.call_args.kwargs["headers"]
+        self.assertEqual((headers["Partner-Authorization"], headers["user-key"]), ("partner", "key"))
+        self.assertEqual((card["name"], card["vat_payer"], card["self_employed"], card["registered_at"]), ("OOO TEST SAVDO", True, False, "12.05.2019"))
+        with didox_http(reply(200, {**DIDOX_INFO, "selfEmployment": True, "VATRegStatus": None})):
+            card = didox.taxpayer("key", "52005098660032")
+        self.assertEqual((card["self_employed"], card["vat_payer"]), (True, None))
+
+    def test_errors_map_to_codes_without_details(self):
+        cases = [(reply(422, {"error": "Incorrect login"}), "bad_credentials"), (reply(429, {}), "too_many_attempts"),
+                 (reply(401, {}), "unauthorized"), (reply(500, {"message": "Server Error"}), "unavailable"),
+                 (httpx.ConnectError("https://api-partners.didox.uz/v1/auth/300000001"), "unavailable")]
+        for resp, code in cases:
+            with didox_http(resp), self.assertRaises(didox.DidoxError) as ctx:
+                didox.login("300000001", "pa55")
+            self.assertEqual(str(ctx.exception), code)
+        with override_settings(DIDOX_PARTNER_TOKEN=""), mock.patch.dict("os.environ", {"DIDOX_PARTNER_TOKEN": ""}):
+            with self.assertRaises(didox.DidoxError) as ctx:
+                didox.login("300000001", "pa55")
+        self.assertEqual(str(ctx.exception), "not_configured")
+
+    def test_connect_encrypts_password_and_masks_tax_id(self):
+        r, http = self.connect()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(http.call_args.kwargs["json"], {"password": "pa55"})
+        body = r.content.decode()
+        self.assertNotIn("pa55", body)
+        self.assertNotIn("300000001", body)
+        self.assertEqual(r.json()["tax_id"], "•••••0001")
+        a = DidoxAccount.objects.get()
+        self.assertEqual(crypto.decrypt(a.password_enc), "pa55")
+
+    def test_connect_rejects_bad_login(self):
+        with didox_http(reply(422, {"error": "Incorrect login"})):
+            r = self.client.put("/api/connectors/didox/", {"tax_id": "300000001", "password": "x"}, content_type="application/json")
+        self.assertEqual((r.status_code, r.json()["error"]), (400, "didox_bad_credentials"))
+        self.assertFalse(DidoxAccount.objects.exists())
+
+    def test_sync_imports_drafts_once(self):
+        self.connect()
+        with didox_http(reply(200, DIDOX_LOGIN), reply(200, DIDOX_OUT), reply(200, DIDOX_IN)) as http:
+            r = jpost(self.client, "/api/connectors/didox/sync/", {})
+        self.assertEqual((r.json()["ok"], r.json()["created"]), (True, 2))
+        params = http.call_args_list[1].kwargs["params"]
+        self.assertEqual((params["doctype"], params["status"], params["owner"]), ("002", 3, 1))
+        sale = Transaction.objects.get(direction="in")
+        self.assertEqual((sale.amount, sale.status, sale.source, sale.counterparty), (1120000, "draft", "import", "OOO MIJOZ"))
+        self.assertEqual(str(Transaction.objects.get(direction="out").date), "2024-05-03")
+        cache.clear()
+        with didox_http(reply(200, DIDOX_LOGIN), reply(200, DIDOX_OUT), reply(200, DIDOX_IN)):
+            r = jpost(self.client, "/api/connectors/didox/sync/", {})
+        self.assertEqual(r.json()["created"], 0)
+        self.assertEqual(Transaction.objects.count(), 2)
+
+    def test_sync_error_is_recorded(self):
+        self.connect()
+        with didox_http(reply(423, {})):
+            r = jpost(self.client, "/api/connectors/didox/sync/", {}).json()
+        self.assertEqual((r["ok"], r["error"]), (False, "didox_locked"))
+        self.assertEqual(DidoxAccount.objects.get().last_error, "locked")
+
+    def test_demo_forbidden(self):
+        self.business.is_demo = True
+        self.business.save()
+        r = self.client.put("/api/connectors/didox/", {"tax_id": "300000001", "password": "x"}, content_type="application/json")
+        self.assertEqual(r.status_code, 403)
+
+
+VAULT_ENV = {"VAULT_ADDR": "http://vault:8200", "VAULT_TOKEN": "hvs.app"}
+
+
+def fake_vault(url, json=None, headers=None, **kwargs):
+    """Подмена Transit: «шифртекст» = vault:v1: + base64 открытого текста (только для тестов)."""
+    action = url.rsplit("/", 2)[-2]
+    if action == "encrypt":
+        return httpx.Response(200, json={"data": {"ciphertext": "vault:v1:" + json["plaintext"]}}, request=httpx.Request("POST", url))
+    return httpx.Response(200, json={"data": {"plaintext": json["ciphertext"][len("vault:v1:"):]}}, request=httpx.Request("POST", url))
+
+
+@override_settings(DIDOX_PARTNER_TOKEN="partner")
+class VaultTests(TestCase):
+    def test_falls_back_to_fernet_without_vault_addr(self):
+        with override_settings(VAULT_ADDR=""), mock.patch.dict("os.environ", {"VAULT_ADDR": ""}), mock.patch("connectors.vault.httpx.post") as post:
+            token = vault.encrypt("s3cret")
+            self.assertEqual(vault.decrypt(token), "s3cret")
+        self.assertEqual(crypto.decrypt(token), "s3cret")
+        post.assert_not_called()
+
+    def test_roundtrip_via_transit_api(self):
+        with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=fake_vault) as post:
+            token = vault.encrypt("pä55")
+            self.assertTrue(token.startswith("vault:v1:"))
+            self.assertEqual(vault.decrypt(token), "pä55")
+        first = post.call_args_list[0]
+        self.assertEqual(first.args[0], "http://vault:8200/v1/transit/encrypt/oydin-creds")
+        self.assertEqual(first.kwargs["headers"], {"X-Vault-Token": "hvs.app"})
+        self.assertNotIn("pä55", str(first.kwargs["json"]))
+
+    def test_errors_are_codes_without_details(self):
+        cases = [(httpx.ConnectError("http://vault:8200 hvs.app"), "unavailable"),
+                 (httpx.Response(403, json={"errors": ["permission denied"]}), "denied"),
+                 (httpx.Response(503, json={}), "unavailable"),
+                 (httpx.Response(200, text="not json"), "unavailable")]
+        for outcome, code in cases:
+            with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=[outcome]):
+                with self.assertRaises(vault.VaultError) as ctx:
+                    vault.encrypt("x")
+            self.assertEqual(str(ctx.exception), code)
+        with mock.patch.dict("os.environ", {"VAULT_ADDR": "http://vault:8200", "VAULT_TOKEN": ""}), override_settings(VAULT_TOKEN=""):
+            with self.assertRaises(vault.VaultError):
+                vault.encrypt("x")
+
+    def test_vault_token_without_vault_addr_is_error(self):
+        with override_settings(VAULT_ADDR=""), mock.patch.dict("os.environ", {"VAULT_ADDR": ""}):
+            with self.assertRaises(vault.VaultError):
+                vault.decrypt("vault:v1:eA==")
+
+    def test_reveal_reencrypts_legacy_value_once(self):
+        owner, business, _ = make_user("vault_owner")
+        a = DidoxAccount.objects.create(business=business, tax_id="300000001", password_enc=crypto.encrypt("pa55"))
+        with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=fake_vault) as post:
+            self.assertEqual(vault.reveal(a, "password_enc"), "pa55")
+            a.refresh_from_db()
+            self.assertTrue(a.password_enc.startswith("vault:v1:"))
+            self.assertEqual(post.call_count, 1)
+            self.assertEqual(vault.reveal(a, "password_enc"), "pa55")
+            self.assertEqual(post.call_count, 2)  # только decrypt, повторного encrypt нет
+
+    def test_reveal_keeps_legacy_value_when_vault_is_down(self):
+        owner, business, _ = make_user("vault_owner2")
+        legacy = crypto.encrypt("pa55")
+        a = DidoxAccount.objects.create(business=business, tax_id="300000001", password_enc=legacy)
+        with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=httpx.ConnectError("x")):
+            self.assertEqual(vault.reveal(a, "password_enc"), "pa55")
+        a.refresh_from_db()
+        self.assertEqual(a.password_enc, legacy)
+
+    def test_reveal_does_not_overwrite_secret_saved_concurrently(self):
+        owner, business, _ = make_user("vault_cas")
+        a = DidoxAccount.objects.create(business=business, tax_id="300000001", password_enc=crypto.encrypt("old"))
+        stale = DidoxAccount.objects.get(pk=a.pk)  # экземпляр, снятый до PATCH владельца
+
+        def vault_after_concurrent_save(url, **kwargs):
+            DidoxAccount.objects.filter(pk=a.pk).update(password_enc="vault:v1:bmV3")  # владелец сохранил новый секрет
+            return fake_vault(url, **kwargs)
+
+        with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=vault_after_concurrent_save):
+            self.assertEqual(vault.reveal(stale, "password_enc"), "old")
+        a.refresh_from_db()
+        self.assertEqual(a.password_enc, "vault:v1:bmV3")
+
+    def test_malformed_vault_responses_become_codes(self):
+        bad = [httpx.Response(200, json={"data": {}}), httpx.Response(200, json={"data": {"plaintext": "A"}}),
+               httpx.Response(200, json={"data": {"plaintext": "/w=="}}), httpx.Response(200, json={"data": []})]
+        for resp in bad:
+            with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=[resp]):
+                with self.assertRaises(vault.VaultError) as ctx:
+                    vault.decrypt("vault:v1:eA==")
+            self.assertEqual(str(ctx.exception), "unavailable")
+        with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=[httpx.Response(200, json={"data": {}})]):
+            with self.assertRaises(vault.VaultError):
+                vault.encrypt("x")
+
+    def test_invalid_url_and_stream_errors_are_wrapped(self):
+        for exc in (httpx.InvalidURL("http://vault:8200 hvs.app"), httpx.StreamConsumed()):
+            with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=exc):
+                with self.assertRaises(vault.VaultError) as ctx:
+                    vault.encrypt("x")
+            self.assertEqual(str(ctx.exception), "unavailable")
+            with mock.patch("connectors.didox.httpx.request", side_effect=exc), override_settings(DIDOX_PARTNER_TOKEN="p"):
+                with self.assertRaises(didox.DidoxError) as ctx:
+                    didox.request("GET", "/x")
+            self.assertEqual(str(ctx.exception), "unavailable")
+
+    def test_require_vault_refuses_fernet_downgrade(self):
+        with override_settings(VAULT_ADDR=""), mock.patch.dict("os.environ", {"VAULT_ADDR": "", "VAULT_REQUIRED": "1"}):
+            with self.assertRaises(vault.VaultError) as ctx:
+                vault.encrypt("s3cret")
+        self.assertEqual(str(ctx.exception), "not_configured")
+
+    def test_undecryptable_legacy_value_is_error_not_empty(self):
+        with override_settings(VAULT_ADDR=""), mock.patch.dict("os.environ", {"VAULT_ADDR": ""}):
+            with self.assertRaises(vault.VaultError) as ctx:
+                vault.decrypt("not-a-fernet-token")
+        self.assertEqual(str(ctx.exception), "undecryptable")
+
+    def test_context_is_sent_and_bound_to_tenant_and_field(self):
+        owner, business, _ = make_user("vault_ctx")
+        a = DidoxAccount(business=business)
+        ctx = vault.context(a, "password_enc")
+        with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=fake_vault) as post:
+            vault.encrypt("x", ctx)
+        self.assertEqual(post.call_args.kwargs["json"]["context"], ctx)
+        self.assertNotEqual(ctx, vault.context(a, "auth_secret_enc"))
+
+    def test_connector_secret_and_didox_password_stored_in_vault(self):
+        owner, business, _ = make_user("vault_owner3")
+        Membership.objects.update_or_create(user=owner, business=business, defaults={"role": "owner"})
+        self.client.force_login(owner)
+        with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=fake_vault):
+            with didox_http(reply(200, DIDOX_LOGIN)):
+                r = self.client.put("/api/connectors/didox/", {"tax_id": "300000001", "password": "pa55"}, content_type="application/json")
+            self.assertEqual(r.status_code, 200)
+            self.assertTrue(DidoxAccount.objects.get().password_enc.startswith("vault:v1:"))
+
+    def test_vault_down_on_save_is_503_and_stores_nothing(self):
+        owner, business, _ = make_user("vault_owner4")
+        Membership.objects.update_or_create(user=owner, business=business, defaults={"role": "owner"})
+        self.client.force_login(owner)
+        with mock.patch.dict("os.environ", VAULT_ENV), mock.patch("connectors.vault.httpx.post", side_effect=httpx.ConnectError("x")):
+            with didox_http(reply(200, DIDOX_LOGIN)):
+                r = self.client.put("/api/connectors/didox/", {"tax_id": "300000001", "password": "pa55"}, content_type="application/json")
+        self.assertEqual((r.status_code, r.json()["error"]), (503, "vault_unavailable"))
+        self.assertFalse(DidoxAccount.objects.exists())

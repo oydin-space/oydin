@@ -11,7 +11,7 @@ from finance import services as fin
 from finance.models import Account
 from finance.validation import MAX_AMOUNT, parse_amount, parse_date
 
-from . import services as svc
+from . import owner_money, services as svc
 from .texts import resolve_lang
 from .models import CashClose, Commitment, DebtorReminder, Goal, TaxReminder, TaxReserve
 
@@ -64,8 +64,32 @@ def afford(request):
     recurring = body.get("recurring")
     if recurring is not None:
         choice(recurring, ("weekly", "monthly"), "recurring")
+    reserve = non_negative(body["reserve"], "reserve") if body.get("reserve") is not None else 0
     return json_response(svc.afford(request.business, amount, currency, day, title, recurring,
-                                         lang=resolve_lang(request, body)))
+                                    lang=resolve_lang(request, body), reserve=reserve, reserve_currency=currency))
+
+
+# ------------------------------------------------------------------ owner split
+
+@api_view("GET", "PUT")
+@require_role(*FINANCE_READERS)
+def owner_split(request):
+    if request.method == "PUT":
+        if request.business.is_demo or request.user.username == "demo":
+            raise ApiError(403, "demo_tenant")
+        if request.role != OWNER:
+            raise ApiError(403, "forbidden")
+        body = parse_json(request)
+        pcts = []
+        for key in ("development_pct", "owner_pct"):
+            v = body.get(key)
+            if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 100:
+                raise ApiError(400, f"{key}: целое от 0 до 100")
+            pcts.append(v)
+        if sum(pcts) != 100:
+            raise ApiError(400, "Доли «развитию» и «себе» в сумме дают 100")
+        owner_money.save_split(request.business, *pcts)
+    return json_response(owner_money.split(request.business))
 
 
 # ------------------------------------------------------------------ cash close

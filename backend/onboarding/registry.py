@@ -7,7 +7,6 @@
 import hashlib
 import hmac
 import html
-import json
 import logging
 import os
 import re
@@ -18,6 +17,8 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
+
+from connectors import didox as didox_api
 
 from .models import RegistryLookup
 
@@ -71,39 +72,49 @@ def fetch(url, headers=None):
 
 
 def candidate(**fields):
-    """Единая форма кандидата для карточки подтверждения."""
+    """Единая форма кандидата для карточки подтверждения. vat_payer/self_employed — None, если источник их не знает."""
     base = {"name": "", "inn": "", "legal_form": "", "status": "", "registered_at": "", "address": "", "director": "", "oked": "", "activity": ""}
     base.update({k: (v or "").strip() if isinstance(v, str) else (v or "") for k, v in fields.items() if k in base})
+    base["vat_payer"] = fields.get("vat_payer")
+    base["self_employed"] = fields.get("self_employed")
     return base
 
 
-# --- Didox (официальный партнёрский API, нужен токен) ---------------------------------------------
+# --- Didox (официальный партнёрский API: данные информационных систем Налогового комитета) ---------
+
+DIDOX_KEY_CACHE = "registry:didox:user_key"
+DIDOX_KEY_TTL = 5 * 3600  # токен Didox живёт 6 часов
+
+
+def didox_user_key():
+    """Служебный user-key: DIDOX_USER_KEY или вход сервисного аккаунта DIDOX_LOGIN_TAX_ID/DIDOX_LOGIN_PASSWORD."""
+    key = setting("DIDOX_USER_KEY") or cache.get(DIDOX_KEY_CACHE)
+    if key:
+        return key
+    tax_id, password = setting("DIDOX_LOGIN_TAX_ID"), setting("DIDOX_LOGIN_PASSWORD")
+    if not (tax_id and password):
+        return None
+    key, _ = didox_api.login(tax_id, password)
+    cache.set(DIDOX_KEY_CACHE, key, DIDOX_KEY_TTL)
+    return key
 
 
 def didox(kind, value):
-    token = setting("DIDOX_PARTNER_TOKEN")
-    if not token or kind == "name":
+    if kind == "name" or not setting("DIDOX_PARTNER_TOKEN"):
         return None
-    base = setting("DIDOX_API_URL", "https://api-partners.didox.uz").rstrip("/")
-    raw = fetch(f"{base}/v1/utils/info/{value}", {"Partner-Authorization": token, "Accept": "application/json"})
     try:
-        data = json.loads(raw)
-    except ValueError as exc:
-        raise SourceError("bad json") from exc
-    data = data.get("data", data) if isinstance(data, dict) else {}
-    name = data.get("shortName") or data.get("name") or data.get("fullName") or ""
-    if not name:
+        user_key = didox_user_key()
+        if not user_key:
+            return None
+        card = didox_api.taxpayer(user_key, value)
+    except didox_api.DidoxError as exc:
+        if str(exc) == "unauthorized":
+            cache.delete(DIDOX_KEY_CACHE)
+        raise SourceError(str(exc)) from None
+    if card is None:
         return []
-    return [
-        candidate(
-            name=name,
-            inn=str(data.get("tin") or (value if kind == "inn" else "")),
-            status=str(data.get("status") or ""),
-            address=data.get("address") or "",
-            director=data.get("director") or "",
-            oked=str(data.get("oked") or ""),
-        )
-    ]
+    card["inn"] = card["inn"] or (value if kind == "inn" else "")
+    return [candidate(**card)]
 
 
 # --- orginfo.uz (неофициальный агрегатор, скрапинг) ------------------------------------------------

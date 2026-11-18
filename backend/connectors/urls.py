@@ -6,4 +6,6 @@ urlpatterns = [
     path("connectors/", views.connectors),
     path("connectors/<int:id>/", views.connector_detail),
     path("connectors/<int:id>/test/", views.connector_test),
+    path("connectors/didox/", views.didox_account),
+    path("connectors/didox/sync/", views.didox_sync),
 ]

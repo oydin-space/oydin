@@ -38,7 +38,7 @@ def share_days_max():
 
 
 def public_base():
-    return getattr(settings, "PUBLIC_BASE_URL", "https://oydin.sayfi.uz").rstrip("/")
+    return getattr(settings, "PUBLIC_BASE_URL", "https://oydin.space").rstrip("/")
 
 
 # ───────────── share links ─────────────

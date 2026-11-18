@@ -2,7 +2,7 @@
 
 import json
 
-from . import crypto
+from . import vault
 from .rest_client import MAX_RESPONSE, CallError, fetch
 
 MAX_TOOLS = 50
@@ -15,7 +15,10 @@ def _headers(connector, session_id=None):
         "Content-Type": "application/json",
         "User-Agent": "Oydin-Connector/1",
     }
-    secret = crypto.decrypt(connector.auth_secret_enc)
+    try:
+        secret = vault.reveal(connector, "auth_secret_enc")
+    except vault.VaultError:
+        raise CallError("vault_unavailable") from None
     if connector.auth_header and secret:
         headers[connector.auth_header] = secret
     if session_id:

@@ -7,7 +7,7 @@ from django.db.models import Sum
 from finance import services as fin
 from finance.models import Transaction
 
-from . import categories, exa, memory
+from . import categories, exa, memory, people_tools
 
 MAX_TOOL_ROUNDS = 3
 
@@ -125,6 +125,8 @@ CONTEXT_TOOLS = {
     "remember": (memory.tool_remember, 'scope: "business"|"user", text: короткий факт, который стоит помнить (только по просьбе или явно полезный)'),
     "forget": (memory.tool_forget, "id: факт из памяти, который нужно забыть"),
     "get_context": (memory.tool_get_context, "профиль пользователя и бизнеса и вся память"),
+    "list_people": (people_tools.tool_list_people, 'kind: staff|contractor|buyer|partner (необязательно): люди бизнеса и сводка по ним'),
+    "add_person": (people_tools.tool_add_person, 'name, kind, pay_type (monthly|hourly|per_task|percent|none), pay_amount, currency, role_title, started_on (YYYY-MM-DD), note: НЕ создаёт человека, а возвращает черновик-карточку; пользователь сам нажимает «Подтвердить» в чате'),
     "web_search": (exa.tool_web_search, "query: поиск в интернете, вернёт ссылки; называй url источников"),
     "research": (exa.tool_research, "query: исследование с готовым ответом и источниками; называй url"),
 }

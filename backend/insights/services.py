@@ -9,6 +9,7 @@ from finance.texts import date_text, money
 from finance.texts import tr as tr_fin
 
 from . import catalog
+from .staff import staff_insights
 from .texts import tr
 
 
@@ -66,4 +67,5 @@ def build_insights(business, now=None, lang="ru"):
     now = now or fin.today()
     items = [i for i in (_own_gap(business, now, lang), _own_category_growth(business, now, lang)) if i]
     items += catalog.market_local(lang)
+    items += staff_insights(business, now, lang)
     return [{**i, "as_of": i["as_of"].isoformat()} for i in items]

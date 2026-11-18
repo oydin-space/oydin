@@ -225,12 +225,18 @@ class LookupTests(Base):
         self.assertEqual(r["status"], "unavailable")
         self.assertNotIn("12345678901234", RegistryLookup.objects.get().key)
 
-    @override_settings(DIDOX_PARTNER_TOKEN="t")
+    @override_settings(DIDOX_PARTNER_TOKEN="t", DIDOX_USER_KEY="k")
     def test_didox_first(self):
-        payload = json.dumps({"shortName": "OOO DIDOX", "tin": "203366731"})
-        with patch.object(registry, "fetch", return_value=payload):
-            r = post(self.client, "/api/onboarding/lookup/", {"query": "203366731"}).json()
+        card = {
+            "tin": "", "shortName": "ERGASHEV A.", "statusName": "Действующий", "regDate": "01.03.2024",
+            "selfEmployment": True, "VATRegStatus": None, "oked": "62010",
+        }
+        with patch("connectors.didox.request", return_value=card) as req:
+            r = post(self.client, "/api/onboarding/lookup/", {"query": "52005098660032"}).json()
+        self.assertEqual(req.call_args.kwargs["user_key"], "k")
         self.assertEqual((r["source"], r["official"]), ("didox", True))
+        c = r["candidates"][0]
+        self.assertEqual((c["name"], c["self_employed"], c["vat_payer"], c["inn"]), ("ERGASHEV A.", True, None, ""))
 
     def test_rate_limit(self):
         with patch.object(registry, "fetch", side_effect=registry.SourceError("x")):

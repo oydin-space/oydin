@@ -131,21 +131,32 @@ def explain(verdict, amount, low, low_date, gap, buffer, recurring, lang="ru"):
 RANK = {"no": 0, "risky": 1, "yes": 2}
 
 
-def afford(business, amount, currency, day=None, title="", recurring=None, now=None, lang="ru"):
+def afford(business, amount, currency, day=None, title="", recurring=None, now=None, lang="ru", reserve=0, reserve_currency="UZS"):
     now = now or fin.today()
     day = max(day or now, now)
     if day > now + timedelta(days=AFFORD_MAX_AHEAD):
         raise ApiError(400, "Дата не дальше 90 дней")
     try:
         amount_uzs = to_uzs(amount, currency)
+        reserve_uzs = to_uzs(reserve, reserve_currency) if reserve else 0
         offset = (day - now).days
         b = fin.bundle(business, offset + AFFORD_HORIZON + 31, now)
     except RateUnavailable:
         raise ApiError(503, "no_rate") from None
-    buffer = tax_reserve_amount(business, now) + envelopes_saved(business)
+    tax_buffer, saved = tax_reserve_amount(business, now), envelopes_saved(business)
+    buffer = tax_buffer + saved + reserve_uzs
     horizon_end = day + timedelta(days=AFFORD_HORIZON)
     outs = occurrences(day, amount_uzs, recurring, horizon_end)
     verdict, low, low_date, gap = simulate(b.points, outs, buffer)
+    # Сколько можно потратить в эту дату, не просев ниже буфера (разовая трата), и первая дата, когда покупка проходит.
+    base_low = simulate(b.points, [(day, 0)], buffer)[1]
+    earliest = day if verdict == "yes" else None
+    last_start = b.points[-1].date - timedelta(days=AFFORD_HORIZON)
+    probe = day + timedelta(days=1)
+    while earliest is None and probe <= min(now + timedelta(days=AFFORD_MAX_AHEAD), last_start):
+        if simulate(b.points, occurrences(probe, amount_uzs, recurring, probe + timedelta(days=AFFORD_HORIZON)), buffer)[0] == "yes":
+            earliest = probe
+        probe += timedelta(days=1)
 
     alternatives = []
     if verdict != "yes":
@@ -174,6 +185,11 @@ def afford(business, amount, currency, day=None, title="", recurring=None, now=N
         "min_balance_date": low_date.isoformat(), "gap_date": gap.isoformat() if gap else None,
         "explanation": explain(verdict, amount_uzs, low, low_date, gap, buffer, recurring, lang),
         "alternatives": alternatives[:3],
+        "date": day.isoformat(), "earliest_date": earliest.isoformat() if earliest else None,
+        "numbers": {
+            "balance_now": b.balance, "tax_reserve": tax_buffer, "envelopes": saved, "extra_reserve": reserve_uzs,
+            "buffer": buffer, "lowest_without_purchase": base_low, "max_affordable": max(0, base_low - buffer),
+        },
         "assumptions": [tr("as1", lang), tr("as2", lang, buf=tx_money(buffer, lang)), tr("as3", lang)],
     }
 

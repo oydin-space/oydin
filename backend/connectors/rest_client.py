@@ -9,7 +9,7 @@ import httpx
 
 from publicapi import ssrf
 
-from . import crypto
+from . import vault
 
 TIMEOUT = 10
 DEADLINE = 15
@@ -77,7 +77,7 @@ def fetch(method, url, *, headers, **kwargs):
         raise CallError(str(exc)) from None
     except httpx.TimeoutException:
         raise CallError("timeout") from None
-    except httpx.HTTPError:
+    except (httpx.HTTPError, httpx.InvalidURL, httpx.StreamError):
         raise CallError("network_error") from None
 
 
@@ -85,7 +85,10 @@ def call(connector, args):
     """Возвращает {"status": int, "body": ...}; ошибки сети и SSRF — CallError."""
     url, kwargs = build_request(connector, args)
     headers = {"Accept": "application/json", "User-Agent": "Oydin-Connector/1"}
-    secret = crypto.decrypt(connector.auth_secret_enc)
+    try:
+        secret = vault.reveal(connector, "auth_secret_enc")
+    except vault.VaultError:
+        raise CallError("vault_unavailable") from None
     if connector.auth_header and secret:
         headers[connector.auth_header] = secret
     resp = fetch(connector.method, url, headers=headers, **kwargs)

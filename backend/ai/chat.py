@@ -174,6 +174,7 @@ def answer(business, user, messages, role=None, images=(), lang_code=None):
         result = None
         ui_retried = False
         tools_used: list[str] = []
+        person_draft = None
         try:
             for round_no in range(tools.MAX_TOOL_ROUNDS + 2):
                 out = llm.complete(system + lang.instruction(user_lang), convo, temperature=0)
@@ -186,6 +187,8 @@ def answer(business, user, messages, role=None, images=(), lang_code=None):
                         data = tools.run_context_tool(business, name, out.get("args"), user, role, user_lang)
                     else:
                         data = tools.run_tool(business, name, out.get("args"), user_lang)
+                    if isinstance(data, dict) and isinstance(data.get("person_draft"), dict):
+                        person_draft = data["person_draft"]
                     evidence.add(data)
                     convo += [
                         {"role": "assistant", "content": json.dumps(out, ensure_ascii=False)},
@@ -202,6 +205,8 @@ def answer(business, user, messages, role=None, images=(), lang_code=None):
                         ]
                         continue
                 result = _finish(business, out, evidence, last, user, user_lang)
+                if result is not None and person_draft:
+                    result["person_draft"] = person_draft
                 break
         except llm.AiUnavailable:
             result = None

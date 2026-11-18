@@ -47,6 +47,10 @@ INSTALLED_APPS = [
     "billing",
     "adminx",
     "marketing",
+    "people",
+    "rollup",
+    "modules",
+    "beginner",
 ]
 
 MIDDLEWARE = [
@@ -124,7 +128,7 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
 EMAIL_TIMEOUT = 15
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Oydin <noreply@oydin.sayfi.uz>")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Oydin <noreply@oydin.space>")
 EMAIL_BACKEND = (
     "django.core.mail.backends.smtp.EmailBackend" if EMAIL_HOST else "django.core.mail.backends.console.EmailBackend"
 )
@@ -179,10 +183,16 @@ def sentry_before_send(event, hint):
 
 if SENTRY_DSN:
     import sentry_sdk
+    from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         send_default_pii=False,
+        include_local_variables=False,  # переменные кадров (plain, headers, kwargs) с секретами в Bugsink не уходят
+        event_scrubber=EventScrubber(
+            recursive=True,
+            denylist=DEFAULT_DENYLIST + ["plain", "plaintext", "payload", "data", "headers", "kwargs", "user_key", "password_enc", "auth_secret_enc"],
+        ),
         before_send=sentry_before_send,
         traces_sample_rate=0.1,
         environment="development" if DEBUG else "production",

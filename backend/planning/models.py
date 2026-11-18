@@ -139,3 +139,19 @@ class DebtorReminder(models.Model):
 
     class Meta:
         ordering = ["-id"]
+
+
+class OwnerSplit(models.Model):
+    """Как владелец делит свободные деньги: доля «развитию» и «себе». Остальное — «держит бизнес на плаву», его считает сервис."""
+
+    business = models.OneToOneField(Business, on_delete=models.CASCADE, related_name="owner_split")
+    development_pct = models.PositiveSmallIntegerField(default=50)
+    owner_pct = models.PositiveSmallIntegerField(default=50)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(development_pct__lte=100, owner_pct__lte=100)
+                                   & models.Q(development_pct__gte=0, owner_pct__gte=0), name="owner_split_range"),
+            models.CheckConstraint(condition=models.Q(development_pct=100 - models.F("owner_pct")), name="owner_split_sum_100"),
+        ]

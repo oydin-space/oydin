@@ -1,5 +1,6 @@
 """Операторская консоль: метрики и просмотр данных бизнеса (только чтение, только staff)."""
 
+import os
 from datetime import timedelta
 
 from django.apps import apps
@@ -18,8 +19,8 @@ from connectors.models import Connector
 from finance.models import Transaction
 from onboarding.models import OnboardingSession
 
-BUGSINK_URL = "https://bugsink.oydin.sayfi.uz"
-DOCS_URL = "https://docs.oydin.sayfi.uz"
+BUGSINK_URL = "https://" + os.environ.get("BUGSINK_HOST", "bugsink.oydin.space")
+DOCS_URL = "https://" + os.environ.get("DOCS_HOST", "docs.oydin.space")
 
 
 def _bars(series, width=640, height=140):

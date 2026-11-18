@@ -10,7 +10,7 @@ from publicapi.services import emit
 
 from . import rates
 from . import services as svc
-from .models import Account, Currency, Obligation, Transaction
+from .models import Account, Currency, Obligation, Product, Transaction
 from .texts import resolve_lang
 from .validation import MAX_AMOUNT, PURPOSES, parse_amount, parse_date, transaction_fields
 
@@ -226,8 +226,29 @@ def forecast(request):
     return json_response({"points": svc.forecast_points(request.business, days)})
 
 
-@api_view("GET")
+@api_view("GET", "POST")
 def products(request):
+    if request.method == "POST":
+        if request.role != OWNER:
+            raise ApiError(403, "forbidden")
+        if request.business.is_demo:
+            raise ApiError(403, "demo_tenant")
+        body = parse_json(request)
+        name = body.get("name")
+        if not isinstance(name, str) or not name.strip() or len(name.strip()) > 200:
+            raise ApiError(400, "invalid_name")
+        values = {}
+        for key in ("price", "unit_cost"):
+            v = body.get(key)
+            if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= MAX_AMOUNT:
+                raise ApiError(400, f"invalid_{key}")
+            values[key] = v
+        if values["price"] <= 0:
+            raise ApiError(400, "invalid_price")
+        product = Product.objects.create(
+            business=request.business, name=name.strip(), cost_is_estimate=bool(body.get("cost_is_estimate", False)), **values
+        )
+        return json_response(svc.serialize_product(product), status=201)
     items = svc.products(request.business)
     if request.role == SELLER:
         for item in items:
