@@ -42,7 +42,7 @@ export function LoginView({ next }: { next: string | null }) {
   }, [attempt]);
 
   const errors: Record<string, string> = { http_503: t("auth.demoUnavailable") };
-  const done = (me: Me) => router.replace(me.needs_onboarding ? "/onboarding" : target);
+  const done = (me: Me) => router.replace(me.needs_onboarding && !target.startsWith("/join/") ? "/onboarding" : target);
 
   async function demo() {
     setBusy(true);

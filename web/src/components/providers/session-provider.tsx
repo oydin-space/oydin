@@ -133,8 +133,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [tg.status, tg.initData, attempt]);
 
   useEffect(() => {
-    const needs = user && (user.needs_onboarding || user.onboarding_done === false);
-    if (needs && path !== "/onboarding" && !path.startsWith("/join")) router.replace("/onboarding");
+    if (!user || path.startsWith("/join")) return;
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem("oydin.pendingInvite");
+    } catch {}
+    if (pending) {
+      router.replace(`/join/${encodeURIComponent(pending)}`);
+      return;
+    }
+    const needs = user.needs_onboarding || user.onboarding_done === false;
+    if (needs && path !== "/onboarding") router.replace("/onboarding");
   }, [user, path, router]);
 
   const applyMe = useCallback((me: User) => {

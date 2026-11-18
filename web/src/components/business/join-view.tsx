@@ -26,6 +26,10 @@ export function JoinView({ code }: { code: string }) {
 
   useEffect(() => {
     let off = false;
+    // Reaching the join page consumes the pending invite; signIn() stores it again if needed.
+    try {
+      sessionStorage.removeItem(PENDING_INVITE_KEY);
+    } catch {}
     (async () => {
       try {
         const invite = await previewInvite(code);
