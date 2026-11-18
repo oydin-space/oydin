@@ -1,11 +1,11 @@
 "use client";
 
-import { LogOut, Palette, Save, ScrollText, ShieldCheck, Store } from "lucide-react";
+import { CreditCard, LogOut, Palette, Save, ScrollText, ShieldCheck, Store } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
 import { Button, FeedbackNotice, Icon, Input, LanguagePicker, ListGroup, ListRow, PlainCard, SegmentedControl, Select, StatusBanner } from "@/components/ui";
-import { useLocale } from "@/i18n";
+import { useLocale, useT } from "@/i18n";
 import { logout, type Segment } from "@/lib/auth-api";
 import { applyTheme, readTheme, type ThemeChoice, updateBusiness } from "@/lib/settings-api";
 import { useST } from "./use-st";
@@ -75,6 +75,7 @@ function BusinessForm({ id, initialName, demo }: { id: number; initialName: stri
 
 export function ProfileSection() {
   const { t } = useST();
+  const tb = useT();
   const [locale, setLocale] = useLocale();
   const { user } = useSession();
   const router = useRouter();
@@ -120,6 +121,12 @@ export function ProfileSection() {
       </PlainCard>
 
       {user?.role === "owner" && user.business ? <BusinessForm key={user.business.id} id={user.business.id} initialName={user.business.name} demo={!!active?.is_demo} /> : null}
+
+      {user?.role === "owner" ? (
+        <ListGroup>
+          <ListRow title={tb("billing.nav")} href="/app/billing" chevron leading={<Icon icon={CreditCard} size={20} className="text-muted-foreground" />} />
+        </ListGroup>
+      ) : null}
 
       <ListGroup header={t("settings.profile.legal")}>
         <ListRow title={t("settings.profile.privacy")} href="/privacy" chevron leading={<Icon icon={ShieldCheck} size={20} className="text-muted-foreground" />} />

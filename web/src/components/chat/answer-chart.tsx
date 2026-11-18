@@ -5,7 +5,7 @@ import type { Chart } from "@/lib/types";
 import { soft, type FormatLocale } from "@/lib/format";
 import { useI18n } from "@/i18n";
 
-const COLORS = ["var(--lavender-deep)", "var(--mint-deep)", "var(--butter-deep)", "var(--sky-deep)", "var(--peach-deep)", "var(--rose-deep)"];
+const COLORS = ["var(--butter-deep)", "var(--mint-deep)", "var(--sky-deep)", "var(--peach-deep)", "var(--rose-deep)"];
 
 const isSum = (unit: string) => /сум|uzs/i.test(unit);
 
@@ -25,7 +25,7 @@ export function AnswerChart({ chart }: { chart: Chart }) {
   const { type, data, unit } = chart;
   const axis = { stroke: "var(--muted-foreground)", fontSize: 11, tickLine: false, axisLine: false } as const;
   return (
-    <figure className="mt-3 rounded-2xl bg-lavender/60 p-3">
+    <figure className="mt-3 rounded-2xl bg-card p-3">
       <figcaption className="mb-2 text-sm font-medium">{chart.title}</figcaption>
       <div className="h-44 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -44,7 +44,7 @@ export function AnswerChart({ chart }: { chart: Chart }) {
               <XAxis dataKey="label" {...axis} />
               <YAxis {...axis} tickFormatter={(v) => fmt(unit, v)} width={56} />
               <Tooltip {...tooltip} formatter={(v) => fmt(unit, Number(v))} />
-              <Bar dataKey="value" radius={[8, 8, 8, 8]} fill="var(--lavender-deep)" />
+              <Bar dataKey="value" radius={[8, 8, 8, 8]} fill="var(--mint-deep)" />
             </BarChart>
           ) : type === "area" ? (
             <AreaChart data={data} margin={{ left: -12, right: 4, top: 4 }}>
@@ -52,7 +52,7 @@ export function AnswerChart({ chart }: { chart: Chart }) {
               <XAxis dataKey="label" {...axis} />
               <YAxis {...axis} tickFormatter={(v) => fmt(unit, v)} width={56} />
               <Tooltip {...tooltip} formatter={(v) => fmt(unit, Number(v))} />
-              <Area type="monotone" dataKey="value" stroke="var(--lavender-deep)" strokeWidth={2.5} fill="var(--lavender-deep)" fillOpacity={0.25} />
+              <Area type="monotone" dataKey="value" stroke="var(--sky-deep)" strokeWidth={2.5} fill="var(--sky-deep)" fillOpacity={0.25} />
             </AreaChart>
           ) : (
             <LineChart data={data} margin={{ left: -12, right: 4, top: 4 }}>
@@ -60,7 +60,7 @@ export function AnswerChart({ chart }: { chart: Chart }) {
               <XAxis dataKey="label" {...axis} />
               <YAxis {...axis} tickFormatter={(v) => fmt(unit, v)} width={56} />
               <Tooltip {...tooltip} formatter={(v) => fmt(unit, Number(v))} />
-              <Line type="monotone" dataKey="value" stroke="var(--lavender-deep)" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: "var(--lavender-deep)" }} />
+              <Line type="monotone" dataKey="value" stroke="var(--sky-deep)" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: "var(--sky-deep)" }} />
             </LineChart>
           )}
         </ResponsiveContainer>

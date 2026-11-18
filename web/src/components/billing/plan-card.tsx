@@ -35,11 +35,14 @@ export interface PlanCardProps {
   tint: Pastel;
   /** Hide the CTA (e.g. when the card is a summary). */
   hideCta?: boolean;
+  /** In-app mode: CTA target; `current` marks the active plan and disables the CTA. */
+  href?: string;
+  current?: boolean;
   className?: string;
 }
 
 /** One pricing tier: name above price, 4:3 art, feature sections, CTA. Popular tier is larger. */
-export function PlanCard({ plan, locale, tint, hideCta, className }: PlanCardProps) {
+export function PlanCard({ plan, locale, tint, hideCta, href, current, className }: PlanCardProps) {
   const t = (key: Parameters<typeof billingText>[1]) => billingText(locale, key);
   const free = plan.price_uzs === 0;
   const [amount, period] = priceLabel(locale, plan).split(" / ");
@@ -77,9 +80,13 @@ export function PlanCard({ plan, locale, tint, hideCta, className }: PlanCardPro
       <Section title={t("billing.section.included")} items={plan.features} icon={Check} />
       {hideCta ? null : (
         <div className="mt-auto flex flex-col gap-2 pt-2">
-          <Button asChild block variant={plan.popular ? "primary" : "secondary"}>
-            <Link href={buyHref(plan)}>{free ? t("billing.ctaFree") : t("billing.ctaBuy")}</Link>
-          </Button>
+          {current ? (
+            <Button block variant="secondary" disabled>{t("billing.ctaCurrent")}</Button>
+          ) : (
+            <Button asChild block variant={plan.popular ? "primary" : "secondary"}>
+              <Link href={href ?? buyHref(plan)}>{href ? t("billing.ctaSelect") : free ? t("billing.ctaFree") : t("billing.ctaBuy")}</Link>
+            </Button>
+          )}
           {plan.cta_note ? <p className="text-center text-caption text-muted-foreground">{plan.cta_note}</p> : null}
         </div>
       )}

@@ -1,6 +1,8 @@
-import { words, type Locale } from "./copy"
+import type { Locale } from "./copy"
 
-const ATTRS = ["aria-label", "alt", "title", "placeholder"]
+export const LOCALE_EVENT = "oydin:locale"
+
+const ATTRS = ["aria-label", "alt", "title", "placeholder", "data-play-label", "data-pause-label", "data-speech-text", "data-speech-lang"]
 
 /** Copies translated text/attributes from `next` into `live` node by node; subtrees the page scripts re-shaped are skipped. */
 function sync(live: Node, next: Node): number {
@@ -29,6 +31,40 @@ function sync(live: Node, next: Node): number {
   return changed
 }
 
+/** Images the page scripts re-wrapped (phone layers) no longer line up by position: pair them by `src`, in order. */
+function syncImages(live: ParentNode, next: ParentNode): number {
+  const queues = new Map<string, string[]>()
+  next.querySelectorAll("img[src]").forEach((img) => {
+    const src = img.getAttribute("src") ?? ""
+    queues.set(src, [...(queues.get(src) ?? []), img.getAttribute("alt") ?? ""])
+  })
+  let changed = 0
+  live.querySelectorAll("img[src]").forEach((img) => {
+    const alt = queues.get(img.getAttribute("src") ?? "")?.shift()
+    if (alt !== undefined && img.getAttribute("alt") !== alt) {
+      img.setAttribute("alt", alt)
+      changed++
+    }
+  })
+  return changed
+}
+
+/** `app.js` copies feature titles into a live status line and the mobile summary; refresh them from the swapped cards. */
+function refreshFeatureCopy(root: ParentNode) {
+  const active = root.querySelector<HTMLElement>("[data-feature].active")
+  if (!active) return
+  const title = active.querySelector(".feature-heading")?.textContent?.trim() ?? ""
+  const status = root.querySelector("#feature-status")
+  if (status) status.textContent = title
+  const summary = root.querySelector(".mobile-feature-summary")
+  const description = active.querySelector(".feature-description")
+  if (summary && summary.childNodes.length && description) {
+    const heading = document.createElement("strong")
+    heading.textContent = `${title}. `
+    summary.replaceChildren(heading, (description.textContent ?? "").replace(/\s+/g, " ").trim())
+  }
+}
+
 /**
  * Re-renders the landing copy for `locale` without navigating: fetches the server markup
  * (cookie already set) and swaps text in place, so scroll position and layout stay untouched.
@@ -41,12 +77,17 @@ export async function applyLocaleInPlace(locale: Locale): Promise<boolean> {
   const liveShell = document.querySelector(".page-shell")
   const nextShell = doc.querySelector(".page-shell")
   if (!liveShell || !nextShell) return false
-  let changed = sync(liveShell, nextShell)
-  if (liveShell.nextElementSibling && nextShell.nextElementSibling) {
-    changed += sync(liveShell.nextElementSibling, nextShell.nextElementSibling)
+  let changed = sync(liveShell, nextShell) + syncImages(liveShell, nextShell)
+  let live = liveShell.nextElementSibling
+  let next = nextShell.nextElementSibling
+  while (live && next && !live.matches("script, link, next-route-announcer")) {
+    changed += sync(live, next)
+    live = live.nextElementSibling
+    next = next.nextElementSibling
   }
+  refreshFeatureCopy(liveShell)
   document.documentElement.lang = locale
   document.title = doc.title || document.title
-  ;(window as Window & { __oydinWords?: unknown }).__oydinWords = words[locale]
+  window.dispatchEvent(new CustomEvent(LOCALE_EVENT, { detail: locale }))
   return changed > 0
 }

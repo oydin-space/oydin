@@ -4,7 +4,7 @@ import { Check, Send, Trash2, User, UserMinus, UserPlus, X } from "lucide-react"
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
 import { Badge, Button, EmptyState, ErrorState, Icon, Input, ListGroup, ListRow, PAGE_WIDTH, PageHeader, SegmentedControl, Sheet, SkeletonList } from "@/components/ui";
-import { changeMemberRole, errorText, inviteMember, listMembers, removeMember, type TeamMember } from "@/lib/auth-api";
+import { changeMemberRole, errorText, fetchProviders, inviteMember, listMembers, removeMember, type TeamMember } from "@/lib/auth-api";
 import { useT } from "@/i18n";
 import type { Role } from "@/lib/types";
 import { ROLES, roleLabel } from "./roles";
@@ -53,8 +53,18 @@ export function TeamView() {
   const [panel, setPanel] = useState<Panel>(null);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("accountant");
+  const [emailLogin, setEmailLogin] = useState(true);
+  const [linkOpen, setLinkOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let off = false;
+    fetchProviders().then((p) => !off && setEmailLogin(p.email), () => undefined);
+    return () => {
+      off = true;
+    };
+  }, []);
 
   const load = useCallback(async () => {
     if (businessId == null) return;
@@ -105,7 +115,7 @@ export function TeamView() {
 
   return (
     <div className={`${PAGE_WIDTH} flex flex-col gap-4`}>
-      <PageHeader title={strings.title} hint={strings.hint} actions={<Button icon={UserPlus} onClick={() => open({ kind: "invite" })}>{strings.invite}</Button>} />
+      <PageHeader title={strings.title} hint={strings.hint} actions={<Button icon={UserPlus} onClick={() => (emailLogin ? open({ kind: "invite" }) : setLinkOpen(true))}>{strings.invite}</Button>} />
       {loadFailed ? (
         <ErrorState message={strings.loadError} onRetry={() => { setLoadFailed(false); void load(); }} />
       ) : !items ? (
@@ -130,7 +140,7 @@ export function TeamView() {
         </ListGroup>
       )}
 
-      <InviteLinks businessId={id} businessName={user?.business?.name ?? ""} />
+      <InviteLinks businessId={id} businessName={user?.business?.name ?? ""} open={linkOpen} onOpenChange={setLinkOpen} noEmail={!emailLogin} />
 
       <Sheet
         open={panel !== null}
@@ -141,14 +151,20 @@ export function TeamView() {
         {panel?.kind === "invite" ? (
           <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); void run(() => inviteMember(id, email.trim(), role)); }}>
             <Input type="email" label={strings.email} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" required />
-            <SegmentedControl label={strings.role} value={role} onValueChange={setRole} options={roleOptions} />
+            <div className="flex flex-col gap-1.5">
+              <p className="text-caption font-medium text-muted-foreground">{strings.role}</p>
+              <SegmentedControl label={strings.role} value={role} onValueChange={setRole} options={roleOptions} />
+            </div>
             <p className="text-caption text-muted-foreground">{strings.roleHints[role]}</p>
             {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
             <Button type="submit" icon={Send} block loading={busy}>{strings.send}</Button>
           </form>
         ) : panel?.kind === "member" ? (
           <div className="flex flex-col gap-4">
-            <SegmentedControl label={strings.role} value={role} onValueChange={setRole} options={roleOptions} />
+            <div className="flex flex-col gap-1.5">
+              <p className="text-caption font-medium text-muted-foreground">{strings.role}</p>
+              <SegmentedControl label={strings.role} value={role} onValueChange={setRole} options={roleOptions} />
+            </div>
             <p className="text-caption text-muted-foreground">{strings.roleHints[role]}</p>
             {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
             <Button block icon={Check} loading={busy} disabled={role === panel.m.role} onClick={() => void run(() => changeMemberRole(id, panel.m.id, role))}>{strings.save}</Button>

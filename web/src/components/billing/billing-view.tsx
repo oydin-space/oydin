@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, ExternalLink, Info, MessageCircle } from "lucide-react";
+import { CreditCard, Info, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -8,10 +8,11 @@ import { Badge, Button, Card, ErrorState, PAGE_WIDTH, PageHeader, SkeletonCard, 
 import { useT } from "@/i18n";
 import { ApiError } from "@/lib/api";
 import { PlanCard, planTint } from "./plan-card";
-import { checkout, fetchSubscription, TELEGRAM_URL, type Subscription } from "./plans-api";
+import { PlanGrid } from "./plan-grid";
+import { checkout, DEMO_TENANT_ERROR, fetchSubscription, TELEGRAM_URL, type Subscription } from "./plans-api";
 import { usePlans } from "./use-plans";
 
-type PayState = "idle" | "paying" | "unavailable" | "forbidden" | "error";
+type PayState = "idle" | "paying" | "unavailable" | "demo" | "forbidden" | "error";
 
 export function BillingView() {
   const t = useT();
@@ -23,7 +24,7 @@ export function BillingView() {
   const alertRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (pay === "unavailable") alertRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (pay === "unavailable" || pay === "demo") alertRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [pay]);
 
   useEffect(() => {
@@ -44,7 +45,8 @@ export function BillingView() {
       if (res.available) window.location.assign(res.url);
       else setPay("unavailable");
     } catch (e) {
-      setPay(e instanceof ApiError && e.status === 403 ? "forbidden" : "error");
+      if (e instanceof ApiError && e.status === 403) setPay(e.message === DEMO_TENANT_ERROR ? "demo" : "forbidden");
+      else setPay("error");
     }
   }
 
@@ -65,9 +67,7 @@ export function BillingView() {
       {state.status === "loading" ? <SkeletonCard /> : null}
       {state.status === "error" ? <ErrorState message={t("billing.loadError")} onRetry={retry} retryLabel={t("billing.retry")} /> : null}
 
-      {state.status === "ready" && !plan ? (
-        <StatusBanner kind="info" title={t("billing.pick")} action={<Button asChild variant="secondary" icon={ExternalLink}><Link href="/pricing">{t("billing.back")}</Link></Button>} />
-      ) : null}
+      {state.status === "ready" && !plan && sub && sub.plan === "free" ? <StatusBanner kind="info" title={t("billing.freeActive")} /> : null}
 
       {plan ? (
         <>
@@ -95,12 +95,32 @@ export function BillingView() {
               {pay === "paying" ? t("billing.paying") : t("billing.pay")}
             </Button>
           )}
+          {pay === "demo" ? (
+            <div ref={alertRef} role="alert">
+              <StatusBanner
+                kind="info"
+                title={t("billing.demo")}
+                action={
+                  <Button asChild variant="secondary" icon={MessageCircle}>
+                    <a href={TELEGRAM_URL} target="_blank" rel="noopener noreferrer">{t("billing.writeUs")}</a>
+                  </Button>
+                }
+              />
+            </div>
+          ) : null}
           {pay === "forbidden" ? <StatusBanner kind="warning" title={t("billing.ownerOnly")} /> : null}
           {pay === "error" ? <StatusBanner kind="error" title={t("billing.payError")} /> : null}
           <Button asChild variant="ghost" block icon={Info}>
-            <Link href="/pricing">{t("billing.choose")}</Link>
+            <Link href="/app/billing">{t("billing.allPlans")}</Link>
           </Button>
         </>
+      ) : null}
+
+      {state.status === "ready" ? (
+        <section aria-labelledby="billing-all-plans" className="flex flex-col gap-3">
+          <h2 id="billing-all-plans" className="text-section font-semibold">{t("billing.allPlans")}</h2>
+          <PlanGrid mode="app" currentCode={sub?.status === "active" || sub?.plan === "free" ? sub?.plan : undefined} />
+        </section>
       ) : null}
     </div>
   );

@@ -27,10 +27,26 @@ export interface DetectSources {
   navigator?: string | readonly string[] | null
 }
 
-/** cookie → Telegram WebApp language_code → navigator.language → ru */
+/** Client side of the same rule (cookie → navigator.languages → ru); inside Telegram its language_code goes before navigator. */
 export function detectLocale(s: DetectSources): Locale {
   const nav = typeof s.navigator === "string" ? [s.navigator] : [...(s.navigator ?? [])]
   return parseLocale(s.cookie) ?? parseLocale(s.telegram) ?? nav.map(parseLocale).find(Boolean) ?? DEFAULT_LOCALE
+}
+
+/** Single first-visit rule for every surface: cookie → Accept-Language (ru/uz/en, in q order) → ru. */
+export function resolveLocale(cookie: string | null | undefined, acceptLanguage: string | null | undefined): Locale {
+  const fromHeader = (acceptLanguage ?? "")
+    .split(",")
+    .map((part, i) => {
+      const [tag, ...params] = part.trim().split(";")
+      const q = params.map((p) => p.trim()).find((p) => p.startsWith("q="))
+      return { tag, q: q ? Number(q.slice(2)) : 1, i }
+    })
+    .filter((x) => x.q > 0)
+    .sort((a, b) => b.q - a.q || a.i - b.i)
+    .map((x) => parseLocale(x.tag))
+    .find(Boolean)
+  return parseLocale(cookie) ?? fromHeader ?? DEFAULT_LOCALE
 }
 
 export function readCookie(source: string, name = LOCALE_COOKIE): string | null {
@@ -94,6 +110,18 @@ export function formatMoney(n: number, locale: Locale): string {
   return `${formatNumber(n, locale, { maximumFractionDigits: 0 })}\u00a0${CUR[locale]}`
 }
 
+const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"]
+
+/** Intl's uz-UZ data renders months as "M12" in most engines, so Uzbek is assembled from our own month names. */
 export function formatDate(d: Date | string | number, locale: Locale, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "long" }): string {
-  return new Intl.DateTimeFormat(INTL[locale], { timeZone: "Asia/Tashkent", ...opts }).format(new Date(d))
+  const o = { timeZone: "Asia/Tashkent", ...opts }
+  if (locale !== "uz" || !o.month || o.month === "numeric" || o.month === "2-digit") {
+    return new Intl.DateTimeFormat(INTL[locale], o).format(new Date(d))
+  }
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: o.timeZone, year: "numeric", month: "numeric", day: "numeric" }).formatToParts(new Date(d))
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value)
+  const name = UZ_MONTHS[get("month") - 1]
+  const month = o.month === "long" ? name : name.slice(0, 3)
+  const head = o.day ? `${get("day")}-${month}` : month
+  return o.year ? `${get("year")}-yil ${head}` : head
 }

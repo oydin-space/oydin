@@ -18,10 +18,12 @@ export function TxRow({ tx, accounts, onOpen }: { tx: Transaction; accounts: Acc
   const t = useCoreT()
   const account = accounts.find((a) => a.id === tx.account_id)
   const purposeLabel = t(`core.ops.purpose.${tx.purpose}` as CoreKey)
+  const sub = [tx.category, account?.name].filter(Boolean).join(" · ")
   return (
     <ListRow
       title={txTitle(tx, t("core.ops.uncategorized"))}
-      subtitle={[tx.category, account?.name].filter(Boolean).join(" · ")}
+      wrapTitle
+      subtitle={sub ? <span className="line-clamp-2 whitespace-normal break-words">{sub}</span> : undefined}
       leading={<Icon icon={tx.direction === "in" ? ArrowDownLeft : tx.direction === "out" ? ArrowUpRight : ArrowLeftRight} className="text-muted-foreground" />}
       status={tx.purpose !== "business" ? <Badge tone={tx.purpose === "unclear" ? "caution" : "neutral"} icon={<Icon icon={tx.purpose === "unclear" ? CircleHelp : UserRound} size={16} />}>{purposeLabel}</Badge> : undefined}
       trailing={<AmountText value={txSigned(tx)} currency={currencyOf(accounts, tx.account_id)} signed tone={tx.direction === "transfer" ? "none" : "auto"} />}

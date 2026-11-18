@@ -181,7 +181,9 @@ h1,h2,h3{font-weight:700;letter-spacing:-.02em}
 .orbit-float,.integration-tile-float,.hero-dawn::before,.dawn-cta .closing-inner::before,.category-track{animation:none!important}
 .logo-tile{transform:none!important}
 .logo-ground{transform:none!important;opacity:.88!important}
-.logo-grid-demo.motion-enabled .logo-slot,.logo-grid-demo.motion-enabled.is-visible .logo-slot{opacity:1;transform:none;transition:none}
+.logo-tile{cursor:default}
+.logo-tile[data-soon] img{opacity:.5}
+.soon-badge{position:absolute;right:28px;top:28px;padding:8px 30px;border-radius:999px;background:var(--yellow);color:var(--ink);font:700 46px/1.25 -apple-system,BlinkMacSystemFont,"SF Pro Text",Onest,system-ui,sans-serif;letter-spacing:0;box-shadow:0 6px 0 #b8940a;white-space:nowrap}
 /* intro marquee becomes a static wrapped row */
 .category-track{flex-wrap:wrap;justify-content:center;transform:none;gap:12px}
 .category-group{flex-wrap:wrap;justify-content:center}
@@ -193,7 +195,7 @@ h1,h2,h3{font-weight:700;letter-spacing:-.02em}
 .tool-keys img[src$=".png"]{object-fit:cover;padding:0}
 .source-art.art-fleet,.source-art.art-insurance,.source-art.art-safety,.source-art.art-money{width:44px;border-radius:12px;background:#fff}
 .source-art img{position:static;width:44px;height:44px;object-fit:contain}
-.art-fleet img{content:url(/logos/payme.png)}.art-insurance img{content:url(/logos/telegram.svg)}.art-safety img{content:url(/logos/google-calendar.svg)}.art-money img{content:url(/logos/excel.svg)}
+.art-fleet img{content:url(/logos/google-sheets.svg)}.art-insurance img{content:url(/logos/telegram.svg)}.art-safety img{content:url(/logos/google-calendar.svg)}.art-money img{content:url(/logos/excel.svg)}
 .visual-logos{position:absolute;top:16px;left:16px;display:flex;flex-direction:column;gap:10px;z-index:2}
 .control-visual .visual-logos{left:auto;right:16px}
 .visual-logos img{width:44px;height:44px;object-fit:contain;background:#fff;border-radius:12px;box-shadow:0 3px 0 #e6d9a8}
@@ -204,3 +206,9 @@ h1,h2,h3{font-weight:700;letter-spacing:-.02em}
 .text-link,.footer-column a,.footer-bottom{color:var(--ink-2)}
 @media(max-width:480px){.tool-keys{grid-template-columns:repeat(3,56px);gap:10px}.tool-keys img{width:56px;height:56px;padding:9px}.pr-price{font-size:clamp(26px,8vw,32px)}html,body{overflow-x:hidden}}
 .category-track{width:100%!important;max-width:100%;min-width:0;position:static;padding-inline:24px;box-sizing:border-box}.category-group{max-width:100%}
+/* edge blurs for features / faq / footer; features and footer are .wrap, so bleed to the viewport width */
+.operation,.faq-section,.footer{position:relative}
+.operation>.edge-blur,.footer>.edge-blur{left:50%;right:auto;width:100vw;transform:translateX(-50%)}
+.operation>.edge-blur{background:linear-gradient(180deg,var(--cream),transparent)}
+.operation>.edge-blur.bot{background:linear-gradient(0deg,var(--cream),transparent)}
+.split-copy .sec-ico{margin-left:0}

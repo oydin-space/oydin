@@ -41,14 +41,36 @@ export function pct(n: number, digits = 0, locale: FormatLocale = "ru"): string 
   return `${n.toLocaleString(INTL[locale], { maximumFractionDigits: digits })}%`;
 }
 
-const parse = (iso: string) => new Date(`${iso}T00:00:00`);
+const parse = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00`);
+
+/**
+ * Названия месяцев на узбекском (латиница). Intl в uz-UZ во многих браузерах отдаёт «M12»,
+ * поэтому для uz дату собираем сами.
+ */
+export const UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
+const UZ_MONTHS_SHORT = ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"];
+
+/** Название месяца (0-based) в именительном падеже: «ноябрь» / «noyabr» / «November». */
+export function monthName(month: number, locale: FormatLocale = "ru", year = 2000): string {
+  if (locale === "uz") return UZ_MONTHS[month];
+  return new Intl.DateTimeFormat(INTL[locale], { month: "long" }).format(new Date(year, month, 1));
+}
+
+/** «10 декабря» / «10-dekabr» / «December 10»; style short — «10 дек» / «10-dek» / «Dec 10». Принимает ISO-дату или Date. */
+export function dayMonth(value: string | Date, locale: FormatLocale = "ru", style: "long" | "short" = "long"): string {
+  const d = typeof value === "string" ? parse(value) : value;
+  if (locale === "uz") return `${d.getDate()}-${(style === "long" ? UZ_MONTHS : UZ_MONTHS_SHORT)[d.getMonth()]}`;
+  return d.toLocaleDateString(INTL[locale], { day: "numeric", month: style }).replace(".", "");
+}
 
 export function dateShort(iso: string, locale: FormatLocale = "ru"): string {
-  return parse(iso).toLocaleDateString(INTL[locale], { day: "numeric", month: "short" }).replace(".", "");
+  return dayMonth(iso, locale, "short");
 }
 
 export function dateLong(iso: string, locale: FormatLocale = "ru"): string {
-  return parse(iso).toLocaleDateString(INTL[locale], { day: "numeric", month: "long", year: "numeric" });
+  const d = parse(iso);
+  if (locale === "uz") return `${d.getFullYear()}-yil ${dayMonth(d, "uz")}`;
+  return d.toLocaleDateString(INTL[locale], { day: "numeric", month: "long", year: "numeric" });
 }
 
 export function plural(n: number, forms: [string, string, string]): string {

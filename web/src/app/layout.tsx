@@ -3,9 +3,8 @@ import { Onest } from "next/font/google";
 import { ServiceWorkerRegister } from "@/components/offline";
 import { TelegramProvider } from "@/components/providers/telegram-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { cookies } from "next/headers";
 import { I18nProvider } from "@/i18n";
-import { LOCALE_COOKIE, parseLocale } from "@/i18n/core";
+import { getServerLocale } from "@/i18n/server";
 import "./globals.css";
 
 const onest = Onest({ variable: "--font-onest", subsets: ["latin", "cyrillic"], display: "swap" });
@@ -54,9 +53,9 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const initial = parseLocale((await cookies()).get(LOCALE_COOKIE)?.value) ?? undefined;
+  const initial = await getServerLocale();
   return (
-    <html lang={initial ?? "ru"} className={onest.variable} suppressHydrationWarning>
+    <html lang={initial} className={onest.variable} suppressHydrationWarning>
       <body className="min-h-dvh font-sans">
         {/* Saved theme is applied before first paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem("oydin-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}` }} />

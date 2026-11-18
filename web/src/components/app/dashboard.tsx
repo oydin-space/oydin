@@ -6,6 +6,8 @@ import { EntrySheet, type EntrySeed } from "@/components/operations/entry-sheet"
 import { Card, CashChart, ErrorState, PAGE_WIDTH, Section, SkeletonCard, SkeletonChart } from "@/components/ui"
 import { useI18n } from "@/i18n"
 import { cashPoints, isEmptyBusiness, todayIso, type ForecastResponse, type PulseData } from "@/lib/core-api"
+import { dayMonth } from "@/lib/format"
+import { periodRange, usePeriod } from "@/lib/period"
 import type { SavedTool } from "@/lib/tools-api"
 import type { Account, Insight, Transaction } from "@/lib/types"
 import { useApi } from "@/lib/use-api"
@@ -20,8 +22,9 @@ import { QuickAdd } from "./quick-add"
 
 export function Dashboard() {
   const t = useCoreT()
-  const { formatDate } = useI18n()
-  const pulse = useApi<PulseData>("/dashboard/pulse/")
+  const { locale } = useI18n()
+  const range = periodRange(usePeriod())
+  const pulse = useApi<PulseData>(`/dashboard/pulse/?from=${range.from}&to=${range.to}`)
   const insights = useApi<{ items: Insight[] }>("/insights/")
   const accounts = useApi<{ items: Account[] }>("/accounts/")
   const forecast = useApi<ForecastResponse>("/forecast/?days=30")
@@ -33,8 +36,8 @@ export function Dashboard() {
 
   const points = useMemo(() => {
     const f = forecast.data?.points ?? []
-    return pulse.data && f.length ? cashPoints(todayIso(), pulse.data.balance, f, formatDate) : []
-  }, [forecast.data, pulse.data, formatDate])
+    return pulse.data && f.length ? cashPoints(todayIso(), pulse.data.balance, f, (iso) => dayMonth(iso, locale, "short")) : []
+  }, [forecast.data, pulse.data, locale])
 
   const reload = () => {
     pulse.reload()

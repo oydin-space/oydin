@@ -24,7 +24,7 @@ export function CashChart({ points, currency = "UZS", label, todayLabel, height 
   const lastActual = [...points].reverse().find((p) => p.actual != null)?.date;
   const fmt = (v: number) => formatMoney(v, { currency, locale, mode: "compact", withCurrency: false });
   return (
-    <figure className={cn("flex flex-col gap-2", className)}>
+    <figure className={cn("relative flex flex-col gap-2", className)}>
       <div style={{ height }} role="img" aria-label={label}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={points} margin={{ top: 24, right: 8, bottom: 0, left: 0 }}>
@@ -39,7 +39,9 @@ export function CashChart({ points, currency = "UZS", label, todayLabel, height 
         </ResponsiveContainer>
       </div>
       <figcaption className="sr-only">{label}</figcaption>
-      <table className="sr-only">
+      {/* A <table> ignores the 1px box of .sr-only and stretches the page; the wrapping div clips it. */}
+      <div className="sr-only">
+      <table>
         <caption>{label}</caption>
         <tbody>
           {points.map((p) => (
@@ -50,6 +52,7 @@ export function CashChart({ points, currency = "UZS", label, todayLabel, height 
           ))}
         </tbody>
       </table>
+      </div>
     </figure>
   );
 }

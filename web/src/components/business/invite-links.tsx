@@ -11,11 +11,32 @@ import { roleLabel } from "./roles";
 const EXPIRY = ["24", "168", "720"] as const;
 const USES = ["1", "5", "20"] as const;
 
-export function InviteLinks({ businessId, businessName }: { businessId: number; businessName: string }) {
+function Caption({ text, children }: { text: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-caption font-medium text-muted-foreground">{text}</p>
+      {children}
+    </div>
+  );
+}
+
+export function InviteLinks({
+  businessId,
+  businessName,
+  open,
+  onOpenChange,
+  noEmail = false,
+}: {
+  businessId: number;
+  businessName: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** Вход по почте выключен: приглашение — только ссылкой / через Telegram. */
+  noEmail?: boolean;
+}) {
   const t = useT();
   const [items, setItems] = useState<Invite[] | null>(null);
   const [failed, setFailed] = useState(false);
-  const [open, setOpen] = useState(false);
   const [role, setRole] = useState<InviteRole>("accountant");
   const [hours, setHours] = useState<string>("168");
   const [uses, setUses] = useState<string>("1");
@@ -73,7 +94,7 @@ export function InviteLinks({ businessId, businessName }: { businessId: number; 
   }
 
   const close = (v: boolean) => {
-    setOpen(v);
+    onOpenChange(v);
     if (!v) {
       setCreated(null);
       setError(null);
@@ -82,12 +103,13 @@ export function InviteLinks({ businessId, businessName }: { businessId: number; 
   const roleOptions = (["accountant", "seller"] as const).map((r) => ({ value: r, label: roleLabel(t, r) }));
   const url = created ? inviteUrl(created.code) : "";
   const shareText = created ? t("settings.invite.shareText", { business: businessName, role: roleLabel(t, created.role) }) : "";
+  const share = () => window.open(telegramShareUrl(url, shareText), "_blank", "noopener");
 
   return (
     <section className="flex flex-col gap-3" aria-label={t("settings.invite.title")}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-title"><Icon icon={Link2} size={20} />{t("settings.invite.title")}</h2>
-        <Button icon={Link2} variant="secondary" onClick={() => setOpen(true)}>{t("settings.invite.create")}</Button>
+        <Button icon={Link2} variant={noEmail ? "primary" : "secondary"} onClick={() => onOpenChange(true)}>{t("settings.invite.create")}</Button>
       </div>
       <p className="text-caption text-muted-foreground">{t("settings.invite.hint")}</p>
       {failed ? (
@@ -112,27 +134,36 @@ export function InviteLinks({ businessId, businessName }: { businessId: number; 
         {created ? (
           <div className="flex flex-col gap-3">
             <p className="break-all rounded-card bg-surface-sunken p-3 text-small" data-testid="invite-url">{url}</p>
-            <Button icon={Copy} block onClick={() => void copy(url)}>{t("settings.common.copy")}</Button>
-            <Button icon={Send} variant="secondary" block onClick={() => window.open(telegramShareUrl(url, shareText), "_blank", "noopener")}>
-              {t("settings.invite.telegram")}
+            <Button icon={noEmail ? Send : Copy} block onClick={noEmail ? share : () => void copy(url)}>
+              {noEmail ? t("settings.invite.telegram") : t("settings.common.copy")}
+            </Button>
+            <Button icon={noEmail ? Copy : Send} variant="secondary" block onClick={noEmail ? () => void copy(url) : share}>
+              {noEmail ? t("settings.common.copy") : t("settings.invite.telegram")}
             </Button>
             <Button variant="ghost" icon={X} block onClick={() => close(false)}>{t("settings.common.close")}</Button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <SegmentedControl label={t("settings.invite.role")} value={role} onValueChange={setRole} options={roleOptions} />
-            <SegmentedControl
-              label={t("settings.invite.expiry")}
-              value={hours}
-              onValueChange={setHours}
-              options={EXPIRY.map((h) => ({ value: h, label: t(`settings.invite.expiry.${h}`) }))}
-            />
-            <SegmentedControl
-              label={t("settings.invite.uses")}
-              value={uses}
-              onValueChange={setUses}
-              options={USES.map((u) => ({ value: u, label: u }))}
-            />
+            {noEmail ? <p className="text-caption text-muted-foreground">{t("biz.invite.noEmailHint")}</p> : null}
+            <Caption text={t("settings.invite.role")}>
+              <SegmentedControl label={t("settings.invite.role")} value={role} onValueChange={setRole} options={roleOptions} />
+            </Caption>
+            <Caption text={t("settings.invite.expiry")}>
+              <SegmentedControl
+                label={t("settings.invite.expiry")}
+                value={hours}
+                onValueChange={setHours}
+                options={EXPIRY.map((h) => ({ value: h, label: t(`settings.invite.expiry.${h}`) }))}
+              />
+            </Caption>
+            <Caption text={t("biz.invite.usesCaption")}>
+              <SegmentedControl
+                label={t("biz.invite.usesCaption")}
+                value={uses}
+                onValueChange={setUses}
+                options={USES.map((u) => ({ value: u, label: u }))}
+              />
+            </Caption>
             {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}
             <Button block icon={Check} loading={busy} onClick={() => void create()}>{t("settings.common.create")}</Button>
           </div>

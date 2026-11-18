@@ -2,15 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Globe, Play, Send } from "lucide-react";
+import { Globe, Play } from "lucide-react";
+import { useLocale } from "@/i18n";
 import { Logo } from "@/components/brand/logo";
-import { Button, Card, ErrorState, Icon, LanguageSwitcher, SkeletonList, Text } from "@/components/ui";
+import { Button, Card, ErrorState, Icon, LanguagePicker, SkeletonList, Text } from "@/components/ui";
 import { ConsentNotice } from "@/components/legal/consent-notice";
 import { demoLogin, errorText, fetchProviders, noConsent, stashConsent, type ConsentChoice } from "@/lib/auth-api";
 import type { AuthProviders, Me } from "@/lib/types";
 import { hasTelegramLaunchParams } from "@/lib/telegram";
 import { EmailOtpForm } from "./email-otp-form";
-import { TelegramWidget } from "./telegram-widget";
+import { TelegramLoginButton } from "./telegram-widget";
 import { useAT } from "./use-at";
 
 const noopSubscribe = () => () => undefined;
@@ -22,6 +23,7 @@ const safeNext = (next: string | null) =>
 
 export function LoginView({ next }: { next: string | null }) {
   const { t, locale } = useAT();
+  const [, setLocale] = useLocale();
   const router = useRouter();
   const target = safeNext(next);
   const [providers, setProviders] = useState<AuthProviders | null>(null);
@@ -45,6 +47,7 @@ export function LoginView({ next }: { next: string | null }) {
   const done = (me: Me) => router.replace(me.needs_onboarding && !target.startsWith("/join/") ? "/onboarding" : target);
 
   async function demo() {
+    if (!consent.terms) return needTerms();
     setBusy(true);
     setError(null);
     try {
@@ -66,7 +69,7 @@ export function LoginView({ next }: { next: string | null }) {
   };
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-8">
-      <LanguageSwitcher className="absolute right-4 top-4 w-auto" />
+      <LanguagePicker className="absolute right-4 top-4" value={locale} onChange={setLocale} label={t("auth.language")} />
       <header className="flex flex-col items-center gap-2 text-center">
         <Logo size={48} />
         <h1 className="text-page font-bold tracking-tight">{t("auth.login.title")}</h1>
@@ -97,18 +100,19 @@ export function LoginView({ next }: { next: string | null }) {
             </Button>
           ) : null}
           {showTelegram ? (
-            consent.terms ? (
-              <TelegramWidget
-                onBeforeLogin={() => stashConsent(consent)}
-                onSignedIn={done}
-                onError={(e) => setError(errorText(e, errors, t("auth.generic")))}
-              />
-            ) : (
-              <Button variant="secondary" icon={Send} block aria-disabled onClick={needTerms}>{t("auth.telegram")}</Button>
-            )
+            <TelegramLoginButton
+              botId={providers.telegram_bot_id}
+              label={t("auth.telegram")}
+              locale={locale}
+              termsAccepted={consent.terms}
+              onNeedTerms={needTerms}
+              onBeforeLogin={() => stashConsent(consent)}
+              onSignedIn={done}
+              onError={(e) => setError(errorText(e, errors, t("auth.generic")))}
+            />
           ) : null}
           {providers.demo ? <Button variant="ghost" icon={Play} block loading={busy} onClick={demo}>{t("auth.demo")}</Button> : null}
-          {providers.email || providers.google || showTelegram ? (
+          {any ? (
             <ConsentNotice compact locale={locale} value={consent} onChange={(c) => { setConsent(c); if (c.terms) setTermsInvalid(false); }} disabled={busy} invalid={termsInvalid && !consent.terms} termsRef={termsRef} />
           ) : null}
           {error ? <p role="alert" className="text-caption text-danger">{error}</p> : null}

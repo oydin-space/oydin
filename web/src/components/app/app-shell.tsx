@@ -26,7 +26,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const primary = primaryFor(user?.role)
   const secondary = secondaryFor(user?.role)
   const sidebarItems = [...primary, ...secondary].map((e) => ({ href: e.href, label: t(e.label), icon: e.icon, active: isActive(path, e.href) }))
-  const moreActive = secondary.some((e) => isActive(path, e.href))
+  // Quick entry is opened from the dock mic, so it must not light up "More".
+  const moreActive = secondary.some((e) => e.id !== "quick" && isActive(path, e.href))
 
   useEffect(() => applyTelegramTheme(), [])
   useEffect(() => {

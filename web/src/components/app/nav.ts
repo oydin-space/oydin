@@ -1,4 +1,4 @@
-import { CalendarDays, Ellipsis, House, MessageCircle, Package, ReceiptText, Settings, Target, Users, Wrench, Zap, type LucideIcon } from "lucide-react"
+import { CalendarDays, CreditCard, Ellipsis, House, MessageCircle, Package, ReceiptText, Settings, Target, Users, Wrench, Zap, type LucideIcon } from "lucide-react"
 import type { Role } from "@/lib/types"
 import type { CoreKey } from "./use-core-t"
 
@@ -29,6 +29,7 @@ export const SECONDARY: readonly NavEntry[] = [
   { id: "tools", href: "/app/tools", label: "core.nav.tools", icon: Wrench, roles: FINANCE },
   { id: "team", href: "/app/team", label: "core.nav.team", icon: Users, roles: ["owner"] },
   { id: "quick", href: "/app/quick", label: "core.nav.quick", icon: Zap, roles: ALL },
+  { id: "billing", href: "/app/billing", label: "core.nav.billing", icon: CreditCard, roles: ["owner"] },
   { id: "settings", href: "/app/settings", label: "core.nav.settings", icon: Settings, roles: ALL },
 ]
 

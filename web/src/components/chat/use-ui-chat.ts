@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import { useI18n } from "@/i18n/provider";
 import { api, ApiError, post } from "@/lib/api";
 import type { AiReplyWithUi } from "@/lib/tools-api";
 import type { ChatTurn, Transaction, TransactionInput, VoiceReply } from "@/lib/types";
@@ -24,19 +25,72 @@ export interface UiChat {
 }
 
 const HISTORY = 20;
+const STORAGE = "oydin.chat.";
+const EMPTY: UiMessage[] = [];
 let seq = 0;
 
-/** Чат с генеративным UI. Ошибки — код ApiError; текст ошибки рисует экран через i18n. */
-export function useUiChat(): UiChat {
-  const [messages, setMessages] = useState<UiMessage[]>([]);
+/* Переписка живёт вне компонента и в sessionStorage: переход на другую вкладку и обратно её не теряет.
+   Серверной истории сообщений нет; ключ — пользователь и бизнес. */
+const cache = new Map<string, UiMessage[]>();
+const listeners = new Set<() => void>();
+
+function load(scope: string): UiMessage[] {
+  const hit = cache.get(scope);
+  if (hit) return hit;
+  let saved: UiMessage[] = EMPTY;
+  try {
+    const raw = sessionStorage.getItem(STORAGE + scope);
+    if (raw) saved = JSON.parse(raw) as UiMessage[];
+  } catch {
+    saved = EMPTY;
+  }
+  cache.set(scope, saved);
+  return saved;
+}
+
+function store(scope: string, update: (all: UiMessage[]) => UiMessage[]) {
+  const next = update(load(scope));
+  cache.set(scope, next);
+  try {
+    // картинки тяжёлые для sessionStorage; «сохраняется» после перезагрузки — снова черновик
+    const lean = next
+      .filter((m) => !m.pending)
+      .map(({ images: _images, ...m }) => (m.draftState === "saving" ? { ...m, draftState: "pending" as const } : m));
+    sessionStorage.setItem(STORAGE + scope, JSON.stringify(lean));
+  } catch {
+    /* переполнение или приватный режим — остаётся память вкладки */
+  }
+  listeners.forEach((l) => l());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** Последние реплики для модели: без ошибок и заглушек. */
+function turns(all: UiMessage[]): ChatTurn[] {
+  return all
+    .filter((m) => !m.error && !m.pending && m.content.trim() && (m.role === "user" || m.role === "assistant"))
+    .map((m) => ({ role: m.role, content: m.content }))
+    .slice(-HISTORY);
+}
+
+/** Чат с генеративным UI. Ошибки — код ApiError; текст ошибки рисует экран через i18n.
+ *  scope — `${userId}:${businessId}`: у каждого бизнеса своя переписка. */
+export function useUiChat(scope: string): UiChat {
+  const { locale } = useI18n();
+  const messages = useSyncExternalStore(subscribe, () => load(scope), () => EMPTY);
   const [busy, setBusy] = useState(false);
   const [block, setBlock] = useState<ChatBlock>(null);
-  const history = useRef<ChatTurn[]>([]);
   const busyRef = useRef(false);
 
-  const patch = useCallback((id: string, p: Partial<UiMessage>) => {
-    setMessages((all) => all.map((m) => (m.id === id ? { ...m, ...p } : m)));
-  }, []);
+  const setMessages = useCallback((update: (all: UiMessage[]) => UiMessage[]) => store(scope, update), [scope]);
+
+  const patch = useCallback(
+    (id: string, p: Partial<UiMessage>) => setMessages((all) => all.map((m) => (m.id === id ? { ...m, ...p } : m))),
+    [setMessages],
+  );
 
   /** Общая обёртка запроса: занятость, блокировки 403, сообщение об ошибке. */
   const run = useCallback(async (userText: string, request: (userId: string) => Promise<void>, images?: string[]) => {
@@ -59,42 +113,39 @@ export function useUiChat(): UiChat {
       busyRef.current = false;
       setBusy(false);
     }
-  }, []);
+  }, [setMessages]);
 
   const ask = useCallback(
-    async (text: string, images?: string[]) => {
-      history.current = [...history.current, { role: "user" as const, content: text }].slice(-HISTORY);
-      try {
-        const r = await post<AiReplyWithUi>("/ai/chat/", { messages: history.current, ...(images?.length ? { images } : {}) });
-        history.current = [...history.current, { role: "assistant" as const, content: r.reply }].slice(-HISTORY);
-        setMessages((all) => [
-          ...all,
-          {
-            id: `m${Date.now().toString(36)}${seq++}`,
-            role: "assistant",
-            content: r.reply,
-            ui: r.ui ?? null,
-            chart: r.ui ? null : r.chart,
-            draft: r.draft,
-            draftState: r.draft ? "pending" : undefined,
-            suggestions: r.suggestions,
-            traceId: r.trace_id,
-            tools: r.tools_used,
-          },
-        ]);
-      } catch (e) {
-        history.current = history.current.slice(0, -1);
-        throw e;
-      }
+    async (images?: string[]) => {
+      const r = await post<AiReplyWithUi>("/ai/chat/", {
+        messages: turns(load(scope)),
+        lang: locale,
+        ...(images?.length ? { images } : {}),
+      });
+      setMessages((all) => [
+        ...all,
+        {
+          id: `m${Date.now().toString(36)}${seq++}`,
+          role: "assistant",
+          content: r.reply,
+          ui: r.ui ?? null,
+          chart: r.ui ? null : r.chart,
+          draft: r.draft,
+          draftState: r.draft ? "pending" : undefined,
+          suggestions: r.suggestions,
+          traceId: r.trace_id,
+          tools: r.tools_used,
+        },
+      ]);
     },
-    [],
+    [locale, scope, setMessages],
   );
 
   const send = useCallback(
     (text: string, images?: string[]) => {
       const content = text.trim();
       if (!content) return Promise.resolve();
-      return run(content, () => ask(content, images), images?.length ? images : undefined);
+      return run(content, () => ask(images), images?.length ? images : undefined);
     },
     [ask, run],
   );
@@ -114,10 +165,10 @@ export function useUiChat(): UiChat {
             { id: `m${Date.now().toString(36)}${seq++}`, role: "assistant", content: r.text, draft: r.draft, draftState: "pending" },
           ]);
         } else if (r.text.trim()) {
-          await ask(r.text.trim());
+          await ask();
         }
       }),
-    [ask, patch, run],
+    [ask, patch, run, setMessages],
   );
 
   const saveDraft = useCallback(

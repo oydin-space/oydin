@@ -103,6 +103,10 @@ export const chat = {
     "chat.build.err.error": "Не удалось построить. Попробуйте ещё раз.",
     "chat.ui.consentOff": "Включите согласие на ИИ, чтобы общаться",
     "chat.ui.enable": "Включить",
+    "chatfix.draft.badge": "Черновик",
+    "chatfix.draft.hint": "Ещё не сохранено — проверьте и подтвердите.",
+    "chatfix.draft.confirm": "Подтвердить и сохранить",
+    "chatfix.draft.failed": "Не удалось сохранить операцию. Попробуйте ещё раз.",
   },
   uz: {
     "chat.ui.days": "{count} kun|{count} kun",
@@ -208,6 +212,10 @@ export const chat = {
     "chat.build.err.error": "Yaratib boʻlmadi. Qayta urinib koʻring.",
     "chat.ui.consentOff": "Suhbat uchun AI roziligini yoqing",
     "chat.ui.enable": "Yoqish",
+    "chatfix.draft.badge": "Qoralama",
+    "chatfix.draft.hint": "Hali saqlanmagan — tekshiring va tasdiqlang.",
+    "chatfix.draft.confirm": "Tasdiqlash va saqlash",
+    "chatfix.draft.failed": "Operatsiyani saqlab boʻlmadi. Qayta urinib koʻring.",
   },
   en: {
     "chat.ui.days": "{count} day|{count} days",
@@ -313,5 +321,9 @@ export const chat = {
     "chat.build.err.error": "Couldn't build. Try again.",
     "chat.ui.consentOff": "Turn on AI consent to chat",
     "chat.ui.enable": "Enable",
+    "chatfix.draft.badge": "Draft",
+    "chatfix.draft.hint": "Not saved yet — check it and confirm.",
+    "chatfix.draft.confirm": "Confirm & save",
+    "chatfix.draft.failed": "Couldn't save the transaction. Try again.",
   },
 } as const;

@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n";
 import type { Account } from "@/lib/types";
 import type { QueueEntry } from "@/lib/offline/queue";
 import { CATEGORIES } from "@/lib/offline/reference";
+import { accountLabel } from "@/lib/offline/labels";
 import { useOfflineT } from "./use-offline-t";
 
 export interface PendingListProps {
@@ -53,7 +54,7 @@ export function PendingList({ entries, accounts, lastSync, syncing, online, onSy
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-body">{label(e.payload.direction, e.payload.category)}</span>
                   <span className="truncate text-small text-muted-foreground">
-                    {[accounts.find((a) => a.id === e.payload.account_id)?.name, e.payload.note, time(e.created_at)].filter(Boolean).join(" · ")}
+                    {[(() => { const a = accounts.find((x) => x.id === e.payload.account_id); return a ? accountLabel(a.name, t) : undefined; })(), e.payload.note, time(e.created_at)].filter(Boolean).join(" · ")}
                   </span>
                   {e.error ? (
                     <span className="flex items-center gap-1 text-small text-danger">

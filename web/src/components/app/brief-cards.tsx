@@ -4,14 +4,15 @@ import { Calculator, Sun } from "lucide-react"
 import Link from "next/link"
 import { useCoreT } from "@/components/app/use-core-t"
 import { AmountText, Icon, Skeleton, Text } from "@/components/ui"
-import { useT } from "@/i18n"
+import { useI18n, useT } from "@/i18n"
 import type { PulseData } from "@/lib/core-api"
 import type { SavedTool } from "@/lib/tools-api"
 import { PASTEL_BG } from "@/lib/tone"
 import { cn } from "@/lib/utils"
 import { GapCallout } from "./gap-callout"
+import { runwayText } from "./pulse-hero"
 
-const CARD = "flex h-[132px] w-[78%] max-w-[300px] shrink-0 snap-start flex-col justify-between rounded-card border border-border p-4 text-foreground"
+const CARD = "flex min-h-[132px] w-[78%] max-w-[300px] shrink-0 snap-start flex-col justify-between gap-2 rounded-card border border-border p-4 text-foreground"
 
 export function BriefCardsSkeleton() {
   return (
@@ -26,6 +27,7 @@ export function BriefCardsSkeleton() {
 export function BriefCards({ pulse, tools }: { pulse: PulseData; tools: SavedTool[] }) {
   const t = useCoreT()
   const tb = useT()
+  const { locale } = useI18n()
   return (
     <section aria-label={tb("biz.home.briefTitle")} className="flex flex-col gap-2">
       <div className="flex items-center gap-2 px-1"><Icon icon={Sun} size={16} /><Text variant="secondary" tone="muted" weight="semibold">{tb("biz.home.briefTitle")}</Text></div>
@@ -36,7 +38,7 @@ export function BriefCards({ pulse, tools }: { pulse: PulseData; tools: SavedToo
             <Text variant="secondary" weight="semibold" className="line-clamp-2">{pulse.headline}</Text>
           </div>
           <Text variant="secondary" className="text-foreground/80">
-            {t("core.dash.balance")}: <AmountText value={pulse.balance} /> · {t("core.dash.runway", { count: pulse.runway_days })}
+            {t("core.dash.balance")}: <AmountText value={pulse.balance} /> · {runwayText(pulse, t, locale)}
           </Text>
         </article>
         <GapCallout gap={pulse.gap} className={CARD} />

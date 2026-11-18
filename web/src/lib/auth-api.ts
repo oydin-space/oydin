@@ -26,7 +26,8 @@ const browserStorage = () => (typeof localStorage === "undefined" ? null : local
 /** Любой способ входа сразу пишет снимок сессии: очередь скоупится по нему. */
 const signedIn = (me: Me) => (writeMeSnapshot(browserStorage(), me), me);
 export const verifyEmailCode = (email: string, code: string) => post<Me>("/auth/email/verify/", { email, code }).then(signedIn);
-export const demoLogin = () => post<Me>("/auth/demo/", {}).then(signedIn);
+/** Демо-вход требует принятых условий: бэкенд отвечает 400 `consent_required` без `terms_version`. */
+export const demoLogin = () => post<Me>("/auth/demo/", { terms_version: TERMS_VERSION }).then(signedIn);
 export const fetchMe = () => api<Me>("/auth/me/");
 /** Выход чистит локальное в finally: офлайн-выход тоже стирает снимок, кэш счетов и закэшированные страницы /app/*. Несинхронизированные записи остаются, но чужим пользователям не видны (скоуп). */
 export const logout = async () => {

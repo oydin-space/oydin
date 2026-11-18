@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { LoginView } from "@/components/auth/login-view";
-import { LOCALE_COOKIE, parseLocale } from "@/i18n/core";
+import { getServerLocale } from "@/i18n/server";
 import { auth } from "@/i18n/parts/auth";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = parseLocale((await cookies()).get(LOCALE_COOKIE)?.value) ?? "ru";
+  const locale = await getServerLocale();
   return { title: auth[locale]["auth.meta.title"] };
 }
 

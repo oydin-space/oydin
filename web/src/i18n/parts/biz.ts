@@ -96,6 +96,8 @@ export const biz = {
     "biz.brief.say.payments": "На этой неделе платёж: {list}.|На этой неделе платежей: {count}. {list}.|На этой неделе платежей: {count}. {list}.",
     "biz.brief.say.noPayments": "На этой неделе платежей нет.",
     "biz.brief.say.debtors": "Вам должны клиенты: {count}, на сумму {amount}.",
+    "biz.invite.usesCaption": "Сколько человек",
+    "biz.invite.noEmailHint": "Вход по почте отключён. Поделитесь ссылкой или отправьте её в Telegram: человек войдёт и присоединится к бизнесу.",
   },
   uz: {
     "biz.generic": "Bajarilmadi. Qayta urinib ko‘ring.",
@@ -193,6 +195,8 @@ export const biz = {
     "biz.brief.say.payments": "Bu hafta toʻlovlar soni: {count}. {list}.",
     "biz.brief.say.noPayments": "Bu hafta toʻlovlar yoʻq.",
     "biz.brief.say.debtors": "Mijozlar qarzi: {count} ta, jami {amount}.",
+    "biz.invite.usesCaption": "Necha kishi",
+    "biz.invite.noEmailHint": "Pochta orqali kirish oʻchirilgan. Havolani ulashing yoki Telegram orqali yuboring: kishi kirib, biznesga qoʻshiladi.",
   },
   en: {
     "biz.generic": "Something went wrong. Please try again.",
@@ -290,5 +294,7 @@ export const biz = {
     "biz.brief.say.payments": "One payment due this week: {list}.|Payments due this week: {count}. {list}.",
     "biz.brief.say.noPayments": "No payments due this week.",
     "biz.brief.say.debtors": "Customers owe you money: {count}, {amount} in total.",
+    "biz.invite.usesCaption": "How many people",
+    "biz.invite.noEmailHint": "Email sign-in is off. Share the link or send it via Telegram: the person signs in and joins the business.",
   },
 } as const

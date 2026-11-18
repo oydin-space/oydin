@@ -4,7 +4,8 @@ import { useMemo } from "react"
 import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
 import { Banknote, CalendarClock, CheckCircle2, CircleAlert, FileText, HandCoins, Home, Landmark, ShieldCheck, Truck, TriangleAlert, Users, type LucideIcon } from "lucide-react"
 import { AmountText, Badge, Card, CashChart, EmptyState, EnvelopeProgress, ErrorState, Icon, ListGroup, ListRow, PAGE_WIDTH, PageHeader, Section, SkeletonCard, SkeletonChart, SkeletonList, Text } from "@/components/ui"
-import { cashPoints, todayIso, type ForecastResponse } from "@/lib/core-api"
+import { cashPoints, todayFromForecast, todayIso, type ForecastResponse } from "@/lib/core-api"
+import { dayMonth } from "@/lib/format"
 import { useI18n } from "@/i18n"
 import type { Envelope, Obligation } from "@/lib/types"
 import { useApi } from "@/lib/use-api"
@@ -28,15 +29,15 @@ function ObligationBadge({ o }: { o: Obligation }) {
 
 export function CalendarView() {
   const t = useCoreT()
-  const { formatDate, formatSumShort } = useI18n()
+  const { locale, formatSumShort } = useI18n()
   const forecast = useApi<ForecastResponse>("/forecast/?days=30")
   const obligations = useApi<{ items: Obligation[] }>("/obligations/")
   const envelopes = useApi<{ items: Envelope[] }>("/envelopes/")
 
   const points = useMemo(() => {
     const f = forecast.data?.points ?? []
-    return f.length ? cashPoints(todayIso(), f[0].balance, f, formatDate) : []
-  }, [forecast.data, formatDate])
+    return f.length ? cashPoints(todayIso(), todayFromForecast(f[0]), f, (iso) => dayMonth(iso, locale, "short")) : []
+  }, [forecast.data, locale])
 
   const error = forecast.error ?? obligations.error ?? envelopes.error
   const reload = () => {
@@ -77,7 +78,7 @@ export function CalendarView() {
                   leading={<Icon icon={KIND_ICON[o.kind]} className="text-muted-foreground" />}
                   title={o.title}
                   wrapTitle
-                  subtitle={`${t(`core.cal.kind.${o.kind}` as CoreKey)} · ${t("core.cal.due", { date: formatDate(o.due_date) })}`}
+                  subtitle={`${t(`core.cal.kind.${o.kind}` as CoreKey)} · ${t("core.cal.due", { date: dayMonth(o.due_date, locale) })}`}
                   status={<ObligationBadge o={o} />}
                   trailing={<AmountText value={o.amount} mode="compact" />}
                 />
@@ -95,7 +96,7 @@ export function CalendarView() {
                   <EnvelopeProgress label={t("core.cal.envelope", { title: e.title })} saved={e.saved} target={e.target} />
                   <Text variant="caption" tone="muted" className="mt-2 flex items-center gap-1.5">
                     <Icon icon={CalendarClock} size={16} />
-                    <span>{t("core.cal.due", { date: formatDate(e.due_date) })} · {t("core.cal.perDay", { amount: formatSumShort(e.daily) })}</span>
+                    <span>{t("core.cal.due", { date: dayMonth(e.due_date, locale) })} · {t("core.cal.perDay", { amount: formatSumShort(e.daily) })}</span>
                   </Text>
                 </Card>
               ))}

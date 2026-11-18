@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { LanguageSwitcher } from "@/components/landing/language-switcher";
-import { parseLocale } from "@/components/landing/localize";
+import { LandingLanguagePicker } from "@/components/landing/language-switcher";
+import { getServerLocale } from "@/i18n/server";
 import { legalContent } from "@/content/legal";
 import { legalVersion, type DocumentKind, type LegalLocale } from "@/content/legal/types";
 
@@ -10,7 +9,7 @@ const isLocale = (value: unknown): value is LegalLocale => value === "ru" || val
 export async function LegalDocument({ kind, searchParams }: { kind: Exclude<DocumentKind, "consent">; searchParams?: Promise<{ lang?: string | string[] }> }) {
   const queryLang = (await searchParams)?.lang;
   // ?lang= wins over the cookie so links from the consent notice open in the language the user saw.
-  const locale = isLocale(queryLang) ? queryLang : parseLocale((await cookies()).get("oydin_lang")?.value);
+  const locale = isLocale(queryLang) ? queryLang : await getServerLocale();
   const copy = legalContent[locale];
   const sections = Object.entries(copy[kind]);
   return (
@@ -35,7 +34,7 @@ export async function LegalDocument({ kind, searchParams }: { kind: Exclude<Docu
           <div className="space-y-3">{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>
         </section>)}
       </article>
-      <LanguageSwitcher locale={locale} />
+      <LandingLanguagePicker locale={locale} />
     </main>
   );
 }

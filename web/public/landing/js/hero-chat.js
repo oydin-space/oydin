@@ -24,7 +24,8 @@
   const playing=!audio.paused&&!audio.ended;
   buttons.forEach(button=>{
    button.setAttribute('aria-pressed',String(playing));
-   button.setAttribute('aria-label',playing?'Pause the sample brief':'Read the sample brief aloud');
+   const labels=(document.querySelector('.hero')||{}).dataset||{};
+   button.setAttribute('aria-label',(playing?labels.pauseLabel:labels.playLabel)||button.getAttribute('aria-label')||'');
   });
  };
  buttons.forEach(button=>button.addEventListener('click',()=>{

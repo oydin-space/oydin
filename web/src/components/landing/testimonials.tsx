@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { api } from "@/lib/api"
 import { type Locale } from "./copy"
+import { LOCALE_EVENT } from "./localize-dom"
 
 interface Testimonial {
   id: number
@@ -16,9 +17,16 @@ interface Testimonial {
 }
 
 /** Client-side testimonials (contract C5): logo, quote, then person photo + name + position, company. Hidden when empty. */
-export function Testimonials({ locale }: { locale: Locale }) {
+export function Testimonials({ locale: initial }: { locale: Locale }) {
   const [items, setItems] = useState<Testimonial[]>([])
   const [mount, setMount] = useState<HTMLElement | null>(null)
+  const [locale, setLocale] = useState<Locale>(initial)
+
+  useEffect(() => {
+    const onLocale = (e: Event) => setLocale((e as CustomEvent<Locale>).detail)
+    window.addEventListener(LOCALE_EVENT, onLocale)
+    return () => window.removeEventListener(LOCALE_EVENT, onLocale)
+  }, [])
 
   useEffect(() => {
     let alive = true

@@ -5,7 +5,6 @@
   const hour=new Date().getHours();
   const mode=hour>=20||hour<8?'night':'day';
   root.dataset.heroMode=mode;
-  document.querySelectorAll('[data-hero-shift]').forEach(el=>el.textContent=(window.__oydinWords||{})[mode]||mode);
   const boundary=mode==='night'?'#FBE092':'#FEF1C5';
   document.querySelectorAll('.hero-block > .axle-divider i').forEach(el=>el.style.setProperty('--circle-color',boundary));
  };

@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react"
 import { useCoreT } from "@/components/app/use-core-t"
 import { Button, EmptyState, ErrorState, FilterBar, Icon, Input, ListGroup, PAGE_WIDTH, PageHeader, SkeletonList, Text } from "@/components/ui"
 import { groupByDate } from "@/lib/core-api"
+import { dayMonth } from "@/lib/format"
+import { periodRange, usePeriod } from "@/lib/period"
 import { useI18n } from "@/i18n"
 import { useApi } from "@/lib/use-api"
 import type { Account, Transaction } from "@/lib/types"
@@ -14,7 +16,8 @@ import { TxRow } from "./tx-row"
 
 export function OperationsView() {
   const t = useCoreT()
-  const { formatDate } = useI18n()
+  const { locale } = useI18n()
+  const range = periodRange(usePeriod())
   const [purpose, setPurpose] = useState("all")
   const [q, setQ] = useState("")
   const [dq, setDq] = useState("")
@@ -25,7 +28,7 @@ export function OperationsView() {
     return () => clearTimeout(id)
   }, [q])
 
-  const params = new URLSearchParams({ status: "confirmed", limit: "100" })
+  const params = new URLSearchParams({ status: "confirmed", limit: "100", from: range.from, to: range.to })
   if (purpose !== "all") params.set("purpose", purpose)
   if (dq) params.set("q", dq)
   const list = useApi<{ items: Transaction[] }>(`/transactions/?${params}`)
@@ -65,7 +68,7 @@ export function OperationsView() {
       <div className="flex flex-col gap-4">
         {groups.map(({ date, items }) => (
           <div key={date} className="flex flex-col gap-1">
-            <Text variant="caption" tone="muted" className="flex items-center gap-1.5 px-4"><Icon icon={CalendarDays} size={16} />{formatDate(date)}</Text>
+            <Text variant="caption" tone="muted" className="flex items-center gap-1.5 px-4"><Icon icon={CalendarDays} size={16} />{dayMonth(date, locale)}</Text>
             <ListGroup>
               {items.map((tx) => (
                 <TxRow key={tx.id} tx={tx} accounts={accs} onOpen={(x) => edit(x)} />

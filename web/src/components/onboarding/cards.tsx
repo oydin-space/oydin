@@ -5,7 +5,7 @@ import { Building2, Check, Copy, Download, Home, ListOrdered, MessageCircle, Mic
 import { useLocale, useT, type Key, type TFunction } from "@/i18n";
 import { ApiError } from "@/lib/api";
 import { commitImport, MAX_UPLOAD_BYTES, uploadImport, type ImportJob } from "@/lib/settings-api";
-import { Badge, Button, Card, Chip, Input, LanguageSwitcher, PastelCard, SkeletonText, StatusBanner, Text } from "@/components/ui";
+import { Badge, Button, Card, Chip, Input, LanguagePicker, PastelCard, SkeletonText, StatusBanner, Text } from "@/components/ui";
 import {
   CHANNELS,
   createInvite,
@@ -117,15 +117,15 @@ function SkipButton({ onSkip, busy }: { onSkip?: () => Promise<void>; busy: bool
 
 export function ConsentCard({ onSubmit }: { onSubmit: Submit }) {
   const t = useT();
-  const [locale] = useLocale();
+  const [locale, setLocale] = useLocale();
   const { busy, error, run } = useAction();
   return (
     <Card className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col items-start gap-2">
         <Text variant="secondary" tone="muted">
           {t("onboarding.consent.language")}
         </Text>
-        <LanguageSwitcher />
+        <LanguagePicker value={locale} onChange={setLocale} label={t("onboarding.consent.language")} />
       </div>
       <Text variant="secondary">{t("onboarding.consent.body")}</Text>
       <Actions error={error}>

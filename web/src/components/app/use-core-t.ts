@@ -6,9 +6,10 @@ import type { Key } from "@/i18n/ru"
 import type { core } from "@/i18n/parts/core"
 
 export type CoreKey = keyof typeof core.ru
+export type CoreT = (key: CoreKey, params?: Params) => string
 
 /** `useT()` for the `core.*` slice: typed by the slice itself, so it compiles before the orchestrator merges it. */
-export function useCoreT(): (key: CoreKey, params?: Params) => string {
+export function useCoreT(): CoreT {
   const t = useT()
   return (key, params) => t(key as Key, params)
 }

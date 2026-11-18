@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { Check, StickyNote } from "lucide-react";
-import { Button, Chip, Icon, Input, MoneyInput, SegmentedControl, Select, Text, VoiceButton, type VoiceState } from "@/components/ui";
+import { Button, Icon, Input, MoneyInput, SegmentedControl, Select, VoiceButton, type VoiceState } from "@/components/ui";
 import { useI18n } from "@/i18n";
 import { api } from "@/lib/api";
-import { CATEGORIES } from "@/lib/offline/reference";
+import { accountLabel, defaultAccountId, readLast, rememberLast } from "@/lib/offline/labels";
 import { enqueueOperation } from "@/lib/offline/sync";
 import type { Account } from "@/lib/types";
 import { recordVoice, voiceSupported } from "@/lib/voice";
+import { CategoryPicker } from "./category-picker";
 import { useOfflineT } from "./use-offline-t";
 
 type Direction = "in" | "out";
@@ -34,32 +35,46 @@ export function QuickEntryForm({ accounts, online }: { accounts: Account[]; onli
   const { locale } = useI18n();
   const [direction, setDirection] = useState<Direction>("out");
   const [amount, setAmount] = useState<number | null>(null);
-  const [category, setCategory] = useState<string>(CATEGORIES.out[0].value);
+  const [category, setCategory] = useState<string>("");
   const [accountId, setAccountId] = useState<string | undefined>();
   const [note, setNote] = useState("");
-  const [errors, setErrors] = useState<{ amount?: string; account?: string }>({});
+  const [errors, setErrors] = useState<{ amount?: string; account?: string; category?: string }>({});
   const [saving, setSaving] = useState(false);
   const [voice, setVoice] = useState<VoiceState>("idle");
   const stopRef = useRef<AbortController | null>(null);
   const canVoice = useSyncExternalStore(noopSubscribe, voiceSupported, () => false);
 
-  const account = accounts.find((a) => String(a.id) === (accountId ?? String(accounts[0]?.id)));
+  // Последняя использованная категория подставляется после монтирования (localStorage недоступен на сервере).
+  const [lastApplied, setLastApplied] = useState(false);
+  useEffect(() => {
+    if (lastApplied) return;
+    const id = setTimeout(() => {
+      setLastApplied(true);
+      setCategory((c) => c || (readLast("out") ?? ""));
+    }, 0);
+    return () => clearTimeout(id);
+  }, [lastApplied]);
+
+  const account = accounts.find((a) => String(a.id) === (accountId ?? defaultAccountId(accounts)));
   const chosenId = account ? String(account.id) : undefined;
 
   const pickDirection = (d: Direction) => {
     setDirection(d);
-    if (!CATEGORIES[d].some((c) => c.value === category)) setCategory(CATEGORIES[d][0].value);
+    setCategory(readLast(d) ?? "");
   };
 
   async function submit() {
     const next: typeof errors = {};
     if (!amount || amount <= 0) next.amount = t("offline.errAmount");
     if (!account) next.account = accounts.length ? t("offline.errAccount") : t("offline.errNoAccounts");
+    if (!category.trim()) next.category = t("offline.errCategory");
     setErrors(next);
-    if (next.amount || next.account || !amount || !account) return;
+    if (next.amount || next.account || next.category || !amount || !account) return;
     setSaving(true);
     try {
-      await enqueueOperation({ amount, direction, category, account_id: account.id, note: note.trim() || undefined, date: today() });
+      await enqueueOperation({ amount, direction, category: category.trim(), account_id: account.id, note: note.trim() || undefined, date: today() });
+      rememberLast("account", String(account.id));
+      rememberLast(direction, category.trim());
       toast.success(online ? t("offline.savedSynced") : t("offline.savedOffline"));
       setAmount(null);
       setNote("");
@@ -86,7 +101,7 @@ export function QuickEntryForm({ accounts, online }: { accounts: Account[]; onli
         setAmount(d.amount);
         if (d.direction === "in" || d.direction === "out") {
           setDirection(d.direction);
-          setCategory(d.category ?? CATEGORIES[d.direction][0].value);
+          setCategory(d.category ?? "");
         }
         if (d.account_id && accounts.some((a) => a.id === d.account_id)) setAccountId(String(d.account_id));
         setNote(d.note || res.text);
@@ -113,8 +128,6 @@ export function QuickEntryForm({ accounts, online }: { accounts: Account[]; onli
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount
   }, [canVoice]);
 
-  const categories = CATEGORIES[direction];
-  const knownCategory = categories.some((c) => c.value === category);
   return (
     <form
       className="flex flex-col gap-4"
@@ -134,25 +147,14 @@ export function QuickEntryForm({ accounts, online }: { accounts: Account[]; onli
       />
       <MoneyInput label={t("offline.amount")} value={amount} onValueChange={setAmount} currency={account?.currency ?? "UZS"} locale={locale} error={errors.amount} />
 
-      <div className="flex flex-col gap-2">
-        <Text variant="secondary" tone="muted">
-          {t("offline.category")}
-        </Text>
-        <div className="flex flex-wrap gap-2" role="group" aria-label={t("offline.category")}>
-          {categories.map((c) => (
-            <Chip key={c.value} selected={knownCategory && category === c.value} onSelect={() => setCategory(c.value)}>
-              {t(c.key)}
-            </Chip>
-          ))}
-        </div>
-      </div>
+      <CategoryPicker label={t("offline.category")} direction={direction} value={category} onChange={setCategory} error={errors.category} required />
 
       <Select
         label={t("offline.account")}
         placeholder={t("offline.accountPlaceholder")}
         value={chosenId}
         onValueChange={setAccountId}
-        options={accounts.map((a) => ({ value: String(a.id), label: a.name }))}
+        options={accounts.map((a) => ({ value: String(a.id), label: accountLabel(a.name, t) }))}
         error={errors.account}
       />
       <Input label={t("offline.note")} placeholder={t("offline.notePlaceholder")} value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} leading={<Icon icon={StickyNote} size={16} />} />

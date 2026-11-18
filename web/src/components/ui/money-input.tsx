@@ -16,6 +16,8 @@ export interface MoneyInputProps extends FieldChrome {
   placeholder?: string;
   id?: string;
   name?: string;
+  /** Внутри Sheet фокус при открытии идёт сюда, а не на «Закрыть». */
+  autoFocusField?: boolean;
 }
 
 const grouped = (minor: number, currency: Currency) => formatMoney(minor, { currency, withCurrency: false });
@@ -25,7 +27,7 @@ const grouped = (minor: number, currency: Currency) => formatMoney(minor, { curr
  * («≈ 3 млн сум»), валюта — постоянный суффикс. Десятичная клавиатура на мобильных.
  */
 export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function MoneyInput(
-  { value, onValueChange, currency, locale: localeProp, label, hint, error, required, disabled, placeholder, className, id: idProp, name },
+  { value, onValueChange, currency, locale: localeProp, label, hint, error, required, disabled, placeholder, className, id: idProp, name, autoFocusField },
   ref,
 ) {
   const current = useKitLocale();
@@ -50,6 +52,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
           ref={ref}
           id={id}
           name={name}
+          data-autofocus={autoFocusField ? "" : undefined}
           type="text"
           inputMode={currency === "USD" ? "decimal" : "numeric"}
           autoComplete="off"

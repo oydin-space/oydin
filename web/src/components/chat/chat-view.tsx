@@ -32,12 +32,17 @@ const SOURCES = [
   { key: "image", icon: ImagePlus, attach: true },
 ] as const;
 const STARTERS = ["chat.ui.p1", "chat.ui.p2", "chat.ui.p3", "chat.ui.p4"] as const;
+/** Налоговые подсказки не показываем: расчёт налога — к бухгалтеру, не в быстрые вопросы. */
+const TAX_CHIP = /налог|ндс|soliq|qqs|\btax|\bvat\b/i;
+/** Одна прокручиваемая строка подсказок: без полосы прокрутки, края мягко гаснут. */
+const CHIP_ROW =
+  "flex min-w-0 gap-2 overflow-x-auto px-2 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0 [mask-image:linear-gradient(to_right,transparent,black_12px,black_calc(100%-24px),transparent)]";
 
 /** /app/chat: помощник с генеративным UI, голосом, оценкой ответов и сохранением калькуляторов. */
 export function ChatView() {
   const t = useChatT();
   const { user } = useSession();
-  const chat = useUiChat();
+  const chat = useUiChat(`${user?.id ?? "anon"}:${user?.active_business_id ?? ""}`);
   const accounts = useApi<{ items: Account[] }>(user?.role === "seller" ? null : "/accounts/");
   const [buildOpen, setBuildOpen] = useState(false);
   const [inject, setInject] = useState<{ items: string[] }>();
@@ -70,7 +75,9 @@ export function ChatView() {
   }
 
   const last = chat.messages.at(-1);
-  const chips = last?.role === "assistant" && last.suggestions?.length ? last.suggestions : chat.messages.length ? [] : STARTERS.map((k) => t(k));
+  const chips = (
+    last?.role === "assistant" && last.suggestions?.length ? last.suggestions : chat.messages.length ? [] : STARTERS.map((k) => t(k))
+  ).filter((s) => !TAX_CHIP.test(s));
 
   const onDictate = voiceSupported()
     ? async (stop: AbortSignal) => {
@@ -118,7 +125,7 @@ export function ChatView() {
           ))}
           {chat.busy ? <TypingBubble /> : null}
           {chips.length && !chat.busy ? (
-            <div className={chat.messages.length ? "flex flex-wrap gap-2 pl-2" : "scroll-x -mx-4 mt-auto flex gap-2 px-4 pb-1 [&>*]:shrink-0"}>
+            <div className={chat.messages.length ? CHIP_ROW : `mt-auto ${CHIP_ROW}`}>
               {chips.map((s) => (
                 <Chip key={s} disabled={consentOff} onSelect={() => void chat.send(s)}>
                   {s}
@@ -129,12 +136,12 @@ export function ChatView() {
         </StickToBottom.Content>
       </StickToBottom>
       <div className="pb-0.5 pt-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 [&_.prompt-bar__input]:min-h-11">
           <PromptBar
             disabled={consentOff}
             background="var(--card)"
             color="var(--foreground)"
-            sparkColor="#b9a6f0"
+            sparkColor="#FFD62C"
             width={760}
             busy={chat.busy}
             placeholders={STARTERS.map((k) => t(k))}
@@ -213,7 +220,7 @@ function Message({ message: m, accounts, chat }: { message: UiMessage; accounts:
       <div className="tail-l rounded-[1.25rem] bg-secondary px-3.5 py-2.5">
         <RichText>{m.content}</RichText>
         {m.chart && !m.ui ? <AnswerChart chart={m.chart} /> : null}
-        {m.draft ? <DraftCard message={m} accounts={accounts} onSave={(i) => chat.saveDraft(m.id, i).catch(() => false)} onDismiss={() => chat.dismissDraft(m.id)} /> : null}
+        {m.draft ? <DraftCard message={m} accounts={accounts} onSave={(i) => chat.saveDraft(m.id, i)} onDismiss={() => chat.dismissDraft(m.id)} /> : null}
       </div>
       {m.ui ? <GenerativeUI key={m.ui} spec={m.ui} onAsk={(p) => void chat.send(p)} /> : null}
       <div className="flex items-center gap-1">

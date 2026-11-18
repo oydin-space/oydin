@@ -1,7 +1,15 @@
 import type { Account, Pulse, Transaction } from "./types"
 
 /** Pulse plus optional fields the backend may add; the kit never shows them when absent. */
-export type PulseData = Pulse & { tax_reserved?: number | null; cash_difference?: number | null }
+export type PulseData = Pulse & {
+  tax_reserved?: number | null
+  cash_difference?: number | null
+  /** Balance minus the forecast minimum: held for upcoming payments. */
+  reserved_upcoming?: number
+  /** Why safe_to_spend is 0; null when it is positive. */
+  safe_reason?: "gap" | "reserved" | "tax" | "empty" | null
+  revenue_week?: { amount: number; prev_amount: number; delta_pct: number | null }
+}
 
 export interface ForecastResponse {
   points: { date: string; balance: number; inflow: number; outflow: number }[]
@@ -27,6 +35,9 @@ export function groupByDate(items: Transaction[]): TxGroup[] {
 export function cashPoints(today: string, balance: number, forecast: ForecastResponse["points"], fmt: (iso: string) => string) {
   return [{ date: fmt(today), actual: balance, forecast: balance }, ...forecast.filter((p) => p.date !== today).map((p) => ({ date: fmt(p.date), forecast: p.balance }))]
 }
+
+/** Today's balance from the forecast: point 0 is tomorrow's closing balance = today + inflow − outflow. */
+export const todayFromForecast = (p: ForecastResponse["points"][number]) => p.balance - p.inflow + p.outflow
 
 /** A business with no accounts or no entries gets the first-steps checklist instead of an empty dashboard. */
 export const isEmptyBusiness = (accounts: Account[], transactions: number) => accounts.length === 0 || transactions === 0

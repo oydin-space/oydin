@@ -1,9 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 160 160" fill="none" stroke="#D99A00" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
-<defs>
-<g id="star"><path d="M111.1 48.9 111.1 111.1 48.9 111.1 48.9 48.9Z" fill="#FFD62C" fill-opacity=".28"/><path d="M124 80 80 124 36 80 80 36Z" fill="#FFD62C" fill-opacity=".18"/><circle r="9" cx="80" cy="80"/></g>
-<g id="rosette"><circle r="12" cx="0" cy="0"/><path d="M0-12C6-20 6-28 0-34 -6-28 -6-20 0-12ZM12 0C20 6 28 6 34 0 28-6 20-6 12 0ZM0 12C-6 20-6 28 0 34 6 28 6 20 0 12ZM-12 0C-20-6-28-6-34 0-28 6-20 6-12 0Z"/></g>
-</defs>
-<use href="#star"/><use href="#star" x="-80" y="-80"/><use href="#star" x="80" y="-80"/><use href="#star" x="-80" y="80"/><use href="#star" x="80" y="80"/>
-<path d="M80 36 80 0M80 124 80 160M36 80 0 80M124 80 160 80M111.1 48.9 160 0M48.9 48.9 0 0M111.1 111.1 160 160M48.9 111.1 0 160" />
-<g transform="translate(80 0) scale(.5)"><use href="#rosette"/></g><g transform="translate(80 160) scale(.5)"><use href="#rosette"/></g><g transform="translate(0 80) scale(.5)"><use href="#rosette"/></g><g transform="translate(160 80) scale(.5)"><use href="#rosette"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 140 140" fill="none" stroke="#D99A00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M30 30H110V110H30Z"/><path d="M70 10L130 70L70 130L10 70Z"/>
+<path d="M70 40L100 70L70 100L40 70Z" fill="#FFD62C" fill-opacity=".3"/>
+<circle cx="70" cy="70" r="8" fill="#FFD62C" fill-opacity=".55"/>
 </svg>

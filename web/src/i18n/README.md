@@ -14,4 +14,4 @@ const { formatSumShort, formatMoney, formatDate, locale, setLocale } = useI18n()
 formatSumShort(3_000_000)                   // "3 млн" | "3 mln" | "3M"
 ```
 
-Switcher: `import { LanguageSwitcher } from "@/components/ui"`. Detection: cookie `oydin_lang` → Telegram `language_code` → `navigator.language` → `ru`. Missing keys fall back to ru, then to the key. Pure helpers (`translate`, `detectLocale`, `formatSumShort`) live in `core.ts` and are tested in `i18n.test.ts` (`bun test src/i18n`).
+Picker: `import { LanguagePicker } from "@/components/ui"`. Detection: server cookie `oydin_lang` → `Accept-Language` (ru/uz/en) → `ru` (`resolveLocale`, `i18n/server.ts`); client the same with `navigator.languages`, Telegram `language_code` first inside the Mini App. Missing keys fall back to ru, then to the key. Pure helpers (`translate`, `detectLocale`, `formatSumShort`) live in `core.ts` and are tested in `i18n.test.ts` (`bun test src/i18n`).

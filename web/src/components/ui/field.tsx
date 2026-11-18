@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useId } from "react";
+import { DateField } from "./date-field";
 import { cn } from "@/lib/utils";
 
 export interface FieldChrome {
@@ -66,6 +67,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 ) {
   const auto = useId();
   const id = idProp ?? auto;
+  if (props.type === "date") {
+    const { value, onChange, min, max, disabled } = props;
+    return (
+      <FieldShell id={id} label={label} hint={hint} error={error} required={required} className={className}>
+        <DateField
+          id={id}
+          value={typeof value === "string" ? value : ""}
+          onValueChange={(iso) => onChange?.({ target: { value: iso }, currentTarget: { value: iso } } as React.ChangeEvent<HTMLInputElement>)}
+          min={typeof min === "string" ? min : undefined}
+          max={typeof max === "string" ? max : undefined}
+          disabled={disabled}
+          invalid={Boolean(error)}
+          describedBy={describedBy(id, error, hint)}
+          className={controlClass}
+        />
+      </FieldShell>
+    );
+  }
   return (
     <FieldShell id={id} label={label} hint={hint} error={error} required={required} className={className}>
       <div className="relative flex items-center">

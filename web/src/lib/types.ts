@@ -60,6 +60,8 @@ export interface AuthProviders {
   email: boolean;
   google: boolean;
   telegram: boolean;
+  /** Числовой id бота (для Telegram.Login.auth); null, если токен не задан. */
+  telegram_bot_id: number | null;
   demo: boolean;
 }
 export interface Metric {

@@ -1,8 +1,6 @@
-import { cookies } from "next/headers"
 import { LandingPage } from "@/components/landing/landing-page"
-import { parseLocale } from "@/components/landing/localize"
+import { getServerLocale } from "@/i18n/server"
 
 export default async function Page() {
-  const locale = parseLocale((await cookies()).get("oydin_lang")?.value)
-  return <LandingPage locale={locale} />
+  return <LandingPage locale={await getServerLocale()} />
 }

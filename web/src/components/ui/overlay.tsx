@@ -37,6 +37,13 @@ export function Sheet({ open, onOpenChange, title, description, variant = "sheet
         <D.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-[kit-overlay-in_var(--dur-base)_var(--ease-enter)] data-[state=closed]:animate-[kit-overlay-out_var(--dur-base)_var(--ease-exit)]" />
         <div className={cn("pointer-events-none fixed inset-0 z-50 flex justify-center p-0", sheet ? "items-end md:items-center md:p-6" : "items-center p-6")}>
           <D.Content
+            onOpenAutoFocus={(e) => {
+              const el = e.currentTarget instanceof HTMLElement ? e.currentTarget.querySelector<HTMLElement>("[data-autofocus]") : null;
+              if (el) {
+                e.preventDefault();
+                el.focus();
+              }
+            }}
             className={cn(
               "pointer-events-auto flex max-h-[92dvh] w-full flex-col bg-surface-raised text-foreground shadow-overlay outline-none",
               sheet ? "pb-safe rounded-t-sheet md:max-w-lg md:rounded-sheet" : "max-w-md rounded-sheet",

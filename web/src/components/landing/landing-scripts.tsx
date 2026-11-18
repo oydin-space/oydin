@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { words, type Locale } from "./copy"
+import type { Locale } from "./copy"
 import { V } from "./build-version"
 
 const SCRIPTS = [
@@ -9,7 +9,7 @@ const SCRIPTS = [
   "v2", "hero-chat", "hero-sky", "scroll-motion", "integration-grid", "cta-crop",
 ]
 
-type LandingWindow = Window & { __oydinWords?: { night: string; day: string }; __oydinLoaded?: boolean }
+type LandingWindow = Window & { __oydinLoaded?: boolean }
 
 /** The moonin scripts bind to the DOM once; load them in order after hydration. */
 export function LandingScripts({ locale }: { locale: Locale }) {
@@ -23,7 +23,6 @@ export function LandingScripts({ locale }: { locale: Locale }) {
     document.body.classList.add("home-page", "v2")
     root.dataset.theme = "light" // the landing is light-only; never inherit the app's dark tokens
     root.lang = locale
-    w.__oydinWords = words[locale]
     const added: HTMLScriptElement[] = []
     const timer = setTimeout(() => {
       root.lang = locale // the app I18nProvider re-detects from navigator after hydration; the landing copy wins

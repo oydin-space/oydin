@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { LogIn } from "lucide-react";
 import { Wordmark } from "@/components/brand/logo";
-import { Button, LanguageSwitcher } from "@/components/ui";
+import { Button, LanguagePicker } from "@/components/ui";
+import { useLocale } from "@/i18n";
 import { usePublicT } from "./use-public-t";
 
 const NAV = [
@@ -17,6 +18,7 @@ const linkClass = "focus-ring min-target inline-flex items-center rounded-contro
 /** Общая светлая оболочка публичных страниц: шапка, контент, подвал. */
 export function PublicShell({ children }: { children: React.ReactNode }) {
   const t = usePublicT();
+  const [locale, setLocale] = useLocale();
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="border-b border-border">
@@ -25,7 +27,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
             <Wordmark size={32} />
           </Link>
           <div className="order-2 ml-auto flex shrink-0 items-center gap-2 sm:order-3">
-            <LanguageSwitcher className="w-auto" />
+            <LanguagePicker value={locale} onChange={setLocale} label={t("public.nav.language")} />
             <Button asChild size="sm" variant="secondary" icon={LogIn} className="hidden sm:inline-flex">
               <Link href="/login">{t("public.nav.login")}</Link>
             </Button>

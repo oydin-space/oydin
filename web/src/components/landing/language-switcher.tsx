@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { LanguagePicker } from "@/components/ui/language-picker"
 import { persistLocale } from "@/i18n/provider"
-import type { Locale } from "./copy"
+import { dictionaries, type Locale } from "./copy"
 import { applyLocaleInPlace } from "./localize-dom"
 
 /**
@@ -13,7 +13,7 @@ import { applyLocaleInPlace } from "./localize-dom"
  * Landing pages swap their text in place (no navigation, scroll untouched); pages without
  * landing markup (legal) fall back to a server refresh.
  */
-export function LanguageSwitcher({ locale }: { locale: Locale }) {
+export function LandingLanguagePicker({ locale }: { locale: Locale }) {
   const router = useRouter()
   const [slots, setSlots] = useState<Element[]>([])
   const [current, setCurrent] = useState<Locale>(locale)
@@ -37,6 +37,6 @@ export function LanguageSwitcher({ locale }: { locale: Locale }) {
     }
   }
 
-  const control = <LanguagePicker variant="pill" value={current} onChange={(l) => void change(l)} />
+  const control = <LanguagePicker variant="pill" value={current} label={dictionaries[current]["lp4.2"]} onChange={(l) => void change(l)} />
   return <>{slots.map((slot, i) => createPortal(control, slot, `lang-${i}`))}</>
 }

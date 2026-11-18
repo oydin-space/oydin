@@ -20,7 +20,6 @@ const ru: Record<string, string> = {
   "footer.143": "Манифест",
   "hero.5": "Помогает малому бизнесу Узбекистана",
   "hero.6": "Ваши деньги",
-  "hero.7": "",
   "hero.8": "под присмотром",
   "hero.9": "— вместе с Oydin",
   "hero.10": "Oydin следит за кассой в течение всего дня, отвечает на ваш голос в любой момент, предупреждает о кассовых разрывах заранее, а утренняя сводка — лишь один момент дня.",
@@ -189,6 +188,11 @@ const ru: Record<string, string> = {
   "a.27": "Подключённые источники",
   "a.28": "Пример утренней сводки Oydin",
   "a.29": "Закрыть манифест",
+  "lp4.1": "Остановить пример сводки",
+  "lp4.2": "Язык",
+  "lp4.3": "скоро",
+  "lp4.4": "Oydin — второй мозг для вашего бизнеса",
+  "lp4.5": "Прогноз кассовых разрывов, пульс бизнеса и AI-помощник для малого бизнеса Узбекистана.",
 }
 
 const uz: Record<string, string> = {
@@ -204,7 +208,6 @@ const uz: Record<string, string> = {
   "footer.143": "Manifest",
   "hero.5": "O'zbekiston kichik biznesiga yordam beradi",
   "hero.6": "Pulingiz",
-  "hero.7": "",
   "hero.8": "nazorat ostida",
   "hero.9": "— Oydin bilan birga",
   "hero.10": "Oydin kun boʻyi kassani kuzatadi, istalgan payt ovozingizga javob beradi, kassa tanqisligidan oldindan ogohlantiradi, ertalabki hisobot esa kunning bor-yoʻgʻi bir lahzasi.",
@@ -373,6 +376,11 @@ const uz: Record<string, string> = {
   "a.27": "Ulangan manbalar",
   "a.28": "Oydin ertalabki hisobotiga namuna",
   "a.29": "Manifestni yopish",
+  "lp4.1": "Namuna hisobotni toʻxtatish",
+  "lp4.2": "Til",
+  "lp4.3": "tez orada",
+  "lp4.4": "Oydin — biznesingiz uchun ikkinchi miya",
+  "lp4.5": "Kassadagi uzilishlar prognozi, biznes pulsi va Oʻzbekiston kichik biznesi uchun AI yordamchi.",
 }
 
 const en: Record<string, string> = {
@@ -388,7 +396,6 @@ const en: Record<string, string> = {
   "footer.143": "Manifesto",
   "hero.5": "Helping small businesses in Uzbekistan",
   "hero.6": "Your money,",
-  "hero.7": "",
   "hero.8": "watched over",
   "hero.9": "— together with Oydin",
   "hero.10": "Oydin watches your cash all day, answers your voice any time, warns you before gaps appear, and the morning brief is just one moment of the day.",
@@ -557,18 +564,26 @@ const en: Record<string, string> = {
   "a.27": "Connected sources",
   "a.28": "Sample Oydin morning brief",
   "a.29": "Close manifesto",
+  "lp4.1": "Pause the sample brief",
+  "lp4.2": "Language",
+  "lp4.3": "soon",
+  "lp4.4": "Oydin — a second brain for your business",
+  "lp4.5": "Cash-gap forecasts, a business pulse and an AI assistant for small businesses in Uzbekistan.",
 }
 
-export const dictionaries: Record<Locale, Record<string, string>> = { ru, uz, en }
+/** Uzbek Latin: ʻ (U+02BB) after o/g, ʼ (U+02BC) elsewhere — never the ASCII apostrophe. */
+const uzApos = (s: string) => s.replace(/([oOgG])'/g, "$1ʻ").replace(/'/g, "ʼ")
 
-// Day/night words swapped by hero-mode.js, and the text read aloud by the "Read aloud" button.
-export const words: Record<Locale, { night: string; day: string }> = {
-  ru: { night: "\u200b", day: "\u200b" },
-  uz: { night: "\u200b", day: "\u200b" },
-  en: { night: "\u200b", day: "\u200b" },
+export const dictionaries: Record<Locale, Record<string, string>> = {
+  ru,
+  uz: Object.fromEntries(Object.entries(uz).map(([k, v]) => [k, uzApos(v)])),
+  en,
 }
+
+// Text read aloud by the "Read aloud" button.
 export const speech: Record<Locale, { lang: string; text: string }> = {
   ru: { lang: "ru-RU", text: "Выручка за неделю выросла на восемь целых четыре десятых процента. Денег хватает на двадцать шесть из тридцати дней. Платёж за ткань ждёт вашего подтверждения до половины одиннадцатого." },
   uz: { lang: "uz-UZ", text: "Haftalik tushum sakkiz butun to'rt foizga oshdi. Pul o'ttiz kunning yigirma oltitasiga yetadi. Mato to'lovi o'n yarimgacha tasdiqingizni kutmoqda." },
   en: { lang: "en-US", text: "Weekly revenue is up eight point four percent. Cash covers twenty six of the next thirty days. The fabric payment needs your approval by ten thirty." },
 }
+speech.uz.text = uzApos(speech.uz.text)

@@ -46,3 +46,9 @@ export const priceLabel = (locale: PlanLocale, plan: Plan) =>
   plan.price_uzs > 0 ? billingText(locale, "billing.price", { amount: groupAmount(plan.price_uzs) }) : billingText(locale, "billing.priceFree")
 
 export const buyHref = (plan: Plan) => (plan.price_uzs > 0 ? `/login?next=${encodeURIComponent(`/app/billing?plan=${plan.code}`)}` : "/login")
+
+/** In-app target for choosing a plan (stays inside the app shell). */
+export const appPlanHref = (plan: Plan) => `/app/billing?plan=${plan.code}`
+
+/** Checkout is refused for the shared demo tenant (backend error code `demo_tenant`). */
+export const DEMO_TENANT_ERROR = "demo_tenant"

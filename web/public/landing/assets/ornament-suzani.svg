@@ -1,12 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 400 400" fill="none" stroke="#D99A00" stroke-width="2.6" stroke-linejoin="round">
-<defs>
-<path id="pt" d="M0-48C-22-80-22-120 0-150 22-120 22-80 0-48Z" fill="#FFD62C" fill-opacity=".28"/>
-<path id="lobe" d="M-14-178A14 14 0 0 1 14-178" fill="#FFD62C" fill-opacity=".35"/>
-<path id="lf" d="M0-170C30-190 40-210 30-232 10-216-6-196 0-170Z" fill="#FFD62C" fill-opacity=".2"/>
-</defs>
-<g transform="translate(200 200) scale(.85)">
-<circle r="180" stroke-dasharray="2 6"/><circle r="38" fill="#FFD62C" fill-opacity=".5"/><circle r="26"/><circle r="168"/>
-<g><use href="#pt"/><use href="#pt" transform="rotate(30)"/><use href="#pt" transform="rotate(60)"/><use href="#pt" transform="rotate(90)"/><use href="#pt" transform="rotate(120)"/><use href="#pt" transform="rotate(150)"/><use href="#pt" transform="rotate(180)"/><use href="#pt" transform="rotate(210)"/><use href="#pt" transform="rotate(240)"/><use href="#pt" transform="rotate(270)"/><use href="#pt" transform="rotate(300)"/><use href="#pt" transform="rotate(330)"/></g>
-<g><use href="#lobe" transform="rotate(15)"/><use href="#lobe" transform="rotate(45)"/><use href="#lobe" transform="rotate(75)"/><use href="#lobe" transform="rotate(105)"/><use href="#lobe" transform="rotate(135)"/><use href="#lobe" transform="rotate(165)"/><use href="#lobe" transform="rotate(195)"/><use href="#lobe" transform="rotate(225)"/><use href="#lobe" transform="rotate(255)"/><use href="#lobe" transform="rotate(285)"/><use href="#lobe" transform="rotate(315)"/><use href="#lobe" transform="rotate(345)"/></g>
-<g><use href="#lf" transform="rotate(0)"/><use href="#lf" transform="rotate(60)"/><use href="#lf" transform="rotate(120)"/><use href="#lf" transform="rotate(180)"/><use href="#lf" transform="rotate(240)"/><use href="#lf" transform="rotate(300)"/></g>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none" stroke="#D99A00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="60" cy="60" r="56"/>
+<g fill="#FFD62C" fill-opacity=".3">
+<path d="M60 48C50 36 50 20 60 8C70 20 70 36 60 48Z"/><path d="M60 72C50 84 50 100 60 112C70 100 70 84 60 72Z"/>
+<path d="M48 60C36 50 20 50 8 60C20 70 36 70 48 60Z"/><path d="M72 60C84 50 100 50 112 60C100 70 84 70 72 60Z"/>
+</g>
+<g fill="#FFD62C" fill-opacity=".55"><circle cx="60" cy="60" r="8"/><circle cx="24" cy="24" r="6"/><circle cx="96" cy="24" r="6"/><circle cx="24" cy="96" r="6"/><circle cx="96" cy="96" r="6"/></g>
+</svg>

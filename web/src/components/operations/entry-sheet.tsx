@@ -3,8 +3,11 @@
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
-import { CalendarDays, StickyNote, Tag, UserRound } from "lucide-react"
-import { Icon, Input, MoneyInput, SegmentedControl, Select, TaskSheet } from "@/components/ui"
+import { useOfflineT } from "@/components/offline/use-offline-t"
+import { CalendarDays, ChevronDown, StickyNote, UserRound } from "lucide-react"
+import { Button, Icon, Input, MoneyInput, SegmentedControl, Select, TaskSheet } from "@/components/ui"
+import { accountLabel, defaultAccountId, rememberLast } from "@/lib/offline/labels"
+import { CategoryPicker } from "@/components/offline/category-picker"
 import { api } from "@/lib/api"
 import { currencyOf, todayIso } from "@/lib/core-api"
 import type { Account, Direction, Purpose, Transaction, TransactionInput } from "@/lib/types"
@@ -27,25 +30,31 @@ interface Props {
 /** Add / edit sheet. Mount it only while open (key it per session): form state starts from `seed`. */
 export function EntrySheet({ accounts, seed, onClose, onSaved }: Props) {
   const t = useCoreT()
+  const to = useOfflineT()
   const v = seed.values ?? {}
   const initial = {
     amount: v.amount ?? null,
     direction: (v.direction ?? "out") as Direction,
     purpose: (v.purpose ?? "business") as Purpose,
-    accountId: v.account_id != null ? String(v.account_id) : accounts.length === 1 ? String(accounts[0].id) : "",
+    accountId: v.account_id != null ? String(v.account_id) : "",
     category: v.category ?? "",
     counterparty: v.counterparty ?? "",
     date: v.date ?? todayIso(),
     note: v.note ?? "",
   }
   const [form, setForm] = useState(initial)
+  const [more, setMore] = useState(seed.id != null || seed.draft === true)
   const [attempted, setAttempted] = useState(false)
   const [saving, setSaving] = useState(false)
   const fieldsRef = useRef<HTMLDivElement>(null)
   const set = <K extends keyof typeof initial>(key: K, value: (typeof initial)[K]) => setForm((f) => ({ ...f, [key]: value }))
 
   const editing = seed.id != null
-  const accountId = form.accountId ? Number(form.accountId) : null
+  // Счёт по умолчанию: последний использованный, иначе первый.
+  const accountValue = form.accountId || defaultAccountId(accounts)
+  const accountId = accountValue ? Number(accountValue) : null
+
+  const direction = form.direction === "in" ? "in" : "out"
   const errors = {
     amount: !form.amount || form.amount <= 0 ? t("core.ops.errAmount") : undefined,
     account: accountId == null ? t("core.ops.errAccount") : undefined,
@@ -87,6 +96,8 @@ export function EntrySheet({ accounts, seed, onClose, onSaved }: Props) {
     try {
       const payload = seed.draft ? { ...body, status: "confirmed" } : body
       const tx = await api<Transaction>(editing ? `/transactions/${seed.id}/` : "/transactions/", { method: editing ? "PATCH" : "POST", body: JSON.stringify(payload) })
+      rememberLast("account", String(accountId))
+      rememberLast(direction, form.category.trim())
       toast.success(t("core.ops.saved"))
       onSaved(tx)
     } catch (e) {
@@ -113,21 +124,48 @@ export function EntrySheet({ accounts, seed, onClose, onSaved }: Props) {
     >
       <div ref={fieldsRef} className="flex flex-col gap-4">
         <SegmentedControl label={t("core.ops.direction")} options={directionOptions} value={form.direction} onValueChange={(d) => set("direction", d)} />
-        <MoneyInput label={t("core.ops.amount")} value={form.amount} onValueChange={(a) => set("amount", a)} currency={currencyOf(accounts, accountId)} error={attempted ? errors.amount : undefined} required />
-        <Select
-          label={t("core.ops.account")}
-          placeholder={accounts.length ? t("core.ops.accountPlaceholder") : t("core.ops.noAccounts")}
-          options={accounts.map((a) => ({ value: String(a.id), label: `${a.name} · ${a.currency}` }))}
-          value={form.accountId || undefined}
-          onValueChange={(id) => set("accountId", id)}
-          error={attempted ? errors.account : undefined}
+        <MoneyInput label={t("core.ops.amount")} value={form.amount} onValueChange={(a) => set("amount", a)} currency={currencyOf(accounts, accountId)} error={attempted ? errors.amount : undefined} required autoFocusField />
+        <CategoryPicker
+          label={t("core.ops.category")}
+          direction={direction}
+          value={form.category}
+          onChange={(c) => set("category", c)}
+          error={attempted ? errors.category : undefined}
           required
         />
-        <Input label={t("core.ops.category")} value={form.category} onChange={(e) => set("category", e.target.value)} error={attempted ? errors.category : undefined} required leading={<Icon icon={Tag} size={16} />} />
-        <SegmentedControl label={t("core.ops.purpose")} options={purposeOptions} value={form.purpose} onValueChange={(p) => set("purpose", p)} />
-        <Input label={t("core.ops.counterparty")} value={form.counterparty} onChange={(e) => set("counterparty", e.target.value)} leading={<Icon icon={UserRound} size={16} />} />
-        <Input label={t("core.ops.date")} type="date" value={form.date} onChange={(e) => set("date", e.target.value)} leading={<Icon icon={CalendarDays} size={16} />} />
-        <Input label={t("core.ops.note")} value={form.note} onChange={(e) => set("note", e.target.value)} leading={<Icon icon={StickyNote} size={16} />} />
+        {!accountValue ? (
+          <Select
+            label={t("core.ops.account")}
+            placeholder={t("core.ops.noAccounts")}
+            options={[]}
+            value={undefined}
+            onValueChange={(id) => set("accountId", id)}
+            error={attempted ? errors.account : undefined}
+            required
+          />
+        ) : null}
+        <Button type="button" variant="ghost" icon={ChevronDown} aria-expanded={more} onClick={() => setMore((m) => !m)} className="self-start">
+          {more ? to("offline.less") : to("offline.more")}
+        </Button>
+        {more ? (
+          <>
+            {accountValue ? (
+              <Select
+                label={t("core.ops.account")}
+                placeholder={t("core.ops.accountPlaceholder")}
+                options={accounts.map((a) => ({ value: String(a.id), label: `${accountLabel(a.name, to)} · ${a.currency}` }))}
+                value={accountValue}
+                onValueChange={(id) => set("accountId", id)}
+                error={attempted ? errors.account : undefined}
+                required
+              />
+            ) : null}
+            <SegmentedControl label={t("core.ops.purpose")} options={purposeOptions} value={form.purpose} onValueChange={(p) => set("purpose", p)} />
+            <Input label={t("core.ops.counterparty")} value={form.counterparty} onChange={(e) => set("counterparty", e.target.value)} leading={<Icon icon={UserRound} size={16} />} />
+            <Input label={t("core.ops.date")} type="date" value={form.date} onChange={(e) => set("date", e.target.value)} leading={<Icon icon={CalendarDays} size={16} />} />
+            <Input label={t("core.ops.note")} value={form.note} onChange={(e) => set("note", e.target.value)} leading={<Icon icon={StickyNote} size={16} />} />
+          </>
+        ) : null}
       </div>
     </TaskSheet>
   )
