@@ -1,10 +1,11 @@
 "use client"
 
-import { Camera, Image as ImageIcon, Mic, Pencil, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useRef, useState } from "react"
 import { EntrySheet } from "@/components/operations/entry-sheet"
-import { Icon, ListGroup, ListRow, Sheet } from "@/components/ui"
+import { CaptureView } from "@/components/capture/capture-view"
+import { Icon } from "@/components/ui"
 import type { Account } from "@/lib/types"
 import { useApi } from "@/lib/use-api"
 import { setPendingAttachment, type AttachmentKind } from "@/lib/pending-attachment"
@@ -12,14 +13,13 @@ import { haptic } from "@/lib/telegram"
 import { VOICE_HREF } from "./nav"
 import { useCoreT } from "./use-core-t"
 
-/** Central dock "+": circular brand-yellow, bottom flush with the dock, top raised above it. Opens voice / photo / screenshot menu. */
+/** Central dock "+": circular brand-yellow, bottom flush with the dock, top raised above it. Opens the full-screen camera capture view. */
 export function DockMic({ onEntrySaved }: { onEntrySaved: () => void }) {
   const t = useCoreT()
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [entry, setEntry] = useState(0)
   const accounts = useApi<{ items: Account[] }>(open || entry ? "/accounts/" : null)
-  const photoRef = useRef<HTMLInputElement>(null)
   const shotRef = useRef<HTMLInputElement>(null)
 
   const pick = (kind: AttachmentKind) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,32 +49,27 @@ export function DockMic({ onEntrySaved }: { onEntrySaved: () => void }) {
       >
         <Icon icon={Plus} size={24} />
       </button>
-      <input ref={photoRef} type="file" accept="image/*" capture="environment" hidden onChange={pick("photo")} />
       <input ref={shotRef} type="file" accept="image/*" hidden onChange={pick("screenshot")} />
-      <Sheet open={open} onOpenChange={setOpen} title={t("core.nav.add")} closeLabel={t("core.close")}>
-        <ListGroup>
-          <ListRow
-            title={t("core.add.expense")}
-            leading={<Icon icon={Pencil} />}
-            onClick={() => {
-              haptic("select")
-              setOpen(false)
-              setEntry((n) => n + 1)
-            }}
-          />
-          <ListRow
-            title={t("core.add.voice")}
-            leading={<Icon icon={Mic} />}
-            onClick={() => {
-              haptic("select")
-              setOpen(false)
-              router.push(VOICE_HREF)
-            }}
-          />
-          <ListRow title={t("core.add.photo")} leading={<Icon icon={Camera} />} onClick={() => choose(photoRef)} />
-          <ListRow title={t("core.add.screenshot")} leading={<Icon icon={ImageIcon} />} onClick={() => choose(shotRef)} />
-        </ListGroup>
-      </Sheet>
+      <CaptureView
+        open={open}
+        onClose={() => setOpen(false)}
+        onPhoto={(file) => {
+          setOpen(false)
+          setPendingAttachment(file, "photo")
+          router.push("/app/chat?attach=1")
+        }}
+        onGallery={() => choose(shotRef)}
+        onVoice={() => {
+          haptic("select")
+          setOpen(false)
+          router.push(VOICE_HREF)
+        }}
+        onTyped={() => {
+          haptic("select")
+          setOpen(false)
+          setEntry((n) => n + 1)
+        }}
+      />
       {entry ? <EntrySheet key={entry} accounts={accounts.data?.items ?? []} seed={{ values: { direction: "out" } }} onClose={() => setEntry(0)} onSaved={() => { setEntry(0); onEntrySaved() }} /> : null}
     </li>
   )

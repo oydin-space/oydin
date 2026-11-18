@@ -119,5 +119,9 @@ function selectFeature(index,direction){
 options.forEach((card,index)=>{card.addEventListener('click',event=>{keyboardFeature=event.detail===0;selectFeature(index);keyboardFeature=false;});card.addEventListener('keydown',event=>{let next;if(event.key==='ArrowDown'||event.key==='ArrowRight')next=(index+1)%options.length;if(event.key==='ArrowUp'||event.key==='ArrowLeft')next=(index+options.length-1)%options.length;if(event.key==='Home')next=0;if(event.key==='End')next=options.length-1;if(next!==undefined){event.preventDefault();options[next].focus();keyboardFeature=true;selectFeature(next,event.key==='ArrowUp'||event.key==='ArrowLeft'?-1:1);keyboardFeature=false;}});});
 document.querySelector('[data-feature-prev]').addEventListener('click',()=>selectFeature(((pendingFeature?.index??currentFeature)+options.length-1)%options.length,-1));
 document.querySelector('[data-feature-next]').addEventListener('click',()=>selectFeature(((pendingFeature?.index??currentFeature)+1)%options.length,1));
-// Phones stay put while scrolling: no parallax, so nothing shakes.
-for(const phone of document.querySelectorAll('.parallax-visual .parallax-phone'))phone.style.transform='translate3d(-50%,0,0)';
+const motion=matchMedia('(prefers-reduced-motion: reduce)');
+const visuals=[...document.querySelectorAll('.parallax-visual')].map(el=>({el,phone:el.querySelector('.parallax-phone'),current:0,target:0}));
+let frame=0;
+function tick(){frame=0;let moving=false;for(const v of visuals){v.current+=(v.target-v.current)*.12;if(Math.abs(v.target-v.current)>.05)moving=true;else v.current=v.target;v.phone.style.transform=`translate3d(-50%,${v.current.toFixed(2)}px,0)`;}if(moving)frame=requestAnimationFrame(tick);}
+function updateParallax(){for(const v of visuals){const r=v.el.getBoundingClientRect();const progress=Math.max(-1,Math.min(1,(innerHeight/2-r.top-r.height/2)/(innerHeight/2+r.height/2)));v.target=motion.matches?0:progress*24;}if(!frame)frame=requestAnimationFrame(tick);}
+addEventListener('scroll',updateParallax,{passive:true});addEventListener('resize',updateParallax,{passive:true});motion.addEventListener('change',updateParallax);updateParallax();

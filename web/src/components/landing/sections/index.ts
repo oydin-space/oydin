@@ -21,13 +21,11 @@ function withIcons(html: string, id: string, name: IconName): string {
   return html.replace('<div class="section-heading"><h2' + id, `<div class="section-heading">${eyebrow(name)}<h2${id}`)
 }
 
-const edges = (html: string, open: RegExp, sides: ('top' | 'bot')[]): string =>
-  html.replace(open, (m) => m + sides.map((s) => `<i class="edge-blur ${s}" aria-hidden="true"></i>`).join(''))
-const featuresIcons = edges(withIcons(features, '>', 'layoutDashboard'), /<section id="products"[^>]*>/, ['top', 'bot']).replace(
+const featuresIcons = withIcons(features, '>', 'layoutDashboard').replace(
   /(data-feature="(\d)"[^>]*><span class="feature-heading"><span class="feature-icon">.*?<\/span>)/g,
   (m, _all, i) => m + icon(FEATURE_ICONS[Number(i)] ?? 'activity'),
 )
-const faqIcons = edges(withIcons(faq, ' id="faq-title">', 'circleHelp'), /<section class="faq-section"[^>]*>/, ['top', 'bot']).replace(
+const faqIcons = withIcons(faq, ' id="faq-title">', 'circleHelp').replace(
   /(id="faq-question-(\d+)"[^>]*><span>)/g,
   (m, _all, n) => m + icon(FAQ_ICONS[Number(n) - 1] ?? 'circleHelp'),
 )
@@ -57,6 +55,6 @@ export const shell = [
   faqIcons,
   PRICING_MARKER,
   ctaIcons,
-  edges(footer, /<footer class="footer wrap">/, ['top']),
+  footer,
 ].join('')
 export { manifesto }

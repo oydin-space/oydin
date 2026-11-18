@@ -1,6 +1,7 @@
 (() => {
   const viewport = document.querySelector('.stories-window');
   const track = document.querySelector('.stories-track');
+  if (!track) return;
   const cards = [...track.children];
   const previous = document.querySelector('[data-story-prev]');
   const next = document.querySelector('[data-story-next]');
