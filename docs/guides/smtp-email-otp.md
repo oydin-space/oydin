@@ -13,7 +13,7 @@ Read by `backend/config/settings.py`, passed to the `api` service by `deploy/com
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | empty | SMTP credentials |
 | `EMAIL_USE_TLS` | `1` | STARTTLS (port 587) |
 | `EMAIL_USE_SSL` | `0` | implicit TLS (port 465); do not enable together with TLS |
-| `DEFAULT_FROM_EMAIL` | `Oydin <noreply@oydin.sayfi.uz>` | sender; must be allowed by your provider |
+| `DEFAULT_FROM_EMAIL` | `Oydin <noreply@oydin.space>` | sender; must be allowed by your provider |
 
 ## Steps
 
@@ -27,14 +27,14 @@ Read by `backend/config/settings.py`, passed to the `api` service by `deploy/com
    EMAIL_HOST_PASSWORD=<smtp password>
    EMAIL_USE_TLS=1
    EMAIL_USE_SSL=0
-   DEFAULT_FROM_EMAIL=Oydin <noreply@oydin.sayfi.uz>
+   DEFAULT_FROM_EMAIL=Oydin <noreply@oydin.space>
    ```
 3. Restart: `cd ~/oydin && docker compose up -d`
-4. Verify: `curl https://oydin.sayfi.uz/api/auth/providers/` shows `"email": true`.
+4. Verify: `curl https://oydin.space/api/auth/providers/` shows `"email": true`.
 5. Round-trip: request a code, read the email, verify it.
 
    ```
-   curl -X POST https://oydin.sayfi.uz/api/auth/email/request/ -H 'Content-Type: application/json' -d '{"email":"you@example.com","lang":"en"}'
+   curl -X POST https://oydin.space/api/auth/email/request/ -H 'Content-Type: application/json' -d '{"email":"you@example.com","lang":"en"}'
    ```
 
    Expect `{"ok": true, "resend_in": 60}`. Easier: sign in through the site and enter the code (verify is `POST /api/auth/email/verify/` with `email` and `code`; browsers also need the CSRF cookie from `/api/auth/csrf/`).

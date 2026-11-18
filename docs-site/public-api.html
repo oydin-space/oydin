@@ -6,7 +6,7 @@
 <div class="layout"><nav class="side"><a href="index.html">Quickstart</a><a href="auth.html">Authentication</a><a href="public-api.html" class=on>Public API</a><a href="webhooks.html">Webhooks</a><a href="rest-handler.html">REST handler spec</a><a href="mcp.html">MCP connection</a></nav><main>
 
 <h1>Public API</h1><p class="lead">Read-only access to your business numbers, plus creating draft transactions.</p>
-<p>Base URL <code>https://oydin.sayfi.uz/api/v1</code>. Auth: <a href="auth.html">bearer token</a>.</p>
+<p>Base URL <code>https://oydin.space/api/v1</code>. Auth: <a href="auth.html">bearer token</a>.</p>
 <table><tr><th>Method &amp; path</th><th>Scope</th><th>Returns</th></tr>
 <tr><td><code>GET /v1/business/</code></td><td>read</td><td>Business profile.</td></tr>
 <tr><td><code>GET /v1/accounts/</code></td><td>read</td><td><code>{"items": [...]}</code> accounts with balances.</td></tr>
@@ -16,14 +16,14 @@
 <tr><td><code>GET /v1/forecast/?days=30</code></td><td>read</td><td><code>{"points": [...]}</code>, up to 90 days.</td></tr></table>
 <h2>List transactions</h2>
 <p>Query: <code>from</code>, <code>to</code> (YYYY-MM-DD), <code>limit</code> (default 100, max 500), <code>cursor</code>.</p>
-<pre><code>curl "https://oydin.sayfi.uz/api/v1/transactions/?from=2026-11-01&amp;limit=50" \
+<pre><code>curl "https://oydin.space/api/v1/transactions/?from=2026-11-01&amp;limit=50" \
   -H "Authorization: Bearer $OYDIN_TOKEN"
 
 {"items": [{"id": 412, "amount": 150000, "direction": "in", ...}],
  "next_cursor": "389"}</code></pre>
 <p>Pass <code>next_cursor</code> as <code>cursor</code> until it is <code>null</code>.</p>
 <h2>Create a transaction</h2>
-<pre><code>curl -X POST https://oydin.sayfi.uz/api/v1/transactions/ \
+<pre><code>curl -X POST https://oydin.space/api/v1/transactions/ \
   -H "Authorization: Bearer $OYDIN_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: order-7781" \
@@ -32,4 +32,4 @@
 <div class="note"><b>Idempotency.</b> Repeat a request within 24 hours with the same <code>Idempotency-Key</code> and body to get the first response. The same key with a different body returns <code>409 idempotency_conflict</code>.</div>
 <p>The full contract is in <code>docs/openapi.yaml</code> of the Oydin repository.</p>
 
-</main></div><footer>Oydin · second brain for small business · docs.oydin.sayfi.uz</footer></body></html>
+</main></div><footer>Oydin · second brain for small business · docs.oydin.space</footer></body></html>

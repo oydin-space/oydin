@@ -5,7 +5,7 @@ The bot sends notifications, accepts SMS/receipt photos as drafts, and enables T
 ## Steps
 
 1. In @BotFather: `/newbot` (or pick your bot) and copy the token.
-2. Sign-in domain: `/setdomain` → select the bot → `oydin.sayfi.uz`. Note: the backend (`POST /api/auth/telegram/`) validates Mini App `init_data` signed with the bot token (valid 24 h); it does not consume Login Widget callbacks, so the token is what matters for login.
+2. Sign-in domain: `/setdomain` → select the bot → `oydin.space`. Note: the backend (`POST /api/auth/telegram/`) validates Mini App `init_data` signed with the bot token (valid 24 h); it does not consume Login Widget callbacks, so the token is what matters for login.
 3. Append to `~/oydin/.env` (keep `chmod 600`):
 
    ```
@@ -14,13 +14,13 @@ The bot sends notifications, accepts SMS/receipt photos as drafts, and enables T
    ```
    `TELEGRAM_BOT_USERNAME` defaults to `oydin_agent`; it builds the link `https://t.me/<username>?start=<code>`.
 4. Recreate services: `cd ~/oydin && docker compose up -d`. This also starts `botjobs`, which runs `python manage.py run_bot_jobs --loop` (a tick every 5 minutes).
-5. Register the webhook (Telegram will POST to `https://oydin.sayfi.uz/api/telegram/webhook/`):
+5. Register the webhook (Telegram will POST to `https://oydin.space/api/telegram/webhook/`):
 
    ```
-   docker compose exec api python manage.py set_telegram_webhook https://oydin.sayfi.uz
+   docker compose exec api python manage.py set_telegram_webhook https://oydin.space
    ```
-   Expected output: `Webhook: https://oydin.sayfi.uz/api/telegram/webhook/`.
-6. Verify: `curl https://oydin.sayfi.uz/api/auth/providers/` shows `"telegram": true`.
+   Expected output: `Webhook: https://oydin.space/api/telegram/webhook/`.
+6. Verify: `curl https://oydin.space/api/auth/providers/` shows `"telegram": true`.
 
 The webhook secret is derived from `DJANGO_SECRET_KEY` and `TELEGRAM_BOT_TOKEN`. **If either changes, re-run `set_telegram_webhook`**, otherwise Telegram's requests get `403 forbidden`.
 

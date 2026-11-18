@@ -1,6 +1,6 @@
 # Деплой
 
-Один сервер (Ubuntu, Docker), https://oydin.sayfi.uz. Стек в `deploy/compose.yaml`: `caddy` (авто-TLS) → `api` (gunicorn) и `web` (Next standalone), `db` (postgres:17, том `pgdata`). Caddy: `/api/*`, `/admin/*`, `/static/*` → api, остальное → web.
+Один сервер (Ubuntu, Docker), https://oydin.space. Стек в `deploy/compose.yaml`: `caddy` (авто-TLS) → `api` (gunicorn) и `web` (Next standalone), `db` (postgres:17, том `pgdata`). Caddy: `/api/*`, `/admin/*`, `/static/*` → api, остальное → web.
 
 ## Повторный деплой
 
@@ -33,7 +33,7 @@ mise run deploy        # = deploy/deploy.sh
 ## CI/CD (GitHub Actions)
 
 - `.github/workflows/ci.yml` (PR и push в `main`): `backend` (uv sync, ruff если настроен, `makemigrations --check`, `manage.py test` на Postgres 17), `web` (`bun install --frozen-lockfile`, eslint, `tsc --noEmit`, `next build`), `docker` (сборка обоих образов с кэшем buildx, без push).
-- `.github/workflows/deploy.yml`: после успешного CI на `main` (environment `production`) собирает образы, пушит в `ghcr.io/aliakseych/oydin-{api,web}:<sha>`, по ssh на сервере делает `docker pull`, тегирует как `oydin-*:latest` (предыдущие становятся `:previous`; `compose.yaml` не меняется), `docker compose up -d --wait`, `manage.py migrate`, затем проверяет `https://oydin.sayfi.uz/api/health/` (`"ok": true`). Если переключение или проверка не прошли, job возвращает `:previous` и падает. Параллельные деплои сериализуются.
+- `.github/workflows/deploy.yml`: после успешного CI на `main` (environment `production`) собирает образы, пушит в `ghcr.io/aliakseych/oydin-{api,web}:<sha>`, по ssh на сервере делает `docker pull`, тегирует как `oydin-*:latest` (предыдущие становятся `:previous`; `compose.yaml` не меняется), `docker compose up -d --wait`, `manage.py migrate`, затем проверяет `https://oydin.space/api/health/` (`"ok": true`). Если переключение или проверка не прошли, job возвращает `:previous` и падает. Параллельные деплои сериализуются.
 - Пакеты GHCR приватные: логин на сервере делается `GITHUB_TOKEN` через stdin на время job и сразу `docker logout`; долгоживущих кредов на сервере нет.
 - Локальный `mise run deploy` работает как раньше (образы `:latest`, без GHCR).
 - Actions закреплены по SHA коммита (комментарий с версией), права jobs минимальные.

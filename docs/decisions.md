@@ -46,3 +46,42 @@ Sources: `docs/research/custdev.md`, `docs/research/tax-fit.md`, `docs/research/
   - Seasonality comes only from the business's own history (the `event` field is dropped).
 - **Added:** daily cash close (expected vs counted, unexplained difference shown in pulse); `owner_draw`/`owner_contribution` operation kinds; period result (profit vs cash change vs owner draws); "can I afford it?" check; guided onboarding (business → statement or 3 notes → first pulse); accountant read-only share links (+PDF); partner (bank/MFO) cabinet with anonymised, consented leads; public `/impact/`; offline sync with idempotency.
 - **Renames:** `/me/` → `/auth/me/`; `/transactions/` → `/operations/`; `/team/*` → `/businesses/{id}/members/*`. The public `/v1/transactions/` and the `transaction.created` webhook stay stable.
+
+## Owner single screen (decided after mentor feedback)
+Positioning: «Один экран для владельца» for young digital owners. The pitch line: "an accounting system covers one area; Oydin is the owner's single picture: money, people, debts and suppliers, set up for your business."
+
+**Navigation:** 3 tabs (Oydin chat home / Пульс / Профиль). Everything else lives under Профиль → «Ещё».
+
+**Businesses:** each business has its own view, plus one unified view across all of them.
+
+**People:** one `people.Person` model with kind staff|contractor|buyer|partner and pay in UZS/USD/RUB/EUR, plus `Location` and monthly turnover. Seller is relabelled "employee (entry only)": it can enter data but cannot see totals.
+
+**Owner money:**
+- Owner withdrawals are shown apart from business money.
+- Business money splits into keep-afloat / growth / owner's share.
+- "Can I afford X?" is a local financing model.
+
+**Staff:** no separate hire/cut screen. AI insights cover staff load, cost per person and hire/cut headroom, always showing the numbers behind them.
+
+**Widgets:**
+- System widgets are stored per tenant.
+- The AI proposes changes from usage logs (develop, test, preview). The owner approves, and can roll back in settings.
+- Widgets read and write data only through the API.
+- No user-defined tables or fields, no visual workflow editor.
+
+**Tools:** a curated catalogue of 6–8 local services described by what they do, each with a file-import fallback. MCP/API connections sit under «Для разработчиков».
+
+**Credentials:** a self-hosted HashiCorp Vault (Transit) on the prod server.
+
+**Other:** debts and supplier settlements are core. The beginner track (budget, regime, break-even, PDF, registration) is built last.
+
+**Build order:**
+1. People + entry role
+2. Owner money split + afford
+3. Staff insights + unified view
+4. Locations
+5. Module presets + AI widgets
+6. Catalogue + Vault
+7. Beginner track
+
+**Traction:** none yet; do not claim any.

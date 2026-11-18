@@ -10,8 +10,8 @@
 </p>
 
 <p align="center">
-  <a href="https://oydin.sayfi.uz">Приложение</a> ·
-  <a href="https://docs.oydin.sayfi.uz">Документация для разработчиков</a> ·
+  <a href="https://oydin.space">Приложение</a> ·
+  <a href="https://docs.oydin.space">Документация для разработчиков</a> ·
   <a href="https://t.me/oydin_agent">Telegram-бот @oydin_agent</a>
 </p>
 
@@ -101,7 +101,7 @@ mise run evals      # золотые тесты ИИ
 
 ## Деплой
 
-Прод: `https://oydin.sayfi.uz`. Автодеплой по зелёному CI на `main` ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)): образы в GHCR, `docker compose up` по ssh, миграции, health-check и откат на предыдущие образы при ошибке.
+Прод: `https://oydin.space`. Автодеплой по зелёному CI на `main` ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)): образы в GHCR, `docker compose up` по ssh, миграции, health-check и откат на предыдущие образы при ошибке.
 
 ```bash
 mise run deploy     # ручная сборка и выкат (нужен SERVER)
@@ -112,15 +112,15 @@ mise run rollback   # откат на oydin-*:previous
 
 | Адрес | Что |
 |---|---|
-| `oydin.sayfi.uz` | приложение и API |
-| `docs.oydin.sayfi.uz` | статическая документация из [docs-site/](docs-site) |
-| `bugsink.oydin.sayfi.uz` | трекер ошибок Bugsink; DSN проекта кладётся в `SENTRY_DSN` |
+| `oydin.space` | приложение и API |
+| `docs.oydin.space` | статическая документация из [docs-site/](docs-site) |
+| `bugsink.oydin.space` | трекер ошибок Bugsink; DSN проекта кладётся в `SENTRY_DSN` |
 
 Первичная настройка сервера и `.env`: [docs/deploy.md](docs/deploy.md).
 
 ## Ссылки
 
-- Приложение: <https://oydin.sayfi.uz>
-- Документация: <https://docs.oydin.sayfi.uz>
+- Приложение: <https://oydin.space>
+- Документация: <https://docs.oydin.space>
 - Бот: <https://t.me/oydin_agent>
 - Продукт: [docs/product.md](docs/product.md) · Решения: [docs/decisions.md](docs/decisions.md) · Питч: [pitch/deck.md](pitch/deck.md)

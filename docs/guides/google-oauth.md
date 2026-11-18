@@ -4,13 +4,13 @@ Server-side OAuth 2 code flow (PKCE + nonce). Enabled only when both `GOOGLE_CLI
 
 ## Steps
 
-1. Google Cloud Console → **APIs & Services → OAuth consent screen**. Choose External, fill app name and support email, add the domain `oydin.sayfi.uz`.
+1. Google Cloud Console → **APIs & Services → OAuth consent screen**. Choose External, fill app name and support email, add the domain `oydin.space`.
 2. Scopes: the code requests exactly `openid email profile` (non-sensitive, no verification review needed). Add them if the screen asks. While the app is in *Testing*, add your Google accounts as test users; publish it for everyone.
 3. **Credentials → Create credentials → OAuth client ID → Web application**.
 4. **Authorised redirect URIs** — exactly (the backend builds it with `request.build_absolute_uri("/api/auth/google/callback/")`):
 
    ```
-   https://oydin.sayfi.uz/api/auth/google/callback/
+   https://oydin.space/api/auth/google/callback/
    ```
 
    The trailing slash matters. No JavaScript origins are needed.
@@ -28,7 +28,7 @@ Server-side OAuth 2 code flow (PKCE + nonce). Enabled only when both `GOOGLE_CLI
 7. Verify:
 
    ```
-   curl https://oydin.sayfi.uz/api/auth/providers/
+   curl https://oydin.space/api/auth/providers/
    ```
 
    The JSON must contain `"google": true`. Then open the site and click "Sign in with Google"; the flow starts at `/api/auth/google/start/` and ends at `/app`.
