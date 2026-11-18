@@ -90,8 +90,9 @@ jobs:
 
       - name: Ship compose files
         run: |
-          ssh deploy 'mkdir -p ~/oydin'
-          scp -q deploy/compose.yaml deploy/Caddyfile deploy:oydin/
+          ssh deploy 'mkdir -p ~/oydin/docs-site'
+          scp -q deploy/compose.yaml deploy/Caddyfile deploy/ensure-env.sh deploy:oydin/
+          scp -q -r docs-site/. deploy:oydin/docs-site/
 
       - name: Pull images, switch, migrate
         id: switch
@@ -115,6 +116,7 @@ jobs:
             docker tag "$REGISTRY/oydin-$svc:$SHA" "oydin-$svc:latest"
           done
           cd ~/oydin
+          bash ensure-env.sh
           docker compose up -d --remove-orphans --wait
           # Caddyfile смонтирован файлом: compose up его не перечитывает.
           docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile

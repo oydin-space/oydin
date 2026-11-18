@@ -10,10 +10,13 @@ services:
       - "443:443/udp"
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:?нужен .env}
+      BUGSINK_HOST: ${BUGSINK_HOST:-bugsink.oydin.sayfi.uz}
+      DOCS_HOST: ${DOCS_HOST:-docs.oydin.sayfi.uz}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      - ./docs-site:/srv/docs-site:ro
     depends_on:
       api:
         condition: service_healthy
@@ -69,6 +72,13 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      EXA_API: ${EXA_API:-}
+      PAYMENTS_ENABLED: ${PAYMENTS_ENABLED:-False}
+      CLICK_SERVICE_ID: ${CLICK_SERVICE_ID:-}
+      CLICK_MERCHANT_ID: ${CLICK_MERCHANT_ID:-}
+      CLICK_MERCHANT_USER_ID: ${CLICK_MERCHANT_USER_ID:-}
+      CLICK_SECRET_KEY: ${CLICK_SECRET_KEY:-}
     depends_on:
       db:
         condition: service_healthy
@@ -116,7 +126,28 @@ services:
       retries: 5
       start_period: 20s
     restart: unless-stopped
+  # Самохостный трекер ошибок (Sentry-совместимый), SQLite в томе bugsink_data.
+  # Первый DSN: войти на https://bugsink.oydin.sayfi.uz, создать проект, DSN в SENTRY_DSN (.env), затем docker compose up -d api.
+  bugsink:
+    image: bugsink/bugsink:2.6.3
+    environment:
+      SECRET_KEY: ${BUGSINK_SECRET_KEY:?нужен .env}
+      CREATE_SUPERUSER: ${BUGSINK_ADMIN_EMAIL:?нужен .env}:${BUGSINK_ADMIN_PASSWORD:?нужен .env}
+      PORT: "8000"
+      BASE_URL: https://${BUGSINK_HOST:-bugsink.oydin.sayfi.uz}
+      BEHIND_HTTPS_PROXY: "true"
+      SITE_TITLE: Oydin errors
+    volumes:
+      - bugsink_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
 volumes:
   pgdata:
   caddy_data:
   caddy_config:
+  bugsink_data:

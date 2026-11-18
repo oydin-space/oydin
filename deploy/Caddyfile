@@ -22,3 +22,23 @@
 		reverse_proxy web:3010
 	}
 }
+
+# Трекер ошибок Bugsink (TLS автоматически)
+{$BUGSINK_HOST} {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy bugsink:8000
+}
+
+# Документация для разработчиков: статика из docs-site/
+{$DOCS_HOST} {
+	encode zstd gzip
+	root * /srv/docs-site
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+	}
+	file_server
+}
