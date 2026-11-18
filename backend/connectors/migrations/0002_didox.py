@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("accounts", "0006_invite"),
         ("connectors", "0001_initial"),
-        ("finance", "0004_counterparty"),
+        ("finance", "0003_gapalert"),
     ]
 
     operations = [
