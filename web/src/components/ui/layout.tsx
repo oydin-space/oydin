@@ -103,12 +103,12 @@ export function PageHeader({ title, hint, actions, className }: { title: string;
       <div aria-hidden={!compact} className={cn("pt-safe glass fixed inset-x-0 top-0 z-30 flex min-h-12 items-center justify-center border-b border-border text-small font-semibold transition-opacity duration-(--dur-base)", compact ? "opacity-100" : "pointer-events-none opacity-0")}>
         {title}
       </div>
-      <header className={cn("mb-4 flex items-end justify-between gap-3 px-1 pt-1", className)}>
-        <div>
+      <header className={cn("mb-4 flex flex-wrap items-end justify-between gap-3 px-1 pt-1", className)}>
+        <div className="min-w-0 flex-1 basis-48">
           <h1 className="text-page font-bold tracking-tight">{title}</h1>
           {hint ? <p className="mt-1 text-small text-muted-foreground">{hint}</p> : null}
         </div>
-        {actions}
+        {actions ? <div className="flex w-full flex-wrap gap-2 *:flex-1 sm:w-auto sm:*:flex-none">{actions}</div> : null}
       </header>
     </>
   );

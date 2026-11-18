@@ -3,22 +3,31 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calculator, Pin, PinOff, Sparkles } from "lucide-react";
-import { Badge, Button, Card, Icon, IconButton, Input, ListGroup, ListRow, PageHeader, Section, SkeletonCard, SkeletonList, StateView, toast } from "@/components/ui";
+import { Badge, Button, Card, Icon, IconButton, Input, ListGroup, ListRow, PageHeader, Section, Sheet, SkeletonCard, SkeletonList, StateView, toast } from "@/components/ui";
 import { useChatT } from "@/components/chat/chat-t";
-import { useI18n } from "@/i18n";
+import { useI18n, useT } from "@/i18n";
 import { ApiError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { createTool, generateTool, updateTool, type SavedTool, type ToolTemplate } from "@/lib/tools-api";
+import { GenerativeUI } from "@/components/chat/generative-ui";
 
 /** /app/tools: шаблоны калькуляторов, генерация по запросу и сохранённые инструменты. */
 export function ToolsGallery() {
   const t = useChatT();
+  const tb = useT();
   const { locale } = useI18n();
   const router = useRouter();
   const templates = useApi<ToolTemplate[]>(`/tools/templates/?lang=${locale}`);
   const saved = useApi<SavedTool[]>("/tools/");
   const [busy, setBusy] = useState<string | null>(null);
   const [prompt, setPrompt] = useState("");
+  const [preview, setPreview] = useState<ToolTemplate | null>(null);
+  const [previewValues, setPreviewValues] = useState<Record<string, number>>({});
+
+  const openPreview = (tpl: ToolTemplate) => {
+    setPreviewValues({});
+    setPreview(tpl);
+  };
 
   const forbidden = saved.error === "forbidden" || templates.error === "forbidden";
 
@@ -81,7 +90,7 @@ export function ToolsGallery() {
           <Input
             className="flex-1"
             label={t("chat.tools.generate")}
-            placeholder={t("chat.tools.generatePlaceholder")}
+            placeholder={tb("biz.tools.generatePlaceholder")}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
@@ -146,15 +155,34 @@ export function ToolsGallery() {
                 title={tpl.title}
                 description={t(`chat.tools.kind.${tpl.kind}`)}
                 footer={
-                  <Button variant="secondary" size="sm" loading={busy === tpl.kind} disabled={!!busy} onClick={() => void save(tpl)}>
-                    {t("chat.tools.save")}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => openPreview(tpl)}>
+                      {t("chat.tools.open")}
+                    </Button>
+                    <Button variant="secondary" size="sm" loading={busy === tpl.kind} disabled={!!busy} onClick={() => void save(tpl)}>
+                      {t("chat.tools.save")}
+                    </Button>
+                  </div>
                 }
               />
             ))}
           </div>
         </StateView>
       </Section>
+
+      <Sheet
+        open={!!preview}
+        onOpenChange={(open) => !open && setPreview(null)}
+        title={preview?.title ?? ""}
+        description={preview ? t(`chat.tools.kind.${preview.kind}`) : undefined}
+        footer={
+          <Button block loading={!!preview && busy === preview.kind} disabled={!!busy} onClick={() => preview && void save(preview)}>
+            {t("chat.tools.save")}
+          </Button>
+        }
+      >
+        {preview ? <GenerativeUI key={preview.spec} spec={preview.spec} values={previewValues} onValuesChange={setPreviewValues} /> : null}
+      </Sheet>
     </div>
   );
 }

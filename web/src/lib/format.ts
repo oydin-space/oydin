@@ -5,7 +5,7 @@ const INTL: Record<FormatLocale, string> = { ru: "ru-RU", uz: "uz-UZ", en: "en-U
 
 const UNITS: Record<FormatLocale, { k: string; m: string; b: string; sum: string; day: [string, string, string] }> = {
   ru: { k: "тыс.", m: "млн", b: "млрд", sum: "сум", day: ["день", "дня", "дней"] },
-  uz: { k: "ming", m: "mln", b: "mlrd", sum: "so'm", day: ["kun", "kun", "kun"] },
+  uz: { k: "ming", m: "mln", b: "mlrd", sum: "soʻm", day: ["kun", "kun", "kun"] },
   en: { k: "K", m: "M", b: "B", sum: "UZS", day: ["day", "days", "days"] },
 };
 

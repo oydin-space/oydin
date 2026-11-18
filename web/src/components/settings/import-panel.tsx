@@ -1,8 +1,8 @@
 "use client";
 
-import { Upload } from "lucide-react";
-import { useState } from "react";
-import { AmountText, Badge, Button, ChoiceControl, FeedbackNotice, Input, ListGroup, ListRow, PlainCard, Select, SkeletonList, StatusBanner } from "@/components/ui";
+import { FileUp, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+import { AmountText, Badge, Button, ChoiceControl, FeedbackNotice, ListGroup, ListRow, PlainCard, Select, SkeletonList, StatusBanner } from "@/components/ui";
 import {
   commitImport,
   type ImportJob,
@@ -41,6 +41,7 @@ function PreviewRow({ row }: { row: ImportRow }) {
 export function ImportPanel() {
   const { t, err } = useST();
   const accounts = useResource(listAccounts);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [accountId, setAccountId] = useState("");
   const [job, setJob] = useState<ImportJob | null>(null);
@@ -111,14 +112,22 @@ export function ImportPanel() {
     return (
       <PlainCard title={t("settings.import.title")} description={t("settings.import.formats")}>
         <div className="flex flex-col gap-3">
-          <Input
+          <input
+            ref={fileInput}
             type="file"
-            label={t("settings.import.pick")}
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden="true"
             accept=".csv,.xlsx,.txt,.xml"
-            hint={t("settings.import.limit")}
-            error={tooBig ? t("settings.import.tooBig") : undefined}
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
+          <div className="flex min-w-0 flex-col items-start gap-2">
+            <Button variant="secondary" icon={FileUp} onClick={() => fileInput.current?.click()}>
+              {t("settings.import.pick")}
+            </Button>
+            <p className="min-w-0 max-w-full break-words text-small text-muted-foreground">{file ? file.name : t("settings.import.limit")}</p>
+            {tooBig ? <FeedbackNotice kind="error">{t("settings.import.tooBig")}</FeedbackNotice> : null}
+          </div>
           {accounts.data && accounts.data.length > 0 ? (
             <Select
               label={t("settings.import.account")}
@@ -131,7 +140,7 @@ export function ImportPanel() {
           {error ? <FeedbackNotice kind="error">{error}</FeedbackNotice> : null}
           <div>
             <Button icon={Upload} loading={busy === "upload"} disabled={!file || tooBig} onClick={upload}>
-              {busy === "upload" ? t("settings.import.uploading") : t("settings.import.pick")}
+              {busy === "upload" ? t("settings.import.uploading") : t("settings.import.upload")}
             </Button>
           </div>
         </div>

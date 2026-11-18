@@ -53,14 +53,14 @@ export function SegmentedControl<T extends string>({ label, options, value, onVa
             disabled={o.disabled}
             onClick={() => onValueChange(o.value)}
             className={cn(
-              "focus-ring motion-fast relative min-h-10 min-w-11 flex-1 rounded-sm px-3 text-small font-medium transition-colors disabled:opacity-50",
-              active ? "text-foreground" : "text-muted-foreground",
+              "focus-ring motion-fast relative min-h-11 min-w-11 flex-1 rounded-sm px-3 text-small font-medium transition-colors disabled:opacity-50",
+              active ? "text-primary-foreground" : "text-muted-foreground",
             )}
           >
             {active ? (
               <motion.span
                 layoutId={`seg-${group}`}
-                className="absolute inset-0 rounded-sm bg-surface-raised shadow-soft ring-1 ring-border"
+                className="absolute inset-0 rounded-sm bg-primary shadow-soft ring-1 ring-border-strong"
                 transition={reduce ? { duration: 0 } : { duration: 0.18, ease: [0.2, 0, 0, 1] }}
               />
             ) : null}

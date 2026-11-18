@@ -14,7 +14,8 @@ const THEMES: ThemeChoice[] = ["system", "light", "dark"];
 
 function BusinessForm({ id, initialName, demo }: { id: number; initialName: string; demo: boolean }) {
   const { t, err } = useST();
-  const { refresh } = useSession();
+  const { user, refresh } = useSession();
+  const owner = user?.role === "owner";
   const [name, setName] = useState(initialName);
   const [segment, setSegment] = useState<Segment | "">("");
   const [touched, setTouched] = useState(false);
@@ -44,7 +45,11 @@ function BusinessForm({ id, initialName, demo }: { id: number; initialName: stri
 
   return (
     <PlainCard title={t("settings.profile.business")} description={t("settings.profile.businessHint")}>
-      {demo ? <StatusBanner kind="info" title={t("settings.profile.demo")}>{t("settings.profile.readOnly")}</StatusBanner> : null}
+      {demo ? (
+        <StatusBanner kind="info" title={t("settings.profile.demo")}>
+          {owner ? t("settings.profile.demoScope") : t("settings.profile.readOnly")}
+        </StatusBanner>
+      ) : null}
       <form onSubmit={submit} className="mt-3 flex flex-col gap-3" noValidate>
         <Input label={t("settings.profile.name")} value={name} onChange={(e) => setName(e.target.value)} error={nameError} required disabled={demo} />
         <Select

@@ -20,7 +20,10 @@ const DEFAULT_LABELS = {
   stop: 'Stop',
   effort: 'Effort',
   faster: 'Faster',
-  smarter: 'Smarter'
+  smarter: 'Smarter',
+  dictate: 'Voice input',
+  dictateStop: 'Finish recording',
+  listening: 'Listening…'
 };
 
 const mix = (a, b, t) => a + (b - a) * t;
@@ -597,7 +600,7 @@ export default function PromptBar({
           rows={1}
           value={draft}
           maxLength={1000}
-          placeholder={listening ? 'Слушаю…' : placeholders.length || busyPlaceholder ? '' : placeholder}
+          placeholder={listening ? text.listening : placeholders.length || busyPlaceholder ? '' : placeholder}
           aria-label={text.prompt}
           onChange={e => {
             setDraft(e.target.value);
@@ -707,7 +710,7 @@ export default function PromptBar({
             <button
               type="button"
               className="prompt-bar__tool"
-              aria-label={listening ? 'Закончить запись' : 'Голосовой ввод'}
+              aria-label={listening ? text.dictateStop : text.dictate}
               aria-pressed={listening}
               data-on={listening ? '' : undefined}
               onMouseDown={e => e.preventDefault()}

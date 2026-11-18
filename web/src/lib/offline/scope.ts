@@ -17,3 +17,25 @@ export function currentScope(): Scope | null {
     return null;
   }
 }
+
+let generation = 0;
+/** Растёт при любой смене сессии (вход, выход, смена бизнеса); прерывает идущую синхронизацию. */
+export const scopeGeneration = () => generation;
+export const invalidateScope = () => void generation++;
+
+type SnapshotStorage = Pick<Storage, "setItem" | "removeItem">;
+
+/** Единая точка записи снимка сессии для любого способа входа. */
+export function writeMeSnapshot(storage: SnapshotStorage | null, me: unknown) {
+  invalidateScope();
+  try {
+    storage?.setItem(ME_SNAPSHOT_KEY, JSON.stringify(me));
+  } catch {}
+}
+
+export function removeMeSnapshot(storage: SnapshotStorage | null) {
+  invalidateScope();
+  try {
+    storage?.removeItem(ME_SNAPSHOT_KEY);
+  } catch {}
+}

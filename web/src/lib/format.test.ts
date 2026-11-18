@@ -16,8 +16,8 @@ test("uz latin units", () => {
   expect(soft(2_540_000, "uz")).toBe(`2,5${nb}mln`)
   expect(soft(130_000, "uz")).toBe(`130${nb}ming`)
   expect(soft(5_000_000_000, "uz")).toBe(`5${nb}mlrd`)
-  expect(softSum(1_000_000, "uz")).toBe(`1${nb}mln${nb}so'm`)
-  expect(money(500, "uz")).toContain("so'm")
+  expect(softSum(1_000_000, "uz")).toBe(`1${nb}mln${nb}soʻm`)
+  expect(money(500, "uz")).toContain("soʻm")
   expect(metricValue("days", 3, "uz")).toBe(`3${nb}kun`)
 })
 

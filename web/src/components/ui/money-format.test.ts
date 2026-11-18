@@ -5,8 +5,8 @@ const nb = "\u00a0"
 
 test("compact units per locale", () => {
   expect(formatMoney(2_500_000, { mode: "compact" })).toBe(`2,5${nb}млн${nb}сум`)
-  expect(formatMoney(2_500_000, { mode: "compact", locale: "uz" })).toBe(`2,5${nb}mln${nb}so'm`)
-  expect(formatMoney(130_000, { mode: "compact", locale: "uz" })).toBe(`130${nb}ming${nb}so'm`)
+  expect(formatMoney(2_500_000, { mode: "compact", locale: "uz" })).toBe(`2,5${nb}mln${nb}soʻm`)
+  expect(formatMoney(130_000, { mode: "compact", locale: "uz" })).toBe(`130${nb}ming${nb}soʻm`)
   expect(formatMoney(2_500_000, { mode: "compact", locale: "en" })).toBe(`UZS${nb}2.5M`)
   expect(formatMoney(5_000_000_000, { mode: "compact", locale: "en" })).toBe(`UZS${nb}5B`)
   expect(formatMoney(130_000, { mode: "compact", locale: "en", withCurrency: false })).toBe("130K")
@@ -25,7 +25,7 @@ test("parseAmount understands all locales' suffixes", () => {
 })
 
 test("currencyLabel", () => {
-  expect(currencyLabel("UZS", "uz")).toBe("so'm")
+  expect(currencyLabel("UZS", "uz")).toBe("soʻm")
   expect(currencyLabel("UZS", "en")).toBe("UZS")
   expect(currencyLabel("UZS")).toBe("сум")
 })

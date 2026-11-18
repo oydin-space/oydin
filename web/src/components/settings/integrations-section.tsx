@@ -39,12 +39,12 @@ export function IntegrationsSection() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <p className="text-small text-muted-foreground">{t("settings.integrations.hint")}</p>
 
-      <section className="flex flex-col gap-3" aria-labelledby="int-now">
+      <section className="flex min-w-0 flex-col gap-3" aria-labelledby="int-now">
         <h2 id="int-now" className="text-title font-semibold">{t("settings.integrations.available")}</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 [&>*]:min-w-0">
           <LogoTile
             logo="telegram"
             name={t("settings.integrations.telegram")}
@@ -64,9 +64,9 @@ export function IntegrationsSection() {
         </div>
       </section>
 
-      <section className="flex flex-col gap-3" aria-labelledby="int-soon">
+      <section className="flex min-w-0 flex-col gap-3" aria-labelledby="int-soon">
         <h2 id="int-soon" className="text-title font-semibold">{t("settings.integrations.soon")}</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 [&>*]:min-w-0">
           {SOON.map((s) => (
             <LogoTile key={s.logo} logo={s.logo} name={t(s.name)} description={t(s.desc)} status="coming-soon" statusLabel={label.soon} />
           ))}

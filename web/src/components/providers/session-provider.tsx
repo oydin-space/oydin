@@ -7,7 +7,7 @@ import { flushStashedConsent } from "@/lib/auth-api";
 import type { User } from "@/lib/types";
 import { useTelegram } from "./telegram-provider";
 
-import { ME_SNAPSHOT_KEY } from "@/lib/offline/scope";
+import { ME_SNAPSHOT_KEY, removeMeSnapshot, writeMeSnapshot } from "@/lib/offline/scope";
 
 export { ME_SNAPSHOT_KEY };
 
@@ -23,9 +23,7 @@ function browserStorage(): SnapshotStorage | null {
 
 /** Выход из аккаунта: снимок Me больше не нужен. */
 export function clearMeSnapshot(storage: SnapshotStorage | null = browserStorage()) {
-  try {
-    storage?.removeItem(ME_SNAPSHOT_KEY);
-  } catch {}
+  removeMeSnapshot(storage);
 }
 
 function readSnapshot(storage: SnapshotStorage | null): User | null {
@@ -48,9 +46,7 @@ export async function loadMe(
 ): Promise<{ me: User; offline: boolean }> {
   try {
     const me = await fetchMe();
-    try {
-      storage?.setItem(ME_SNAPSHOT_KEY, JSON.stringify(me));
-    } catch {}
+    writeMeSnapshot(storage, me);
     return { me, offline: false };
   } catch (e) {
     if (e instanceof ApiError) {
@@ -105,6 +101,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         let me: User;
         if (tg.initData) {
           me = await post<User>("/auth/telegram/", { init_data: tg.initData });
+          writeMeSnapshot(browserStorage(), me);
         } else {
           try {
             const r = await loadMe(() => api<User>("/auth/me/"), browserStorage());
@@ -139,7 +136,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (user?.needs_onboarding && path !== "/onboarding") router.replace("/onboarding");
   }, [user, path, router]);
 
-  const applyMe = useCallback((me: User) => setUser(me), []);
+  const applyMe = useCallback((me: User) => {
+    writeMeSnapshot(browserStorage(), me);
+    setUser(me);
+  }, []);
   const refresh = useCallback(async () => {
     const r = await loadMe(() => api<User>("/auth/me/"), browserStorage());
     setUser(r.me);

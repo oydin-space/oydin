@@ -69,6 +69,7 @@ export const biz = {
     "biz.chat.notHelpful": "Неполезный ответ",
     "biz.chat.typing": "Oydin печатает",
     "biz.chart.asTable": "Показать как таблицу",
+    "biz.tools.generatePlaceholder": "Окупаемость кофемашины",
   },
   uz: {
     "biz.generic": "Bajarilmadi. Qayta urinib ko‘ring.",
@@ -139,6 +140,7 @@ export const biz = {
     "biz.chat.notHelpful": "Foydasiz javob",
     "biz.chat.typing": "Oydin yozmoqda",
     "biz.chart.asTable": "Jadval sifatida ko‘rsatish",
+    "biz.tools.generatePlaceholder": "Kofe mashinasining qoplanishi",
   },
   en: {
     "biz.generic": "Something went wrong. Please try again.",
@@ -209,5 +211,6 @@ export const biz = {
     "biz.chat.notHelpful": "Unhelpful answer",
     "biz.chat.typing": "Oydin is typing",
     "biz.chart.asTable": "Show as table",
+    "biz.tools.generatePlaceholder": "Coffee machine payback",
   },
 } as const

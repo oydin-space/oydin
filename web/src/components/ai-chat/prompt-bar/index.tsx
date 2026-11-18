@@ -41,7 +41,7 @@ export type PromptBarProps = {
   /** Enables the microphone button. Resolve with the dictated text. */
   /** Oydin: получает AbortSignal — он срабатывает, когда пользователь снова тапнул микрофон (стоп записи). */
   onDictate?: (stop: AbortSignal) => string | undefined | Promise<string | undefined>;
-  labels?: Partial<Record<"prompt" | "send" | "stop" | "effort" | "faster" | "smarter", string>>;
+  labels?: Partial<Record<"prompt" | "send" | "stop" | "effort" | "faster" | "smarter" | "dictate" | "dictateStop" | "listening", string>>;
   background?: string;
   color?: string;
   menuBackground?: string;

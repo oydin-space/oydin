@@ -149,8 +149,8 @@ export const publicPart = {
     "public.footer.note": "Oydin — kichik biznes uchun pul yordamchisi. Bank ham, soliq maslahatchisi ham emas.",
 
     "public.impact.title": "Oydin taʼsiri",
-    "public.impact.desc": "Ommaviy shaxssizlantirilgan hisoblagichlar: Oydin’da nechta biznes va amal bor.",
-    "public.impact.hint": "Faqat haqiqiy bizneslar, demo ma’lumotlarsiz. Raqamlar soatda bir yangilanadi.",
+    "public.impact.desc": "Ommaviy shaxssizlantirilgan hisoblagichlar: Oydinʼda nechta biznes va amal bor.",
+    "public.impact.hint": "Faqat haqiqiy bizneslar, demo maʼlumotlarsiz. Raqamlar soatda bir yangilanadi.",
     "public.impact.businesses": "Hisob yuritayotgan bizneslar",
     "public.impact.operations": "Yozilgan amallar",
     "public.impact.closes": "Kassa solishtirishlari",
@@ -162,7 +162,7 @@ export const publicPart = {
     "public.impact.method.1": "Kamida bitta tasdiqlangan amali bor haqiqiy bizneslar sanaladi; demo akkauntlar kirmaydi.",
     "public.impact.method.2": "Bizneslar beshtadan kam boʻlsa, barcha raqamlar yashiriladi. Shunda hisoblagichlar orqali alohida biznesni topib boʻlmaydi.",
     "public.impact.method.3": "«Uzilish oldindan sezildi» — prognoz kamida 3 kun oldin pul yetmasligini koʻrsatgan. Bu uzilishning oldi olingani degani emas: faqat ogohlantirganmiz.",
-    "public.impact.method.4": "Tejalgan summani aytmaymiz va natija va’da qilmaymiz — faqat qayta hisoblash mumkin boʻlgan narsani koʻrsatamiz.",
+    "public.impact.method.4": "Tejalgan summani aytmaymiz va natija vaʼda qilmaymiz — faqat qayta hisoblash mumkin boʻlgan narsani koʻrsatamiz.",
     "public.impact.error": "Hisoblagichlarni yuklab boʻlmadi",
     "public.retry": "Qayta urinish",
 
@@ -217,7 +217,7 @@ export const publicPart = {
     "public.partner.lead": "Ariza {id}",
     "public.partner.city": "Shahar",
     "public.partner.segment": "Soha",
-    "public.partner.months": "Oydin’dagi oylar",
+    "public.partner.months": "Oydinʼdagi oylar",
     "public.partner.revenue": "90 kunlik tushum",
     "public.partner.gap": "Kutilayotgan uzilish",
     "public.partner.gapDate": "Uzilish sanasi",

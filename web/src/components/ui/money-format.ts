@@ -11,7 +11,7 @@ const NBSP = "\u00a0";
 
 const WORDS: Record<MoneyLocale, { k: string; m: string; b: string; uzs: string; usd: string }> = {
   ru: { k: "тыс.", m: "млн", b: "млрд", uzs: "сум", usd: "$" },
-  uz: { k: "ming", m: "mln", b: "mlrd", uzs: "so'm", usd: "$" },
+  uz: { k: "ming", m: "mln", b: "mlrd", uzs: "soʻm", usd: "$" },
   en: { k: "K", m: "M", b: "B", uzs: "UZS", usd: "$" },
 };
 

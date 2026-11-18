@@ -13,12 +13,12 @@ export const Switch = forwardRef<React.ComponentRef<typeof Sw.Root>, React.Compo
     <Sw.Root
       ref={ref}
       className={cn(
-        "focus-ring motion-fast relative inline-flex h-8 w-14 shrink-0 items-center rounded-pill border border-border-strong/40 bg-muted p-0.5 transition-colors data-[state=checked]:border-transparent data-[state=checked]:bg-success disabled:opacity-50",
+        "focus-ring motion-fast relative inline-flex h-8 w-14 shrink-0 items-center rounded-pill border border-border-strong bg-border-strong/60 p-0.5 transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] data-[state=checked]:border-transparent data-[state=checked]:bg-success disabled:opacity-50",
         className,
       )}
       {...props}
     >
-      <Sw.Thumb className="block size-6 rounded-pill bg-surface-raised shadow-soft transition-transform duration-(--dur-base) ease-enter data-[state=checked]:translate-x-6" />
+      <Sw.Thumb className="block size-6 rounded-pill bg-white shadow-soft transition-transform duration-(--dur-base) ease-enter data-[state=checked]:translate-x-6" />
     </Sw.Root>
   );
 });

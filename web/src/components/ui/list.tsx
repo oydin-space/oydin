@@ -36,12 +36,18 @@ export function ListRow({ title, subtitle, leading, trailing, status, onClick, h
   const body = (
     <>
       {leading ? <span className="shrink-0">{leading}</span> : null}
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className={cn("text-body text-foreground", wrapTitle ? "line-clamp-2 break-words" : "truncate")}>{title}</span>
-        {subtitle ? <span className="truncate text-small text-muted-foreground">{subtitle}</span> : null}
+      <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 sm:flex sm:flex-col sm:items-stretch">
+        <span className={cn("min-w-0 break-words text-body text-foreground max-sm:line-clamp-2 sm:block", wrapTitle ? "sm:line-clamp-2" : "sm:truncate")}>{title}</span>
+        {trailing ? <span className="shrink-0 text-body font-medium tabular-nums sm:hidden">{trailing}</span> : null}
+        {subtitle || status ? (
+          <span className="col-span-2 flex min-w-0 items-center gap-2 sm:contents">
+            {status ? <span className="shrink-0 sm:hidden">{status}</span> : null}
+            {subtitle ? <span className="min-w-0 truncate text-small text-muted-foreground">{subtitle}</span> : null}
+          </span>
+        ) : null}
       </span>
-      {status ? <span className="shrink-0">{status}</span> : null}
-      {trailing ? <span className="shrink-0 text-body font-medium tabular-nums">{trailing}</span> : null}
+      {status ? <span className="hidden shrink-0 sm:block">{status}</span> : null}
+      {trailing ? <span className="hidden shrink-0 text-body font-medium tabular-nums sm:block">{trailing}</span> : null}
       {chevron || onClick || href ? <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
     </>
   );

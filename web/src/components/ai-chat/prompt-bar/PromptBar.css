@@ -420,6 +420,7 @@
 .prompt-bar__tool {
   display: inline-grid;
   place-items: center;
+  position: relative;
   width: 28px;
   height: 28px;
   padding: 0;
@@ -434,6 +435,17 @@
 
 .prompt-bar__tool:active {
   transform: scale(0.94);
+}
+
+.prompt-bar__tool::before,
+.prompt-bar__send::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .prompt-bar__pick {

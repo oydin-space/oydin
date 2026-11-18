@@ -41,7 +41,7 @@ export interface SyncResult {
 }
 
 /** Транспорт: POST /api/sync/ с {business_id, items}. Бросает {status} при HTTP-ошибке, любое другое исключение = нет сети. */
-export type SyncSender = (items: Pick<QueueEntry, "client_id" | "kind" | "payload">[], businessId: number) => Promise<SyncResult[]>;
+export type SyncSender = (items: Pick<QueueEntry, "client_id" | "kind" | "payload">[], scope: Scope) => Promise<SyncResult[]>;
 
 export type FlushStatus = "idle" | "ok" | "partial" | "offline" | "unauthorized" | "failed";
 
@@ -62,6 +62,8 @@ export interface QueueDeps {
   uuid: () => string;
   now: () => Date;
   scope: () => Scope | null;
+  /** Счётчик смен сессии: изменился — идущий flush прерывается. */
+  generation?: () => number;
 }
 
 export function createQueue(store: QueueStore, deps: QueueDeps) {
@@ -87,16 +89,21 @@ export function createQueue(store: QueueStore, deps: QueueDeps) {
     const scope = deps.scope();
     const all = await sorted();
     if (!scope) return { status: "idle", sent: 0, synced: 0, failed: 0 };
+    const gen = deps.generation?.();
     const due = all.filter((e) => opts.retryFailed || !e.error);
     if (!due.length) return { status: "idle", sent: 0, synced: 0, failed: 0 };
     let synced = 0;
     let failed = 0;
     let sent = 0;
     for (let i = 0; i < due.length; i += MAX_BATCH) {
+      const now = deps.scope();
+      if (!now || now.user_id !== scope.user_id || now.business_id !== scope.business_id || deps.generation?.() !== gen) {
+        return { status: "idle", sent, synced, failed };
+      }
       const batch = due.slice(i, i + MAX_BATCH);
       let results: SyncResult[];
       try {
-        results = await send(batch.map(({ client_id, kind, payload }) => ({ client_id, kind, payload })), scope.business_id);
+        results = await send(batch.map(({ client_id, kind, payload }) => ({ client_id, kind, payload })), scope);
       } catch (e) {
         const code = httpStatus(e);
         const status: FlushStatus = code === 401 || code === 403 ? "unauthorized" : code === null ? "offline" : "failed";

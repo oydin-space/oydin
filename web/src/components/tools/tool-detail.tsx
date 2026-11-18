@@ -98,7 +98,9 @@ export function ToolDetail({ id }: { id: number }) {
                 </div>
               }
             />
-            <GenerativeUI key={tool.spec} spec={tool.spec} values={tool.values} onValuesChange={onValues} />
+            <div className="flex flex-col gap-4">
+              <GenerativeUI key={tool.spec} spec={tool.spec} values={tool.values} onValuesChange={onValues} />
+            </div>
           </>
         ) : null}
       </StateView>

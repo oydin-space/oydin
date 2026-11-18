@@ -8,9 +8,10 @@ function make() {
   let t = 0;
   let scope: Scope | null = { user_id: 1, business_id: 10 };
   const store = memoryStore();
-  const deps: QueueDeps = { uuid: () => `id-${++n}`, now: () => new Date(Date.UTC(2026, 0, 1, 0, 0, ++t)), scope: () => scope };
+  let gen = 0;
+  const deps: QueueDeps = { generation: () => gen, uuid: () => `id-${++n}`, now: () => new Date(Date.UTC(2026, 0, 1, 0, 0, ++t)), scope: () => scope };
   const q = createQueue(store, deps);
-  return { q, store, as: (s: Scope | null) => void (scope = s) };
+  return { q, store, as: (s: Scope | null) => void (scope = s), bump: () => void gen++ };
 }
 const ok = (ids: string[]): SyncResult[] => ids.map((client_id) => ({ client_id, status: "created", id: 1, error: null }));
 
@@ -134,7 +135,7 @@ describe("offline queue", () => {
     const { q } = make();
     await q.enqueue("operation", payload);
     let biz = 0;
-    await q.flush(async (items, b) => ((biz = b), ok(items.map((i) => i.client_id))));
+    await q.flush(async (items, sc) => ((biz = sc.business_id), ok(items.map((i) => i.client_id))));
     expect(biz).toBe(10);
   });
 
@@ -144,5 +145,28 @@ describe("offline queue", () => {
     const out = await q.flush(async () => { throw { status: 409 }; });
     expect(out.status).toBe("failed");
     expect(await q.count()).toBe(1);
+  });
+
+  test("flush aborts between batches when the session switches", async () => {
+    const { q, as } = make();
+    for (let i = 0; i < 101; i++) await q.enqueue("operation", payload);
+    let calls = 0;
+    const out = await q.flush(async (items) => {
+      calls++;
+      as({ user_id: 2, business_id: 10 });
+      return ok(items.map((i) => i.client_id));
+    });
+    expect(calls).toBe(1);
+    expect(out.synced).toBe(100);
+    as({ user_id: 1, business_id: 10 });
+    expect(await q.count()).toBe(1);
+  });
+
+  test("flush aborts when the generation changes", async () => {
+    const { q, bump } = make();
+    for (let i = 0; i < 101; i++) await q.enqueue("operation", payload);
+    let calls = 0;
+    await q.flush(async (items) => (calls++, bump(), ok(items.map((i) => i.client_id))));
+    expect(calls).toBe(1);
   });
 });

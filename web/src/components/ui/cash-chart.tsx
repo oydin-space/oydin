@@ -32,7 +32,7 @@ export function CashChart({ points, currency = "UZS", label, todayLabel, height 
             <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} minTickGap={24} />
             <YAxis width={56} tickLine={false} axisLine={false} tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} tickFormatter={fmt} />
             <ReferenceLine y={0} stroke="var(--border-strong)" />
-            {lastActual ? <ReferenceLine x={lastActual} stroke="var(--border-strong)" strokeDasharray="2 4" label={{ value: todayLabel, fill: "var(--muted-foreground)", fontSize: 12, position: "insideBottomRight" }} /> : null}
+            {lastActual ? <ReferenceLine x={lastActual} stroke="var(--border-strong)" strokeDasharray="2 4" label={{ value: todayLabel, fill: "var(--muted-foreground)", fontSize: 12, position: "insideTopRight" }} /> : null}
             <Area type="monotone" dataKey="actual" stroke="var(--foreground)" strokeWidth={2} fill="var(--mint)" fillOpacity={0.6} isAnimationActive={false} connectNulls />
             <Line type="monotone" dataKey="forecast" stroke="var(--foreground)" strokeWidth={2} strokeDasharray="6 5" dot={false} isAnimationActive={false} connectNulls />
           </ComposedChart>

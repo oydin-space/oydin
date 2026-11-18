@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { useCoreT, type CoreKey } from "@/components/app/use-core-t"
 import { Input, MoneyInput, SegmentedControl, Select, TaskSheet } from "@/components/ui"
@@ -40,6 +40,7 @@ export function EntrySheet({ accounts, seed, onClose, onSaved }: Props) {
   const [form, setForm] = useState(initial)
   const [attempted, setAttempted] = useState(false)
   const [saving, setSaving] = useState(false)
+  const fieldsRef = useRef<HTMLDivElement>(null)
   const set = <K extends keyof typeof initial>(key: K, value: (typeof initial)[K]) => setForm((f) => ({ ...f, [key]: value }))
 
   const editing = seed.id != null
@@ -66,7 +67,11 @@ export function EntrySheet({ accounts, seed, onClose, onSaved }: Props) {
 
   async function submit() {
     setAttempted(true)
-    if (invalid || accountId == null || form.amount == null) return
+    if (invalid || accountId == null || form.amount == null) {
+      // Errors render (aria-invalid) on the next frame; then move focus to the first invalid field.
+      requestAnimationFrame(() => fieldsRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus())
+      return
+    }
     setSaving(true)
     const body: TransactionInput = {
       amount: form.amount,
@@ -105,7 +110,7 @@ export function EntrySheet({ accounts, seed, onClose, onSaved }: Props) {
       onSubmit={submit}
       submitting={saving}
     >
-      <div className="flex flex-col gap-4">
+      <div ref={fieldsRef} className="flex flex-col gap-4">
         <SegmentedControl label={t("core.ops.direction")} options={directionOptions} value={form.direction} onValueChange={(d) => set("direction", d)} />
         <MoneyInput label={t("core.ops.amount")} value={form.amount} onValueChange={(a) => set("amount", a)} currency={currencyOf(accounts, accountId)} error={attempted ? errors.amount : undefined} required />
         <Select

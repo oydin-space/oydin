@@ -133,6 +133,7 @@ const ListItem = defineComponent({
     const locale = useMoneyLocale();
     return (
       <ListRow
+        wrapTitle
         title={props.title}
         subtitle={props.subtitle}
         trailing={props.amount == null ? undefined : <Money value={props.amount} locale={locale} />}
@@ -384,6 +385,7 @@ const Output = defineComponent({
     const value = tree ? evaluate(tree, calc.values) : null;
     return (
       <ListRow
+        wrapTitle
         title={props.label}
         trailing={
           <Text as="span" weight="semibold" className="tabular-nums">

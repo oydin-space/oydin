@@ -1,7 +1,7 @@
 // Вызовы входа, бизнесов и команды (docs/openapi.yaml v0.3). Всё идёт через единый api()/post().
 import { api, ApiError, post } from "@/lib/api";
 import { clearAccounts } from "@/lib/offline/reference";
-import { ME_SNAPSHOT_KEY } from "@/lib/offline/scope";
+import { removeMeSnapshot, writeMeSnapshot } from "@/lib/offline/scope";
 import { resetOfflineState } from "@/lib/offline/sync";
 import type { AuthProviders, BusinessItem, Currency, Me, Role } from "@/lib/types";
 
@@ -22,17 +22,18 @@ export interface TeamMember {
 
 export const fetchProviders = () => api<AuthProviders>("/auth/providers/");
 export const requestEmailCode = (email: string, lang = "ru") => post<{ ok: true; resend_in: number }>("/auth/email/request/", { email, lang });
-export const verifyEmailCode = (email: string, code: string) => post<Me>("/auth/email/verify/", { email, code });
-export const demoLogin = () => post<Me>("/auth/demo/", {});
+const browserStorage = () => (typeof localStorage === "undefined" ? null : localStorage);
+/** Любой способ входа сразу пишет снимок сессии: очередь скоупится по нему. */
+const signedIn = (me: Me) => (writeMeSnapshot(browserStorage(), me), me);
+export const verifyEmailCode = (email: string, code: string) => post<Me>("/auth/email/verify/", { email, code }).then(signedIn);
+export const demoLogin = () => post<Me>("/auth/demo/", {}).then(signedIn);
 export const fetchMe = () => api<Me>("/auth/me/");
 /** Выход чистит локальное в finally: офлайн-выход тоже стирает снимок, кэш счетов и закэшированные страницы /app/*. Несинхронизированные записи остаются, но чужим пользователям не видны (скоуп). */
 export const logout = async () => {
   try {
     await post<void>("/auth/logout/");
   } finally {
-    try {
-      localStorage.removeItem(ME_SNAPSHOT_KEY);
-    } catch {}
+    removeMeSnapshot(browserStorage());
     clearAccounts();
     await clearCachedPages();
     await resetOfflineState().catch(() => undefined);
@@ -78,9 +79,7 @@ export const setSegment = (id: number, segment: Segment) => api<unknown>(`/busin
 /** Снимок сессии обновляется сразу: очередь и кэш счетов привязаны к активному бизнесу. */
 export async function switchBusiness(id: number) {
   const me = await post<Me>(`/businesses/${id}/switch/`);
-  try {
-    localStorage.setItem(ME_SNAPSHOT_KEY, JSON.stringify(me));
-  } catch {}
+  writeMeSnapshot(browserStorage(), me);
   await resetOfflineState().catch(() => undefined);
   return me;
 }
@@ -107,4 +106,4 @@ export interface TelegramWidgetUser {
   auth_date: number;
   hash: string;
 }
-export const telegramWidgetLogin = (user: TelegramWidgetUser) => post<Me>("/auth/telegram/widget/", user);
+export const telegramWidgetLogin = (user: TelegramWidgetUser) => post<Me>("/auth/telegram/widget/", user).then(signedIn);

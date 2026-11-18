@@ -69,7 +69,7 @@ export function ChatView() {
       ) : null}
       <StickToBottom className="relative min-h-0 flex-1" resize="smooth" initial="instant">
         <StickToBottom.Content className="flex flex-col gap-3 py-3">
-          {!chat.messages.length ? <EmptyState title={t("chat.ui.empty")} hint={t("chat.ui.hint")} /> : null}
+          {!chat.messages.length ? <EmptyState title={t("chat.ui.empty")} /> : null}
           {chat.messages.map((m) => (
             <Message key={m.id} message={m} accounts={accounts.data?.items ?? []} chat={chat} />
           ))}
@@ -97,7 +97,14 @@ export function ChatView() {
           width={760}
           busy={chat.busy}
           placeholders={STARTERS.map((k) => t(k))}
-          labels={{ prompt: t("chat.ui.prompt"), send: t("chat.send" as never), stop: t("chat.ui.stop") }}
+          labels={{
+            prompt: t("chat.ui.prompt"),
+            send: t("chat.send" as never),
+            stop: t("chat.ui.stop"),
+            dictate: t("chat.ui.dictate"),
+            dictateStop: t("chat.ui.dictateStop"),
+            listening: t("chat.ui.recording"),
+          }}
           onDictate={onDictate}
           onSend={(text) => void chat.send(text)}
         />

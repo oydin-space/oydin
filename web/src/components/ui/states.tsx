@@ -62,13 +62,15 @@ const BANNER = {
 export function StatusBanner({ kind = "info", title, children, action, className }: { kind?: keyof typeof BANNER; title: string; children?: React.ReactNode; action?: React.ReactNode; className?: string }) {
   const { tint, icon: I } = BANNER[kind];
   return (
-    <Card tint={tint} role={kind === "error" ? "alert" : "status"} className={cn("flex items-start gap-3", className)}>
-      <I className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-      <div className="flex-1">
-        <p className="text-body font-medium">{title}</p>
-        {children ? <p className="text-small">{children}</p> : null}
+    <Card tint={tint} role={kind === "error" ? "alert" : "status"} className={cn("flex flex-col gap-3 sm:flex-row sm:items-start", className)}>
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <I className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+        <div className="min-w-0 flex-1 break-words">
+          <p className="text-body font-medium">{title}</p>
+          {children ? <p className="text-small">{children}</p> : null}
+        </div>
       </div>
-      {action}
+      {action ? <div className="min-w-0 max-w-full whitespace-normal sm:shrink-0 [&_button]:h-auto [&_button]:min-h-11 [&_button]:whitespace-normal [&_a]:whitespace-normal">{action}</div> : null}
     </Card>
   );
 }

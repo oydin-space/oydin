@@ -3,7 +3,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { post } from "@/lib/api";
 import { idbStore } from "./idb-store";
-import { currentScope } from "./scope";
+import { currentScope, invalidateScope, scopeGeneration } from "./scope";
 import { createQueue, type FlushOutcome, type QueueEntry, type SyncResult, type SyncSender } from "./queue";
 
 export interface OfflineState {
@@ -15,8 +15,8 @@ export interface OfflineState {
   unauthorized: boolean;
 }
 
-const queue = createQueue(idbStore, { uuid: () => crypto.randomUUID(), now: () => new Date(), scope: currentScope });
-const send: SyncSender = async (items, business_id) => (await post<{ results: SyncResult[] }>("/sync/", { business_id, items })).results;
+const queue = createQueue(idbStore, { uuid: () => crypto.randomUUID(), now: () => new Date(), scope: currentScope, generation: scopeGeneration });
+const send: SyncSender = async (items, { user_id, business_id }) => (await post<{ results: SyncResult[] }>("/sync/", { user_id, business_id, items })).results;
 
 const EMPTY: OfflineState = { ready: false, entries: [], lastSync: null, syncing: false, online: true, unauthorized: false };
 let state: OfflineState = EMPTY;
@@ -104,6 +104,7 @@ export function useOfflineQueue() {
 
 /** Выход или смена бизнеса: сбросить видимое состояние и перечитать очередь для новой области. */
 export async function resetOfflineState(): Promise<void> {
+  invalidateScope();
   set({ entries: [], lastSync: null, unauthorized: false });
   await refresh().catch(() => undefined);
 }
