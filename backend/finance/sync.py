@@ -108,6 +108,8 @@ def sync_view(request):
         isinstance(body["business_id"], bool) or body["business_id"] != request.business.id
     ):
         raise ApiError(409, "business_mismatch")
+    if "user_id" in body and (isinstance(body["user_id"], bool) or body["user_id"] != request.user.id):
+        raise ApiError(409, "user_mismatch")
     items = body.get("items")
     if not isinstance(items, list) or not 1 <= len(items) <= MAX_ITEMS:
         raise ApiError(400, f"items: от 1 до {MAX_ITEMS} элементов")

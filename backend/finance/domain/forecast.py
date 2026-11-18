@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from .fmt import money
+from ..texts import money, tr
 
 
 @dataclass(frozen=True)
@@ -47,7 +47,7 @@ def build_forecast(today, balance, flows, daily_in, daily_out, days):
     return points
 
 
-def find_gap(points, flows, today, horizon=30):
+def find_gap(points, flows, today, horizon=30, lang="ru"):
     """Первая дата в горизонте, где прогнозный остаток уходит ниже нуля; сумма — глубина провала до восстановления."""
     window = [p for p in points if p.date <= today + timedelta(days=horizon)]
     for index, point in enumerate(window):
@@ -61,8 +61,8 @@ def find_gap(points, flows, today, horizon=30):
         due = [f for f in flows if max(f.date, today + timedelta(days=1)) == point.date and f.amount < 0]
         if due:
             biggest = min(due, key=lambda f: f.amount)
-            reason = f"Платёж «{biggest.title}» на {money(-biggest.amount)}: к этому дню денег на счетах не хватает"
+            reason = tr("gap_payment", lang, title=biggest.title, a=money(-biggest.amount, lang))
         else:
-            reason = "Ежедневные расходы превышают поступления"
+            reason = tr("gap_daily", lang)
         return Gap(point.date, shortfall, reason)
     return None

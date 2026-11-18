@@ -12,10 +12,11 @@ from django.utils import timezone
 from .domain import forecast as fc
 from .domain import pulse as pl
 from .domain.categories import OBLIGATION_CATEGORIES, ORDER_INCOME_CATEGORIES
-from .domain.fmt import money, short_date
+from .domain.fmt import short_date
 from .domain.transfers import Candidate, find_counterpart
 from .models import Account, Envelope, GapAlert, Obligation, Order, Product, Transaction
 from .rates import rows_to_uzs, to_uzs
+from .texts import TRANSFER_CATEGORY, money, tr
 
 PERIOD_DAYS = {"week": 7, "month": 30, "quarter": 90}
 
@@ -130,26 +131,29 @@ def bundle(business, days=90, now=None):
     return Bundle(now, balance, flows, points, avg_out)
 
 
-def notify_gap(business, b):
+def notify_gap(business, b, lang="ru"):
     """Первое обнаружение разрыва на дату → событие gap.detected (повторно для той же даты не шлём)."""
     from publicapi.services import emit
 
-    gap = fc.find_gap(b.points, b.flows, b.today)
+    gap = fc.find_gap(b.points, b.flows, b.today, lang=lang)
     if gap is None:
         return gap
     _, created = GapAlert.objects.get_or_create(business=business, gap_date=gap.date)
     if created:
-        emit("gap.detected", {"date": gap.date.isoformat(), "amount": gap.amount, "reason": gap.reason}, business)
+        reason = gap.reason if lang == "ru" else fc.find_gap(b.points, b.flows, b.today).reason
+        emit("gap.detected", {"date": gap.date.isoformat(), "amount": gap.amount, "reason": reason}, business)
     return gap
 
 
-def confirm_draft(tx):
-    """Черновик → подтверждённая операция: поиск зеркального перевода и событие transaction.confirmed."""
+def confirm_draft(tx, merge=False):
+    """Черновик → подтверждённая операция и событие transaction.confirmed; зеркальный перевод ищем только при merge=True
+    (не для продавца: слияние трогает чужие операции бизнеса)."""
     from publicapi.services import emit
 
     tx.status = Transaction.Status.CONFIRMED
     tx.save()
-    tx = merge_transfer(tx)
+    if merge:
+        tx = merge_transfer(tx)
     emit("transaction.confirmed", tx)
     return tx
 
@@ -200,17 +204,17 @@ def envelopes(business, now=None):
     ]
 
 
-def pulse(business, now=None):
+def pulse(business, now=None, lang="ru"):
     from planning import services as planning
 
     b = bundle(business, 90, now)
-    gap = notify_gap(business, b)
+    gap = notify_gap(business, b, lang)
     obligations = obligation_dicts(business, b)
     month = period_totals(business, b.today - timedelta(days=29), b.today)
     result = pl.compute_pulse(pl.PulseInput(
         today=b.today, balance=b.balance, points=b.points, gap=gap, obligations=obligations,
         avg_daily_out=b.avg_daily_out, personal_share=month["personal_share"],
-    ))
+    ), lang)
     tax_reserved = planning.tax_reserve_amount(business, b.today)
     result["tax_reserved"] = tax_reserved
     result["safe_to_spend"] = max(0, result["safe_to_spend"] - tax_reserved)
@@ -225,22 +229,22 @@ def pulse(business, now=None):
     ]
     share = month["personal_share"]
     result["metrics"] = [
-        {"key": "free_money", "label": "Свободные деньги", "value": safe, "unit": "sum",
+        {"key": "free_money", "label": tr("free_money", lang), "value": safe, "unit": "sum",
          "tone": "calm" if safe > 0 else "watch",
-         "hint": "Можно потратить сегодня, не задев платежи на 30 дней вперёд"},
-        {"key": "reserved", "label": "Отложено под платежи", "value": saved, "unit": "sum",
+         "hint": tr("free_money_hint", lang)},
+        {"key": "reserved", "label": tr("reserved", lang), "value": saved, "unit": "sum",
          "tone": "calm" if target == 0 or saved >= target * 0.5 else "watch",
-         "hint": f"В конвертах {money(saved)} из {money(target)}" if target else "Конвертов пока нет"},
-        {"key": "owner_take", "label": "Можно взять себе", "value": min(safe, max(month["profit"], 0)), "unit": "sum",
+         "hint": tr("reserved_hint", lang, saved=money(saved, lang), target=money(target, lang)) if target else tr("reserved_none", lang)},
+        {"key": "owner_take", "label": tr("owner_take", lang), "value": min(safe, max(month["profit"], 0)), "unit": "sum",
          "tone": "calm" if safe > 0 and month["profit"] > 0 else "watch",
-         "hint": "Не больше свободных денег и прибыли за месяц"},
-        {"key": "profit", "label": "Реальная прибыль за месяц", "value": month["profit"], "unit": "sum",
+         "hint": tr("owner_take_hint", lang)},
+        {"key": "profit", "label": tr("profit", lang), "value": month["profit"], "unit": "sum",
          "tone": "calm" if month["profit"] > 0 else "watch",
-         "hint": f"Выручка {money(month['revenue'])} минус расходы бизнеса {money(month['expenses'])}",
+         "hint": tr("profit_hint", lang, revenue=money(month["revenue"], lang), expenses=money(month["expenses"], lang)),
          "trend": weekly_profit},
-        {"key": "personal_share", "label": "Личные траты из кассы", "value": round(share * 100), "unit": "pct",
+        {"key": "personal_share", "label": tr("personal_share", lang), "value": round(share * 100), "unit": "pct",
          "tone": "calm" if share < 0.15 else "watch",
-         "hint": "Доля нецелевых трат в расходах за 30 дней"},
+         "hint": tr("personal_share_hint", lang)},
     ]
     return result
 
@@ -305,7 +309,7 @@ def merge_transfer(tx):
     if tx.direction not in ("in", "out") or tx.status != "confirmed":
         return tx
     nearby = Transaction.objects.filter(
-        business=tx.business, status="confirmed", amount=tx.amount,
+        business=tx.business, status="confirmed", amount=tx.amount, account__currency=tx.account.currency,
         date__gte=tx.date - timedelta(days=1), date__lte=tx.date + timedelta(days=1),
     ).exclude(pk=tx.pk).exclude(direction="transfer").exclude(account=tx.account)
     me = Candidate(tx.pk, tx.account_id, tx.direction, tx.amount, tx.date, tx.counterparty)
@@ -326,10 +330,11 @@ def merge_transfer(tx):
     return source
 
 
-def serialize_transaction(t):
+def serialize_transaction(t, lang="ru"):
+    category = tr("transfer", lang) if t.category == TRANSFER_CATEGORY else t.category
     return {
         "id": t.id, "date": t.date.isoformat(), "amount": t.amount, "direction": t.direction,
-        "category": t.category, "purpose": t.purpose, "account_id": t.account_id,
+        "category": category, "purpose": t.purpose, "account_id": t.account_id,
         "counterparty": t.counterparty, "note": t.note, "status": t.status, "source": t.source,
         "to_account_id": t.transfer_account_id,
     }

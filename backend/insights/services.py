@@ -5,12 +5,14 @@ from django.db.models import Sum
 from finance import services as fin
 from finance.domain import forecast as fc
 from finance.domain.categories import OBLIGATION_CATEGORIES
-from finance.domain.fmt import money, ru_date
+from finance.texts import date_text, money
+from finance.texts import tr as tr_fin
 
 from . import catalog
+from .texts import tr
 
 
-def _own_category_growth(business, now):
+def _own_category_growth(business, now, lang):
     qs = fin.confirmed(business).filter(direction="out", purpose="business").exclude(category__in=OBLIGATION_CATEGORIES)
     recent = {r["category"]: r["s"] for r in qs.filter(date__gt=now - timedelta(days=30), date__lte=now)
               .values("category").annotate(s=Sum("amount"))}
@@ -26,41 +28,42 @@ def _own_category_growth(business, now):
     if best is None:
         return None
     category, growth, value, _ = best
+    pct = round(growth * 100)
     return {
         "id": "own-category-growth",
         "kind": "own",
-        "title": f"Расходы «{category}» выросли на {round(growth * 100)}%",
-        "body": f"За 30 дней на «{category}» ушло {money(value)} — на {round(growth * 100)}% больше, чем в предыдущие 30 дней.",
+        "title": tr("growth_title", lang, category=category, pct=pct),
+        "body": tr("growth_body", lang, category=category, a=money(value, lang), pct=pct),
         "tone": "watch",
-        "source": "Ваши подтверждённые операции",
+        "source": tr("growth_source", lang),
         "source_url": None,
         "as_of": now,
         "confidence": "high",
-        "action": f"Почему выросли расходы на «{category}»?",
+        "action": tr("growth_action", lang, category=category),
     }
 
 
-def _own_gap(business, now):
+def _own_gap(business, now, lang):
     b = fin.bundle(business, 30, now)
-    gap = fc.find_gap(b.points, b.flows, now)
+    gap = fc.find_gap(b.points, b.flows, now, lang=lang)
     if gap is None:
         return None
     return {
         "id": "own-cash-gap",
         "kind": "own",
-        "title": f"{ru_date(gap.date)} не хватит {money(gap.amount)}",
-        "body": f"{gap.reason}. Это прогноз по вашим платежам и обычному темпу продаж.",
+        "title": tr_fin("headline_gap", lang, d=date_text(gap.date, lang), a=money(gap.amount, lang)),
+        "body": tr("gap_body", lang, reason=gap.reason),
         "tone": "risk" if (gap.date - now).days <= 14 else "watch",
-        "source": "Прогноз Oydin по вашим операциям и обязательствам",
+        "source": tr("gap_source", lang),
         "source_url": None,
         "as_of": now,
         "confidence": "medium",
-        "action": "Как закрыть кассовый разрыв?",
+        "action": tr("gap_action", lang),
     }
 
 
-def build_insights(business, now=None):
+def build_insights(business, now=None, lang="ru"):
     now = now or fin.today()
-    items = [i for i in (_own_gap(business, now), _own_category_growth(business, now)) if i]
-    items += catalog.MARKET_LOCAL
+    items = [i for i in (_own_gap(business, now, lang), _own_category_growth(business, now, lang)) if i]
+    items += catalog.market_local(lang)
     return [{**i, "as_of": i["as_of"].isoformat()} for i in items]

@@ -93,3 +93,51 @@ class ReviewFixTests(TestCase):
         self.assertFalse(Transaction.objects.filter(business=self.business).exists())
         r = self.send("post", "/api/sync/", {"business_id": self.business.id, "items": [item]})
         self.assertEqual(r.json()["results"][0]["status"], "created")
+
+    def draft(self, user, account, direction, **kw):
+        return Transaction.objects.create(business=self.business, account=account, date=svc.today(), amount=500,
+                                          direction=direction, category="c", status="draft", created_by=user, **kw)
+
+    def test_seller_confirm_does_not_merge(self):
+        from finance.tests import add_member
+
+        seller = add_member(self.business, "rv_seller", "seller")
+        other = Transaction.objects.create(business=self.business, account=self.uzs2, date=svc.today(), amount=500,
+                                           direction="in", category="c", created_by=self.user)
+        mine = self.draft(seller, self.uzs, "out")
+        c = Client()
+        c.force_login(seller)
+        r = c.patch(f"/api/transactions/{mine.id}/", json.dumps({"status": "confirmed"}), content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["direction"], "out")
+        self.assertTrue(Transaction.objects.filter(pk=other.pk, direction="in").exists())
+        # владелец подтверждает такой же черновик — слияние работает
+        mine2 = self.draft(self.user, self.uzs, "out")
+        r = self.send("patch", f"/api/transactions/{mine2.id}/", {"status": "confirmed"})
+        self.assertEqual(r.json()["direction"], "transfer")
+
+    def test_confirm_draft_merge_flag(self):
+        other = Transaction.objects.create(business=self.business, account=self.uzs2, date=svc.today(), amount=500,
+                                           direction="in", category="c", created_by=self.user)
+        tx = self.draft(self.user, self.uzs, "out")
+        self.assertEqual(svc.confirm_draft(tx).direction, "out")
+        self.assertTrue(Transaction.objects.filter(pk=other.pk).exists())
+        tx2 = self.draft(self.user, self.uzs, "out")
+        self.assertEqual(svc.confirm_draft(tx2, merge=True).direction, "transfer")
+
+    def test_merge_requires_same_currency(self):
+        Transaction.objects.create(business=self.business, account=self.usd, date=svc.today(), amount=500,
+                                   direction="in", category="c", created_by=self.user)
+        tx = self.draft(self.user, self.uzs, "out")
+        tx.status = "confirmed"
+        self.assertEqual(svc.merge_transfer(tx).direction, "out")
+
+    def test_sync_user_mismatch(self):
+        item = {"client_id": "um1", "kind": "operation", "payload": {
+            "amount": 1, "direction": "in", "category": "c", "account_id": self.uzs.id}}
+        for bad in (self.user.id + 1, "x", True):
+            r = self.send("post", "/api/sync/", {"user_id": bad, "items": [item]})
+            self.assertEqual((r.status_code, r.json()["error"]), (409, "user_mismatch"))
+        self.assertFalse(Transaction.objects.filter(business=self.business).exists())
+        r = self.send("post", "/api/sync/", {"user_id": self.user.id, "items": [item]})
+        self.assertEqual(r.json()["results"][0]["status"], "created")

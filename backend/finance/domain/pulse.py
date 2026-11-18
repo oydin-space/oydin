@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
-from .fmt import money, ru_date
+from ..texts import date_text, money, tr
 
 CALM, WATCH, RISK = "calm", "watch", "risk"
 
@@ -63,25 +63,25 @@ def score_and_tone(runway, kept, total, gap, today, personal_share):
     return score, tone
 
 
-def headline(today, gap, obligations):
+def headline(today, gap, obligations, lang="ru"):
     if gap is not None:
-        return f"{ru_date(gap.date)} не хватит {money(gap.amount)}"
+        return tr("headline_gap", lang, d=date_text(gap.date, lang), a=money(gap.amount, lang))
     upcoming = [o for o in obligations if o["status"] != "paid" and o["kind"] != "receivable"
                 and today <= o["due_date"] <= today + timedelta(days=30)]
     if upcoming:
         last = max(o["due_date"] for o in upcoming)
-        return f"Обязательства до {ru_date(last)} покрыты"
-    return "Ближайшие 30 дней спокойные"
+        return tr("headline_covered", lang, d=date_text(last, lang))
+    return tr("headline_calm", lang)
 
 
-def compute_pulse(data):
+def compute_pulse(data, lang="ru"):
     runway = runway_days(data.balance, data.avg_daily_out)
     kept, total = promises(data.today, data.obligations)
     score, tone = score_and_tone(runway, kept, total, data.gap, data.today, data.personal_share)
     return {
         "score": score,
         "tone": tone,
-        "headline": headline(data.today, data.gap, data.obligations),
+        "headline": headline(data.today, data.gap, data.obligations, lang),
         "balance": data.balance,
         "safe_to_spend": safe_to_spend(data.balance, data.points),
         "runway_days": int(runway),

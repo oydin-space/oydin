@@ -10,6 +10,7 @@ from publicapi.services import emit
 from . import rates
 from . import services as svc
 from .models import Account, Currency, Obligation, Transaction
+from .texts import resolve_lang
 from .validation import MAX_AMOUNT, PURPOSES, parse_amount, parse_date, transaction_fields
 
 OBLIGATION_KINDS = {c for c, _ in Obligation.Kind.choices}
@@ -41,7 +42,7 @@ def int_param(request, name, default, maximum):
 @api_view("GET")
 @require_role(*FINANCE_READERS)
 def pulse(request):
-    return json_response(svc.pulse(request.business))
+    return json_response(svc.pulse(request.business, lang=resolve_lang(request)))
 
 
 def _account_name(body, request, exclude=None):
@@ -128,7 +129,7 @@ def transactions(request):
         if request.role != SELLER:
             tx = svc.merge_transfer(tx)
         emit("transaction.created", tx)
-        return json_response(svc.serialize_transaction(tx), status=201)
+        return json_response(svc.serialize_transaction(tx, resolve_lang(request)), status=201)
     qs = own_transactions(request)
     status = request.GET.get("status")
     if status:
@@ -142,7 +143,8 @@ def transactions(request):
         qs = qs.filter(purpose=purpose)
     qs = svc.search_transactions(qs, request.GET.get("q", ""))
     limit = int_param(request, "limit", 50, 200)
-    return json_response({"items": [svc.serialize_transaction(t) for t in qs[:limit]]})
+    lang = resolve_lang(request)
+    return json_response({"items": [svc.serialize_transaction(t, lang) for t in qs[:limit]]})
 
 
 @api_view("PATCH", "DELETE")
@@ -166,10 +168,10 @@ def transaction_detail(request, id):
     if "status" in body and not confirming:
         tx.status = body["status"]
     if confirming:
-        tx = svc.confirm_draft(tx)
+        tx = svc.confirm_draft(tx, merge=request.role != SELLER)
     else:
         tx.save()
-    return json_response(svc.serialize_transaction(tx))
+    return json_response(svc.serialize_transaction(tx, resolve_lang(request)))
 
 
 @api_view("GET", "POST")
