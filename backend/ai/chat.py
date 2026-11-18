@@ -126,11 +126,13 @@ def answer(business, user, messages, role=None):
         convo = [{"role": "user", "content": _facts_message(facts)}, *messages]
         result = None
         ui_retried = False
+        tools_used: list[str] = []
         try:
             for round_no in range(tools.MAX_TOOL_ROUNDS + 2):
                 out = llm.complete(system + lang.instruction(last), convo, temperature=0)
                 name = out.get("tool")
                 if isinstance(name, str) and round_no < tools.MAX_TOOL_ROUNDS:
+                    tools_used.append(name if name not in ext or name.startswith("ext_") else "ext_" + name)
                     if name in ext:
                         data = run_external(ext[name], out.get("args"))
                     elif name in tools.CONTEXT_TOOLS:
@@ -161,4 +163,4 @@ def answer(business, user, messages, role=None):
             observability.set_output("fallback", reply["reply"])
             return reply
         observability.set_output("model", result["reply"])
-        return {**result, "trace_id": trace_id, "fallback": False}
+        return {**result, "trace_id": trace_id, "fallback": False, "tools_used": tools_used}

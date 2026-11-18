@@ -6,6 +6,7 @@ from django.apps import apps
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
@@ -70,9 +71,12 @@ def metrics(request):
     month = now - timedelta(days=30)
     recent_src = dict(Transaction.objects.filter(created_at__gte=month).values_list("source").annotate(c=Count("id")))
     invites = Invite.objects.all()
+    from billing.models import Subscription
+
     ctx = {
         **admin.site.each_context(request),
         "title": "Метрики Oydin",
+        "paid_subscriptions": Subscription.objects.filter(status=Subscription.Status.ACTIVE, plan__price_uzs__gt=0).count(),
         "users_total": User.objects.count(),
         "businesses_total": Business.objects.filter(is_demo=False).count(),
         "signups_chart": _bars([(d.strftime("%d.%m"), c) for d, c in signups]),
@@ -99,6 +103,8 @@ def metrics(request):
 
 @staff_member_required
 def business_data(request, business_id):
+    if not request.user.is_superuser:
+        raise PermissionDenied
     business = get_object_or_404(Business, pk=business_id)
     ops = Transaction.objects.filter(business=business).select_related("account", "created_by").order_by("-created_at")[:100]
     ctx = {

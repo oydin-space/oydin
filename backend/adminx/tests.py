@@ -47,6 +47,42 @@ class AdminxTests(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
 
+    def test_staff_not_superuser_forbidden(self):
+        from accounts.models import Business
+
+        staff = User.objects.create_user("st", "st@x.uz", "pw", is_staff=True)
+        b = Business.objects.create(name="Shop")
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get(reverse("adminx_business_data", args=[b.pk])).status_code, 403)
+        url = reverse("admin:auth_user_changelist")
+        self.client.post(url, {"action": "block_users", "_selected_action": [self.user.pk]})
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)
+        r = self.client.post(url, {"action": "export_csv", "_selected_action": [self.user.pk]})
+        self.assertNotIn("text/csv", r.get("Content-Type", ""))
+
+    def test_business_csv_and_memory(self):
+        from accounts.models import Business, Membership
+        from ai.models import MemoryFact
+
+        b = Business.objects.create(name="=Shop")
+        Membership.objects.create(business=b, user=self.user, role=Membership.Role.OWNER)
+        self.client.force_login(self.staff)
+        r = self.client.post(
+            reverse("admin:accounts_business_changelist"),
+            {"action": "export_csv", "_selected_action": [b.pk]},
+        )
+        text = r.content.decode()
+        self.assertIn("text/csv", r["Content-Type"])
+        self.assertIn("'=Shop", text)
+        self.assertIn("u1@x.uz", text)
+        MemoryFact.objects.create(business=b, scope="business", text="fact")
+        self.assertContains(self.client.get(reverse("admin:accounts_business_change", args=[b.pk])), "fact")
+
+    def test_anonymous_csv_redirect(self):
+        r = self.client.post(reverse("admin:auth_user_changelist"), {"action": "export_csv"})
+        self.assertEqual(r.status_code, 302)
+
     def test_business_data(self):
         from accounts.models import Business
 

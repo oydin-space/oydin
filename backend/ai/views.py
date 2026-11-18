@@ -2,14 +2,17 @@ import json
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
 from django.http import HttpResponse
 
 from accounts.http import ApiError, api_view, error, json_response, parse_json
 
 from accounts.consent import has_consent
-from accounts.models import Membership
+from accounts.models import Business, Membership
 
 from tools import builtins
+
+from .models import BusinessProfile
 
 from . import chat, lang, llm, memory, observability, ui, voice
 
@@ -183,3 +186,57 @@ def memory_delete_view(request, fact_id):
         raise ApiError(404, "not_found")
     memory.forget(request.business, request.user, request.role, fact_id)
     return HttpResponse(status=204)
+
+
+PROFILE_TEXT_LIMITS = {"name": 200, "industry": 100, "city": 100, "activity": 300, "plans": 2000, "problems": 2000}
+BUSINESS_FIELDS = ("name", "industry", "city", "segment", "tax_regime")
+AI_FIELDS = ("inn", "activity", "plans", "problems")
+
+
+def serialize_business_profile(business):
+    extra = BusinessProfile.objects.filter(business=business).first()
+    data = {"id": business.id, **{k: getattr(business, k) for k in BUSINESS_FIELDS}}
+    data.update({k: getattr(extra, k, "") for k in AI_FIELDS})
+    return data
+
+
+def _profile_value(body, key):
+    value = body[key]
+    if not isinstance(value, str):
+        raise ApiError(400, f"invalid_{key}")
+    value = value.strip()
+    if key == "inn":
+        if value and not (value.isascii() and value.isdigit() and len(value) == 9):
+            raise ApiError(400, "invalid_inn")
+    elif key == "segment":
+        if value not in {v for v, _ in Business.Segment.choices} | {""}:
+            raise ApiError(400, "invalid_segment")
+    elif key == "tax_regime":
+        if value not in {v for v, _ in Business.TaxRegime.choices}:
+            raise ApiError(400, "invalid_tax_regime")
+    else:
+        if len(value) > PROFILE_TEXT_LIMITS[key]:
+            raise ApiError(400, f"invalid_{key}")
+        if key == "name" and not value:
+            raise ApiError(400, "name_required")
+    return value
+
+
+@api_view("GET", "PATCH")
+def business_profile_view(request):
+    business = request.business
+    if request.method == "PATCH":
+        if request.role != Membership.Role.OWNER or business.is_demo or request.user.username == "demo":
+            raise ApiError(403, "forbidden")
+        body = parse_json(request)
+        values = {k: _profile_value(body, k) for k in BUSINESS_FIELDS + AI_FIELDS if k in body}
+        biz_values = {k: v for k, v in values.items() if k in BUSINESS_FIELDS}
+        ai_values = {k: v for k, v in values.items() if k in AI_FIELDS}
+        with transaction.atomic():
+            for k, v in biz_values.items():
+                setattr(business, k, v)
+            if biz_values:
+                business.save(update_fields=list(biz_values))
+            if ai_values:
+                BusinessProfile.objects.update_or_create(business=business, defaults=ai_values)
+    return json_response(serialize_business_profile(business))

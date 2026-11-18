@@ -1,9 +1,11 @@
 import csv
+import logging
 
 from django.apps import apps
 from django.contrib import admin, messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Max
 from django.http import HttpResponse
 from django.urls import reverse
@@ -12,6 +14,19 @@ from django.utils.html import format_html
 from .models import Business, EmailCode, Membership, Profile
 
 User = get_user_model()
+audit = logging.getLogger("adminx.audit")
+
+
+def _csv_response(filename):
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _csv_cell(value):
+    """Защита от CSV-инъекций: ячейки, начинающиеся с = + - @, экранируются."""
+    text = "" if value is None else str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
 
 
 def _model(app, name):
@@ -53,7 +68,15 @@ class UserAdmin(BaseUserAdmin):
         "username", "email", "first_name", "last_name", "profile__telegram_id",
         "onboarding_profile__phone", "onboarding_profile__telegram",
     )
-    actions = ("export_csv", "block_users", "unblock_users", "deactivate_users")
+    actions = ("export_csv", "block_users", "unblock_users")
+    superuser_actions = ("export_csv", "block_users", "unblock_users")
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.is_superuser:
+            for name in self.superuser_actions:
+                actions.pop(name, None)
+        return actions
 
     def get_queryset(self, request):
         return (
@@ -90,34 +113,43 @@ class UserAdmin(BaseUserAdmin):
 
     @admin.action(description="Экспорт выбранных в CSV")
     def export_csv(self, request, queryset):
-        response = HttpResponse(content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = 'attachment; filename="users.csv"'
+        if not request.user.is_superuser:
+            raise PermissionDenied
+        response = _csv_response("users.csv")
         writer = csv.writer(response)
         writer.writerow(
             ["id", "email", "name", "contacts", "businesses", "date_joined", "last_login", "auth_method", "is_active"]
         )
         for u in queryset.order_by("id"):
-            writer.writerow([
+            writer.writerow([_csv_cell(v) for v in (
                 u.pk, u.email, f"{u.first_name} {u.last_name}".strip(), self.contacts(u), self.businesses(u),
                 u.date_joined.isoformat(), u.last_login.isoformat() if u.last_login else "",
                 self.auth_method(u), u.is_active,
-            ])
+            )])
+        audit.info("users csv export by %s: %s rows", request.user.pk, queryset.count())
         return response
+
+    def _set_active(self, request, queryset, active):
+        if not request.user.is_superuser:
+            raise PermissionDenied
+        count = 0
+        for u in queryset.exclude(pk=request.user.pk):
+            if u.is_active == active:
+                continue
+            u.is_active = active
+            u.save(update_fields=["is_active"])
+            self.log_change(request, u, "Разблокирован" if active else "Заблокирован")
+            audit.info("user %s %s by %s", u.pk, "unblocked" if active else "blocked", request.user.pk)
+            count += 1
+        return count
 
     @admin.action(description="Заблокировать выбранных")
     def block_users(self, request, queryset):
-        count = queryset.exclude(pk=request.user.pk).update(is_active=False)
-        self.message_user(request, f"Заблокировано: {count}", messages.SUCCESS)
+        self.message_user(request, f"Заблокировано: {self._set_active(request, queryset, False)}", messages.SUCCESS)
 
     @admin.action(description="Разблокировать выбранных")
     def unblock_users(self, request, queryset):
-        count = queryset.update(is_active=True)
-        self.message_user(request, f"Разблокировано: {count}", messages.SUCCESS)
-
-    @admin.action(description="Деактивировать выбранных пользователей")
-    def deactivate_users(self, request, queryset):
-        count = queryset.exclude(pk=request.user.pk).update(is_active=False)
-        self.message_user(request, f"Деактивировано: {count}", messages.SUCCESS)
+        self.message_user(request, f"Разблокировано: {self._set_active(request, queryset, True)}", messages.SUCCESS)
 
 
 class BusinessMembershipInline(admin.TabularInline):
@@ -138,6 +170,12 @@ class MemoryFactInline(admin.TabularInline):
     readonly_fields = fields
     can_delete = True
 
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
     def has_add_permission(self, request, obj=None):
         return False
 
@@ -152,6 +190,9 @@ class BusinessProfileInline(admin.StackedInline):
     fields = ("inn", "activity", "plans", "problems")
     readonly_fields = fields
 
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
     def has_add_permission(self, request, obj=None):
         return False
 
@@ -162,19 +203,46 @@ class BusinessProfileInline(admin.StackedInline):
 @admin.register(Business)
 class BusinessAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "name", "industry", "city", "tax_regime", "is_demo", "owner_contact",
+        "id", "name", "industry", "city", "tax_regime", "is_demo", "owner_contact", "members",
         "created", "ops_count", "last_activity", "plan", "open_data",
     )
     list_filter = ("is_demo", "tax_regime", "city")
     search_fields = ("name", "industry", "city")
     inlines = (BusinessMembershipInline, BusinessProfileInline, MemoryFactInline)
     readonly_fields = ("open_data",)
+    actions = ("export_csv",)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.is_superuser:
+            actions.pop("export_csv", None)
+        return actions
+
+    @admin.display(description="Участников", ordering="_members")
+    def members(self, obj):
+        return obj._members
+
+    @admin.action(description="Экспорт выбранных в CSV")
+    def export_csv(self, request, queryset):
+        if not request.user.is_superuser:
+            raise PermissionDenied
+        response = _csv_response("businesses.csv")
+        writer = csv.writer(response)
+        writer.writerow(["id", "name", "industry", "city", "owner", "members", "plan", "created", "last_activity"])
+        for b in queryset.order_by("id"):
+            writer.writerow([_csv_cell(v) for v in (
+                b.pk, b.name, b.industry, b.city, self.owner_contact(b), b._members, self.plan(b),
+                b._created.isoformat() if b._created else "", b._last.isoformat() if b._last else "",
+            )])
+        audit.info("businesses csv export by %s: %s rows", request.user.pk, queryset.count())
+        return response
 
     def get_queryset(self, request):
         return (
             super().get_queryset(request)
             .annotate(
                 _ops=Count("transactions", distinct=True),
+                _members=Count("memberships", distinct=True),
                 _last=Max("transactions__created_at"),
                 _created=Max("memberships__created_at"),
             )

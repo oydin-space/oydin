@@ -223,3 +223,35 @@ class ChatLoopTests(MemoryBase):
         with patch("ai.llm.complete", return_value={"reply": "ок", "suggestions": []}) as c:
             chat.answer(self.biz, self.owner, [{"role": "user", "content": "привет"}])
         self.assertIn("роль owner", c.call_args.args[0])
+
+
+class BusinessProfileApiTests(MemoryBase):
+    url = "/api/business/profile/"
+
+    def patch(self, user, body):
+        self.client.force_login(user)
+        return self.client.patch(self.url, body, content_type="application/json")
+
+    def test_owner_patch_and_get(self):
+        r = self.patch(self.owner, {"name": "Новый", "inn": "123456789", "activity": "Печать", "city": "Самарканд", "plans": "Цех"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["inn"], "123456789")
+        self.biz.refresh_from_db()
+        self.assertEqual((self.biz.name, self.biz.city), ("Новый", "Самарканд"))
+        self.client.force_login(self.seller)
+        g = self.client.get(self.url).json()
+        self.assertEqual((g["name"], g["activity"], g["plans"]), ("Новый", "Печать", "Цех"))
+
+    def test_non_owner_forbidden(self):
+        self.assertEqual(self.patch(self.acc, {"name": "X"}).status_code, 403)
+        self.assertEqual(self.patch(self.seller, {"name": "X"}).status_code, 403)
+
+    def test_demo_forbidden(self):
+        Business.objects.filter(pk=self.biz.pk).update(is_demo=True)
+        self.assertEqual(self.patch(self.owner, {"name": "X"}).status_code, 403)
+
+    def test_invalid(self):
+        for body in ({"inn": "12345"}, {"inn": "12345678a"}, {"name": " "}, {"segment": "x"}, {"inn": 5}):
+            r = self.patch(self.owner, body)
+            self.assertEqual(r.status_code, 400, body)
+            self.assertIn("error", r.json())
