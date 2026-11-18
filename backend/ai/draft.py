@@ -65,17 +65,19 @@ def validate_draft(business, raw, created_by=None):
         amount = int(amount)
     if isinstance(amount, bool) or not isinstance(amount, int) or not 1 <= amount <= MAX_AMOUNT:
         return None
-    if raw.get("direction") not in DIRECTIONS:
+    if raw.get("direction") not in DIRECTIONS or raw.get("direction") == "transfer":
         return None
     account_id = raw.get("account_id")
     if isinstance(account_id, bool) or not isinstance(account_id, int):
         return None
     if not Account.objects.filter(pk=account_id, business=business).exists():
         return None
-    category = canonical_category(_text(raw.get("category"), 80) or "")
-    if not category:
+    raw_category = _text(raw.get("category"), 80)
+    if not raw_category:
         return None
-    purpose = raw.get("purpose") if raw.get("purpose") in PURPOSES else "unclear"
+    existing = Transaction.objects.filter(business=business, category__iexact=raw_category).values_list("category", flat=True).first()
+    category = existing or canonical_category(raw_category)
+    purpose = raw.get("purpose") if raw.get("purpose") in {"business", "personal"} else "unclear"
     draft = {
         "amount": amount, "direction": raw["direction"], "category": category, "purpose": purpose,
         "account_id": account_id, "date": today().isoformat(),

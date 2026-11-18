@@ -77,3 +77,11 @@ class PeriodTests(TestCase):
         self.assertEqual(pl.runway_days(today, 1000, points, 10), 7)
         calm = fc.build_forecast(today, 1000, [], 0, 0, 30)
         self.assertEqual(pl.runway_days(today, 1000, calm, 0), 365)
+
+
+class PulseFutureStartTests(TestCase):
+    def test_period_from_not_after_to(self):
+        user, business, _ = make()
+        today = svc.today()
+        period = svc.pulse(business, start=today + timedelta(days=5), end=today + timedelta(days=9))["period"]
+        self.assertLessEqual(period["from"], period["to"])

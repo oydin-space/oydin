@@ -59,7 +59,7 @@ def subscription(request):
 @api_view("POST")
 @require_role(OWNER)
 def checkout(request):
-    if request.business.is_demo:
+    if request.business.is_demo or request.user.username == "demo":
         # The owner role is fine here; the shared demo tenant just cannot take real payments.
         raise ApiError(403, "demo_tenant")
     throttle(request.user, "checkout", CHECKOUT_PER_MINUTE)

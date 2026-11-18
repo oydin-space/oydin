@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 
 from . import google, otp
 from .access import OWNER, get_profile
+from .consent import LEGAL_VERSION
 from .http import ApiError, api_view, error, json_response, parse_json
 from .models import Business, Membership
 from .services import (
@@ -70,7 +71,7 @@ def demo(request):
     if request.user.is_authenticated and request.user.username != DEMO_USERNAME:
         raise ApiError(409, "already_authenticated")
     version = parse_json(request).get("terms_version")
-    if not isinstance(version, str) or not 0 < len(version) <= 20:
+    if version != LEGAL_VERSION:
         raise ApiError(400, "consent_required")
     user = demo_user()
     profile = get_profile(user)
@@ -227,6 +228,8 @@ def _segment(body):
 
 @api_view("GET", "POST", business=False)
 def businesses(request):
+    if request.method == "POST" and request.user.username == DEMO_USERNAME:
+        raise ApiError(403, "demo_tenant")
     if request.method == "POST":
         body = parse_json(request)
         created = create_business(
@@ -294,7 +297,7 @@ def members(request, business_id):
     if request.method == "GET":
         items = Membership.objects.filter(business_id=business_id).select_related("user").order_by("created_at", "id")
         return json_response({"items": [serialize_member(m) for m in items]})
-    if membership.business.is_demo:
+    if membership.business.is_demo or request.user.username == DEMO_USERNAME:
         raise ApiError(403, "forbidden")
     body = parse_json(request)
     email = otp.normalize_email(body.get("email"))

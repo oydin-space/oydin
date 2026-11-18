@@ -131,8 +131,10 @@ def _finish(business, out, evidence, last_user_text, user=None, code="ru"):
     if draft is None and (out.get("draft") or CLAIMS_SAVED.search(reply)):
         # модель хотела черновик (или уверяет, что «записала»), но поля неверны — берём разбор самой фразы
         draft = drafts.parse_text_draft(business, last_user_text, created_by=user)
+    if draft and draft["amount"] != drafts.parse_amount(last_user_text):
+        draft = None  # сумма черновика должна быть названа пользователем
     if draft:
-        evidence.add(draft["amount"])  # сумма из черновика — со слов пользователя, её можно повторить в ответе
+        evidence.add(draft["amount"])
     if grounding.ungrounded_numbers(reply, evidence):
         return None
     if draft and not DRAFT_WORD.search(reply):

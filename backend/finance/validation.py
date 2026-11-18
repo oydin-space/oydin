@@ -52,7 +52,10 @@ def transaction_fields(body, business, *, partial, instance=None):
             raise ApiError(400, "Категория не должна быть пустой")
         category = category.strip()
         # Клиент мог вернуть локализованную подпись перевода — храним каноническую.
-        category = TRANSFER_CATEGORY if category in T["transfer"].values() else resolve_category(business, category)
+        if instance is not None and category.lower() == instance.category.lower():
+            category = instance.category
+        else:
+            category = TRANSFER_CATEGORY if category in T["transfer"].values() else resolve_category(business, category)
         fields["category"] = category
     if "purpose" in body:
         if body["purpose"] not in PURPOSES:

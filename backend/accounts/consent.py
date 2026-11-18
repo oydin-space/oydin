@@ -44,6 +44,8 @@ def snapshot(user):
 @api_view("GET", "PUT", business=False)
 def consents(request):
     if request.method == "PUT":
+        if request.user.username == "demo":
+            raise ApiError(403, "demo_tenant")
         body = parse_json(request)
         for purpose in PURPOSES:
             if purpose in body and not isinstance(body[purpose], bool):

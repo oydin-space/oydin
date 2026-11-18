@@ -84,7 +84,7 @@ def search_transactions(business, args):
     q = args.get("q")
     if not isinstance(q, str) or not q.strip():
         return {"error": "q обязателен"}
-    qs = fin.search_transactions(fin.confirmed(business), q[:100])[: _int(args.get("limit"), 10, 1, 20)]
+    qs = fin.search_transactions(fin.confirmed(business), categories.canonical(q.strip())[:100])[: _int(args.get("limit"), 10, 1, 20)]
     return {"transactions": [fin.serialize_transaction(t) for t in qs]}
 
 

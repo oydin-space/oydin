@@ -325,3 +325,13 @@ class GroundingLocaleTests(SimpleTestCase):
         self.assertEqual(grounding.ungrounded_numbers("Revenue 12.2M UZS, rent 130K UZS", ev), [])
         self.assertEqual(grounding.ungrounded_numbers("Tushum 12,2 mln soʻm, 130 ming", ev), [])
         self.assertTrue(grounding.ungrounded_numbers("Revenue 99M UZS", ev))
+
+
+class DraftRulesTests(TestCase):
+    def test_transfer_rejected_and_purpose_whitelist(self):
+        business = Business.objects.create(name="r")
+        acc = Account.objects.create(business=business, name="Н", kind="cash")
+        raw = {"amount": 1000, "direction": "out", "category": "Прочее", "account_id": acc.id, "purpose": "owner_draw"}
+        self.assertEqual(draft.validate_draft(business, raw)["purpose"], "unclear")
+        self.assertEqual(draft.validate_draft(business, {**raw, "purpose": "personal"})["purpose"], "personal")
+        self.assertIsNone(draft.validate_draft(business, {**raw, "direction": "transfer"}))

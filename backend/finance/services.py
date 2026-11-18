@@ -232,7 +232,7 @@ def pulse(business, now=None, lang="ru", start=None, end=None):
     gap = notify_gap(business, b, lang)
     obligations = obligation_dicts(business, b)
     end = min(end or b.today, b.today)
-    start = start or end - timedelta(days=29)
+    start = min(start or end - timedelta(days=29), end)
     month = period_totals(business, start, end)
     result = pl.compute_pulse(pl.PulseInput(
         today=b.today, balance=b.balance, points=b.points, gap=gap, obligations=obligations,

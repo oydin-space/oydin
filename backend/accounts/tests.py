@@ -544,3 +544,29 @@ class SegmentTests(TestCase):
         self.assertEqual(bad.status_code, 400)
         me = self.client.get("/api/auth/me/").json()
         self.assertEqual([b["segment"] for b in me["businesses"] if b["id"] == bid], ["retail"])
+
+
+class DemoGuardTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        from .models import Business, Membership, Profile
+
+        self.user = get_user_model().objects.create(username="demo")
+        self.business = Business.objects.create(name="d")
+        Profile.objects.create(user=self.user, business=self.business)
+        self.client.force_login(self.user)
+
+    def test_demo_cannot_create_business_invite_or_change_consents(self):
+        post = lambda url, body: self.client.post(url, body, content_type="application/json")
+        self.assertEqual(post("/api/businesses/", {"name": "X"}).status_code, 403)
+        self.assertEqual(post(f"/api/businesses/{self.business.id}/members/", {"email": "a@b.uz", "role": "seller"}).status_code, 403)
+        r = self.client.put("/api/consents/", {"ai": False}, content_type="application/json")
+        self.assertEqual((r.status_code, r.json()["error"]), (403, "demo_tenant"))
+
+    def test_demo_login_requires_current_terms_version(self):
+        self.client.logout()
+        with override_settings(DEMO_LOGIN=True):
+            for body in ({}, {"terms_version": "old"}):
+                r = self.client.post("/api/auth/demo/", body, content_type="application/json")
+                self.assertEqual((r.status_code, r.json()["error"]), (400, "consent_required"))
